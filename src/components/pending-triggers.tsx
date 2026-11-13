@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/pending-triggers.tsx — 觸價單待確認 (#144). Stop/take
 // triggers that were already past their price when protection resumed are
 // held here instead of sent; the user sends, cancels or keeps each one.
@@ -158,7 +159,7 @@ function Row({ trigger, price, envNow, sending }: {
             {sending && <span className={styles.message}>送出處理中…（若開啟下單確認，請在主視窗確認）</span>}
             {message && <span className={styles.message}>{reveal(message)}</span>}
             <div className={styles.actions}>
-                <button
+                <Button size="compact" variant="default"
                     className={styles.primary}
                     disabled={busy || sending || shown === undefined}
                     title={sendButtonTitle(trigger)}
@@ -176,16 +177,16 @@ function Row({ trigger, price, envNow, sending }: {
                     {sending ? '送出處理中'
                         : confirm === 'send-unpast' ? `目前已未穿價：再按一次仍${style}${act}（目前 ${fmtPrice(shown)}）`
                             : confirm === 'send' ? `再按一次確認：${style}${act}（目前 ${fmtPrice(shown)}）` : `立即送出${style}單`}
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="outline"
                     className={styles.button}
                     disabled={busy}
                     title='先不送單；價格回到觸發價另一側、再次穿過時才會觸發'
                     onClick={() => resolve('keep')}
                 >
                     保留，等再次穿價
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="outline"
                     className={styles.button}
                     disabled={busy}
                     title={trigger.bracketId ? '移除此括號單的追蹤與保護（同組停損停利一併移除）' : '刪除這筆觸價單，不送單'}
@@ -200,7 +201,7 @@ function Row({ trigger, price, envNow, sending }: {
                     {confirm === 'cancel'
                         ? trigger.bracketId ? '再按一次：移除括號單保護' : '再按一次：取消這筆'
                         : trigger.bracketId ? '移除括號單' : '取消這筆'}
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -217,19 +218,19 @@ export function PendingTriggers({ compact = false }: { compact?: boolean }) {
     if (compact) {
         // popouts: a badge only; the decisions are made in the main window
         return (
-            <button className={styles.badge} role='alert' title='在主視窗處理待確認觸價單'
+            <Button size="compact" variant="ghost" className={styles.badge} role='alert' title='在主視窗處理待確認觸價單'
                 onClick={() => void focusMainWindow().catch(() => undefined)}>
                 觸價單待確認 {pending.length} 筆 · 請在主視窗處理
-            </button>
+            </Button>
         );
     }
     return (
         <div className={open ? styles.panel : styles.panelCollapsed} role='alert'>
             <div className={styles.header}>
                 <span className={styles.title}><span className={styles.dot} />觸價單待確認 · {pending.length} 筆</span>
-                <button className={styles.button} onClick={() => setOpen(o => !o)} aria-expanded={open}>
+                <Button size="compact" variant="outline" className={styles.button} onClick={() => setOpen(o => !o)} aria-expanded={open}>
                     {open ? '收合' : '展開'}
-                </button>
+                </Button>
             </div>
             {open && (
                 <>

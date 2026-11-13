@@ -1,3 +1,24 @@
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 // 「背景持續執行（實驗）」 setting (#201 ①-3): off by default, plain words,
 // changes go to the App (which stores them).
 
@@ -27,13 +48,13 @@ function render(): ReactTestRenderer {
     return r;
 }
 const text = (r: ReactTestRenderer) => JSON.stringify(r.toJSON());
-const toggle = (r: ReactTestRenderer) => r.root.findByProps({ 'aria-label': '背景持續執行（實驗）' });
+const toggle = (r: ReactTestRenderer) => r.root.find(n => n.type === 'button' && n.props.role === 'switch');
 
 it('is off until the App says on, and says so without jargon', () => {
     m.health = null;
     m.saved = false;
     const r = render();
-    expect(toggle(r).props['aria-pressed']).toBe(false);
+    expect(toggle(r).props['aria-checked']).toBe(false);
     expect(toggle(r).props.disabled).toBe(true); // no status: cannot change it
     expect(text(r)).toContain('預設關閉');
     expect(text(r)).not.toContain('原生');

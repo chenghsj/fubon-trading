@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/portfolio-sector-panel.tsx — 持股族群 panel: my stock holdings
 // grouped by 族群／產業鏈／題材 against the live group flow.
 //
@@ -44,9 +45,9 @@ export function PortfolioSectorPanel({
                     phase='error'
                     text={data.phase === 'error' ? data.error : '沒有產業鏈資料'}
                     action={
-                        <button type='button' className={panel.btn} onClick={data.retry}>
+                        <Button size="compact" variant="outline" type='button' className={panel.btn} onClick={data.retry}>
                             重試
-                        </button>
+                        </Button>
                     }
                 />
             </div>

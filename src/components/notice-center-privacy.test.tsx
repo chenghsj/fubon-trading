@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 // #268 — 通知中心與 toast 保留產生當下的文字：之後才打開隱私／遮金額時，
 // 已顯示的金額、持倉量與帳號（含伺服器錯誤訊息裡的帳號）都要立即重遮。
 import { createElement } from 'react';
+import { render as renderDom, cleanup, waitFor } from '@testing-library/react';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { Account } from '../lib/types/portfolio';
@@ -42,6 +44,7 @@ function notices(): Notice[] {
 let view: ReactTestRenderer | undefined;
 beforeEach(() => {
     vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true);
+    Object.defineProperty(window, 'matchMedia', { configurable: true, value: (query: string) => ({ matches: false, media: query, onchange: null, addListener() {}, removeListener() {}, addEventListener() {}, removeEventListener() {}, dispatchEvent: () => false }) });
     privacy.setPrivacyMode(false);
     privacy.setPrivacyMoney(false);
     h.log = [];
@@ -49,6 +52,8 @@ beforeEach(() => {
 afterEach(async () => {
     await act(async () => view?.unmount());
     view = undefined;
+    cleanup();
+    vi.restoreAllMocks();
     privacy.setPrivacyMode(false);
     privacy.setPrivacyMoney(false);
     vi.unstubAllGlobals();
@@ -75,10 +80,10 @@ it('通知中心：開隱私前產生的金額、持倉量與帳號在打開後�
 });
 
 it('toast：顯示期間才打開遮金額／隱私也會立即遮', async () => {
-    await act(async () => { view = create(createElement(EventToasts)); });
+    renderDom(createElement(EventToasts));
     await act(async () => { for (const n of notices()) h.noticeListeners.forEach(l => l(n)); });
-    const shown = () => text(view!.root);
-    expect(shown()).toContain('2330 市價賣 8 張');
+    const shown = () => document.body.textContent ?? '';
+    await waitFor(() => expect(shown()).toContain('2330 市價賣 8 張'));
     await act(async () => { privacy.setPrivacyMoney(true); privacy.setPrivacyMode(true); });
     expect(shown()).not.toMatch(/35000|30000|8 張|9816502/);
     expect(shown()).toContain('9A95-•••••02');
@@ -86,9 +91,10 @@ it('toast：顯示期間才打開遮金額／隱私也會立即遮', async () =>
 
 it('guard: notice center and toasts never render the invisible marker characters (text or title), in any toggle state', async () => {
     h.log = notices().map((n, i) => ({ ...n, ts: 1_700_000_000_000 + i }));
-    await act(async () => { view = create(createElement('div', null, createElement(NoticeCenter), createElement(EventToasts))); });
+    renderDom(createElement('div', null, createElement(NoticeCenter), createElement(EventToasts)));
     await act(async () => { for (const n of notices()) h.noticeListeners.forEach(l => l(n)); });
-    const dom = () => JSON.stringify(view!.toJSON());
+    await waitFor(() => expect(document.body.textContent).toContain('2330 市價賣 8 張'));
+    const dom = () => document.body.innerHTML;
     for (const [priv, money] of [[false, false], [true, false], [false, true], [true, true]] as const) {
         await act(async () => { privacy.setPrivacyMode(priv); privacy.setPrivacyMoney(money); });
         expect(dom()).not.toMatch(/[\u2061-\u2063]/);

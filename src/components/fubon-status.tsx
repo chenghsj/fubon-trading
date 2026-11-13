@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import { fetchInfo, type ServerInfo } from '../lib/shioaji';
 import { onStreamEvent } from '../lib/stream';
@@ -39,7 +40,7 @@ export function FubonStatus() {
         <span>{label}</span>
         <span>手動交易 · 自動停損停利尚未支援</span>
         {info?.mode !== 'demo' && info?.connected && <span>{info.session === 'afterhours' ? '夜盤' : '日盤'} · {info.market_connected ? '行情已連線' : '行情等待連線'}</span>}
-        <button type="button" title="鎖定此工作階段，不會取消委託或平倉" onClick={() => { void logoutFubonSession(); }} style={{ background: 'transparent', color: 'inherit', border: '1px solid currentColor', borderRadius: 4, minHeight: 44, padding: '0 12px', cursor: 'pointer' }}>鎖定介面</button>
+        <Button size="compact" variant="ghost" type="button" title="鎖定此工作階段，不會取消委託或平倉" onClick={() => { void logoutFubonSession(); }} >鎖定介面</Button>
         <a className={styles.link} href="https://github.com/chenghsj/fubon-trading" target="_blank" rel="noreferrer">專案與設定說明</a>
     </div>;
 }

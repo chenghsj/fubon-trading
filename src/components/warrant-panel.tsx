@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { RefreshButton } from './refresh-button';
 import { Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -142,26 +145,26 @@ export function WarrantPanel({
                     }}
                 />
                 {(['all', 'C', 'P'] as const).map((value) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={value}
                         className={styles.segment[right === value ? 'on' : 'off']}
                         onClick={() => setRight(value)}
                     >
                         {value === 'all' ? '全部' : value === 'C' ? '認購' : '認售'}
-                    </button>
+                    </Button>
                 ))}
-                <select
+                <NativeSelect
                     className={styles.select}
                     value={expiryDays}
                     aria-label='到期區間'
                     onChange={(event) => setExpiryDays(Number(event.target.value))}
                 >
-                    <option value={90}>90 天內</option>
-                    <option value={180}>180 天內</option>
-                    <option value={365}>一年內</option>
-                    <option value={0}>全部到期日</option>
-                </select>
-                <select
+                    <NativeSelectOption value={90}>90 天內</NativeSelectOption>
+                    <NativeSelectOption value={180}>180 天內</NativeSelectOption>
+                    <NativeSelectOption value={365}>一年內</NativeSelectOption>
+                    <NativeSelectOption value={0}>全部到期日</NativeSelectOption>
+                </NativeSelect>
+                <NativeSelect
                     className={styles.select}
                     value={sort}
                     aria-label='權證排序'
@@ -169,9 +172,9 @@ export function WarrantPanel({
                         setSort(event.target.value as 'moneyness' | 'expiry')
                     }
                 >
-                    <option value='moneyness'>價內外排序</option>
-                    <option value='expiry'>到期日排序</option>
-                </select>
+                    <NativeSelectOption value='moneyness'>價內外排序</NativeSelectOption>
+                    <NativeSelectOption value='expiry'>到期日排序</NativeSelectOption>
+                </NativeSelect>
                 <RefreshButton label="更新報價" loading={quotesLoading} onClick={() => void refreshQuotes()} />
             </div>
             <CatalogRetryAlert catalogError={catalogError} error={error} text='權證資料載入失敗' onRetry={retry} />
@@ -196,7 +199,7 @@ export function WarrantPanel({
                 <div className={styles.empty}><AsyncStatus phase='empty' text='目前篩選條件沒有權證' /></div>
             ) : (
                 <div className={styles.scroll}>
-                    <table className={styles.table}>
+                    <Table containerClassName="contents" className={styles.table}>
                         <colgroup>
                             <col style={{ width: '32%' }} />
                             <col style={{ width: '9%' }} />
@@ -206,18 +209,18 @@ export function WarrantPanel({
                             <col style={{ width: '14%' }} />
                             <col style={{ width: '34px' }} />
                         </colgroup>
-                        <thead>
-                            <tr>
-                                <th className={styles.thLeft}>權證</th>
-                                <th className={styles.th}>類型</th>
-                                <th className={styles.th}>成交</th>
-                                <th className={styles.th}>履約價</th>
-                                <th className={styles.th}>價內外</th>
-                                <th className={styles.th}>到期</th>
-                                <th className={styles.th} aria-label='加入自選' />
-                            </tr>
-                        </thead>
-                        <tbody>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className={styles.thLeft}>權證</TableHead>
+                                <TableHead className={styles.th}>類型</TableHead>
+                                <TableHead className={styles.th}>成交</TableHead>
+                                <TableHead className={styles.th}>履約價</TableHead>
+                                <TableHead className={styles.th}>價內外</TableHead>
+                                <TableHead className={styles.th}>到期</TableHead>
+                                <TableHead className={styles.th} aria-label='加入自選' />
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {filtered.map((contract) => {
                                 const quote = snapshots.get(contract.code);
                                 const distance = moneyness(
@@ -232,7 +235,7 @@ export function WarrantPanel({
                                           : 'flat'
                                     : 'flat';
                                 return (
-                                    <tr
+                                    <TableRow
                                         key={contract.code}
                                         className={styles.row}
                                         title='連動此權證'
@@ -242,40 +245,40 @@ export function WarrantPanel({
                                             onPick(contract.code);
                                         }}
                                     >
-                                        <td className={styles.tdLeft}>
+                                        <TableCell className={styles.tdLeft}>
                                             <strong>{contract.code}</strong>
                                             <span className={styles.contractName}>
                                                 {contract.name}
                                             </span>
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             <span className={styles.badge}>
                                                 {contract.call_put === 'P' ? '認售' : '認購'}
                                             </span>
-                                        </td>
-                                        <td className={`${styles.td} ${panel.dirText[direction]}`}>
+                                        </TableCell>
+                                        <TableCell className={`${styles.td} ${panel.dirText[direction]}`}>
                                             {quote ? fmtPrice(quote.close) : '—'}
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {contract.strike_price
                                                 ? fmtPrice(contract.strike_price)
                                                 : '—'}
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {Number.isFinite(distance)
                                                 ? `${distance >= 0 ? '價外 ' : '價內 '}${Math.abs(distance).toFixed(1)}%`
                                                 : '—'}
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {contract.expiry_date ?? '—'}
                                             <span className={styles.contractName}>
                                                 {Number.isFinite(daysUntil(contract.expiry_date))
                                                     ? `${daysUntil(contract.expiry_date)} 天`
                                                     : ''}
                                             </span>
-                                        </td>
-                                        <td className={styles.td}>
-                                            <button
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
+                                            <Button size="compact" variant="ghost"
                                                 className={styles.iconButton}
                                                 title='加入目前自選清單'
                                                 aria-label={`將 ${contract.code} 加入自選`}
@@ -304,13 +307,13 @@ export function WarrantPanel({
                                                 }}
                                             >
                                                 <Star size={13} />
-                                            </button>
-                                        </td>
-                                    </tr>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </TableBody>
+                    </Table>
                 </div>
             )}
         </div>

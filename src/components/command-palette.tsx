@@ -1,3 +1,6 @@
+import { TerminalDialog } from './terminal-dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 // src/components/command-palette.tsx — Cmd+K symbol jump + panel commands
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type MouseEvent } from 'react';
@@ -139,16 +142,16 @@ export function CommandPalette({
     };
 
     return (
-        <div className={styles.overlay} onClick={closePalette}
+        <TerminalDialog title="搜尋商品與面板" onClose={closePalette} canClose={() => !search.isComposing()} className={styles.box}
             onMouseMove={(event) => { pointerPosition.current = { x: event.clientX, y: event.clientY }; }}>
-            <div className={styles.box} tabIndex={-1} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => {
+            <div tabIndex={-1} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => {
                 if (e.key !== 'Escape' || search.isComposing() || e.nativeEvent?.isComposing || e.keyCode === 229) return;
                 // Claim the press that closes the palette: focus falls back to the
                 // page, where an unclaimed Esc would arm Esc×2 cancel-all.
                 e.preventDefault();
                 closePalette();
             }}>
-                <input
+                <Input
                     ref={inputRef}
                     className={styles.input}
                     placeholder='輸入代碼跳轉商品（2330、TXFR1…）'
@@ -235,16 +238,16 @@ export function CommandPalette({
                 <div className={styles.hint}>
                     <AsyncStatus phase={busy ? 'loading' : error || searchError ? 'error' : searching ? 'loading' : 'idle'}
                         text={busy ? '查詢商品中…' : error ? '找不到此商品代碼' : searchError ? '搜尋失敗，可重試' : searching ? suggestions.length ? '正在補齊關聯商品…' : '搜尋中…' : 'Enter 跳轉 · Esc 關閉'}
-                        action={error || searchError ? <button type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => {
+                        action={error || searchError ? <Button size="compact" variant="ghost" type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => {
                             setError(false);
                             search.retry();
                             // The button disappears with the error; keep typing in the input.
                             inputRef.current?.focus();
-                        }}>{error ? '重新搜尋' : '重試'}</button> : undefined}
+                        }}>{error ? '重新搜尋' : '重試'}</Button> : undefined}
                         className={error || searchError ? styles.err : ''} />
                     <span>⌘K</span>
                 </div>
             </div>
-        </div>
+        </TerminalDialog>
     );
 }

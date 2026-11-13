@@ -19,7 +19,6 @@ export const dialog = style({
     top: '7vh',
     left: '50%',
     transform: 'translateX(-50%)',
-    zIndex: 210,
     width: 'min(38rem, calc(100vw - 32px))',
     // fixed-ish height so switching categories doesn't bounce the layout
     height: 'min(30rem, 84vh)',
@@ -45,6 +44,9 @@ export const body = style({
 
 export const nav = style({
     display: 'flex',
+    height: 'auto',
+    alignItems: 'stretch',
+    justifyContent: 'flex-start',
     flexDirection: 'column',
     gap: '2px',
     width: '9.5rem',

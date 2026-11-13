@@ -16,7 +16,6 @@ export const shell = style({
     top: '8vh',
     left: '50%',
     transform: 'translateX(-50%)',
-    zIndex: 213,
     width: 'min(680px, calc(100vw - 32px))',
 });
 

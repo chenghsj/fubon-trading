@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/portfolio-sector.tsx — body of the 持股族群 panel: the user's
 // stock holdings grouped by 族群（官方產業別）／產業鏈／題材, read against the
 // same live 1-minute K-bar flow as 產業鏈資金流向 (shared feed, chain-feed.tsx).
@@ -218,10 +219,10 @@ export function PortfolioSector({
             <div className={s.root}>
                 <div className={s.empty}>
                     <AsyncStatus phase='error' text={`持股查詢失敗：${holdings.error ?? '未知錯誤'}`} />
-                    <button type='button' className={s.retry} onClick={() => void refreshTradingState('positions')}>
+                    <Button size="compact" variant="ghost" type='button' className={s.retry} onClick={() => void refreshTradingState('positions')}>
                         <RotateCw size={12} aria-hidden='true' />
                         重新查詢
-                    </button>
+                    </Button>
                 </div>
             </div>
         );
@@ -295,10 +296,10 @@ export function PortfolioSector({
                     <span className={s.alert} title={holdings.error}>
                         <AlertTriangle size={11} className={s.alertIcon} aria-hidden='true' />
                         持股查詢失敗，顯示上次結果
-                        <button type='button' className={s.retry} onClick={() => void refreshTradingState('positions')}>
+                        <Button size="compact" variant="ghost" type='button' className={s.retry} onClick={() => void refreshTradingState('positions')}>
                             <RotateCw size={11} aria-hidden='true' />
                             重新查詢
-                        </button>
+                        </Button>
                     </span>
                 )}
                 {alerts.length > 0 ? (

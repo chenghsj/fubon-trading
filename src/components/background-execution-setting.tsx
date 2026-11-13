@@ -1,3 +1,5 @@
+import { Field } from '@/components/ui/field';
+import { Switch } from '@/components/ui/switch';
 // src/components/background-execution-setting.tsx — 「背景持續執行（實驗）」
 // (#201 ①-3). Desktop only, off by default, stored by the App. On: NEW
 // futures / options stop and take triggers are watched and sent by the App
@@ -42,20 +44,19 @@ export function BackgroundExecutionSetting() {
     return (
         <>
             <span className={hud.settingLabel}>背景持續執行（實驗）</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span className={hud.switchLabel} title='期貨與選擇權的停損、停利觸價單改由 App 在背景盯價與送單'>
                     背景持續執行（實驗）
                 </span>
-                <button
-                    className={hud.switchTrack[on ? 'on' : 'off']}
+                <Switch
                     aria-label='背景持續執行（實驗）'
-                    aria-pressed={on}
+                     checked={on}
                     // turning it off always works; on needs a running engine
                     disabled={busy || (!on && !health)}
                     title={on ? '關閉：之後新建的觸價單回到原本的方式' : '開啟：之後新建的條件單在背景執行'}
-                    onClick={toggle}
+                    onCheckedChange={toggle}
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 預設關閉。開啟後，之後新建的觸價單、停損停利、二擇一、括號單與時間條件（期貨、選擇權與股票），
                 會由 App 在背景盯價與送單；重新整理或關掉視窗也不會中斷。到價警示照舊在本視窗。

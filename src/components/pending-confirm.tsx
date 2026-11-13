@@ -1,3 +1,8 @@
+import { RadioGroup, RadioGroupItem } from './ui/radio-group';
+import { FieldSet, FieldLegend } from './ui/field';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 // src/components/pending-confirm.tsx — 委託待確認卡 (#201 ③, A 方案). After a
 // crash / restart the background engine may hold orders it sent but could not
 // confirm (no response, no trade_id, never seen in the order listing). Each
@@ -76,10 +81,10 @@ function OpenOrdersButton() {
     const [missing, setMissing] = useState(false);
     return (
         <>
-            <button type='button' className={styles.button} onClick={() => setMissing(!requestOpenOrdersTab())}
+            <Button size="compact" variant="outline" type='button' className={styles.button} onClick={() => setMissing(!requestOpenOrdersTab())}
                 title='切到下方「委託」分頁（全部狀態、全部帳戶）並更新一次'>
                 <ListChecks size={12} aria-hidden />開啟委託查詢
-            </button>
+            </Button>
             {missing && (
                 <span className={styles.note.warn}>目前版面沒有委託區，請從面板庫加入下方 Dock 後再核對</span>
             )}
@@ -116,10 +121,10 @@ function HandledButton({ item, envNow }: { item: PendingConfirmItem; envNow: str
     if (!asking) {
         return (
             // 「我已自行處理」 as an icon; the next step still explains and asks once
-            <button type='button' className={styles.iconButton} disabled={busy} data-testid='pending-handled'
+            <Button size="compact" variant="ghost" type='button' className={styles.iconButton} disabled={busy} data-testid='pending-handled'
                 title={HANDLED_TEXT} aria-label={HANDLED_TEXT} onClick={() => setAsking(true)}>
                 <Trash2 size={13} aria-hidden />
-            </button>
+            </Button>
         );
     }
     return (
@@ -131,11 +136,11 @@ function HandledButton({ item, envNow }: { item: PendingConfirmItem; envNow: str
             </div>
             {error && <div className={styles.note.err} role='alert'>{error}</div>}
             <div className={styles.stepRow}>
-                <button type='button' className={styles.button} disabled={busy} onClick={() => setAsking(false)}>返回</button>
-                <button type='button' className={styles.primary} disabled={busy}
+                <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy} onClick={() => setAsking(false)}>返回</Button>
+                <Button size="compact" variant="default" type='button' className={styles.primary} disabled={busy}
                     onClick={() => void run(() => resolvePendingConfirm(item, 'handledByUser'))}>
                     {busy ? '處理中…' : '確認我已自行處理'}
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -154,10 +159,10 @@ function ConfirmCard({ item, envNow, handled }: { item: PendingConfirmItem; envN
             <div className={styles.cardTitle}>
                 <TriangleAlert size={13} aria-hidden />
                 <span className={styles.grow}>送出結果不明，請核對委託</span>
-                <button type='button' className={styles.iconButton} aria-label='為什麼要確認'
+                <Button size="compact" variant="ghost" type='button' className={styles.iconButton} aria-label='為什麼要確認'
                     aria-expanded={why} onClick={() => setWhy(w => !w)}>
                     <CircleHelp size={13} aria-hidden />
-                </button>
+                </Button>
             </div>
             {why && (
                 <div className={styles.note.muted}>
@@ -174,18 +179,16 @@ function ConfirmCard({ item, envNow, handled }: { item: PendingConfirmItem; envN
             <div className={styles.stepRow}>
                 <span className={styles.stepLabel}>② 核對結果</span>
             </div>
-            <div className={styles.choices} role='radiogroup' aria-label='核對結果'>
-                <label className={styles.choice}>
-                    <input type='radio' name={`pc-${item.id}`} checked={choice === 'confirmedSent'} disabled={locked}
-                        onChange={() => setChoice('confirmedSent')} />
+            <FieldSet disabled={locked}><FieldLegend className="sr-only">核對結果</FieldLegend><RadioGroup value={choice ?? ''} onValueChange={next => setChoice(next as Choice)} disabled={locked} className={styles.choices} aria-label="核對結果">
+                <Label className={styles.choice}>
+                    <RadioGroupItem value="confirmedSent" />
                     <span>已確認已送出或已成交<span className={styles.note.muted}>（委託、成交或持倉找得到）</span></span>
-                </label>
-                <label className={styles.choice}>
-                    <input type='radio' name={`pc-${item.id}`} checked={choice === 'confirmedNotSent'} disabled={locked}
-                        onChange={() => setChoice('confirmedNotSent')} />
+                </Label>
+                <Label className={styles.choice}>
+                    <RadioGroupItem value="confirmedNotSent" />
                     <span>確認沒有送出，取消這筆<span className={styles.note.muted}>（已確定券商沒有收到；無法確定就先不要選）</span></span>
-                </label>
-            </div>
+                </Label>
+            </RadioGroup></FieldSet>
             {!here && (
                 <div className={styles.note.warn}>
                     {envNow ? `這筆屬於${protectionEnvLabel(item.env)}環境，切回${protectionEnvLabel(item.env)}環境才能核對與確認`
@@ -193,7 +196,7 @@ function ConfirmCard({ item, envNow, handled }: { item: PendingConfirmItem; envN
                 </div>
             )}
             {error && <div className={styles.note.err} role='alert'>{error}</div>}
-            <button
+            <Button size="compact" variant="default"
                 type='button'
                 className={styles.primary}
                 disabled={locked || choice === null}
@@ -201,7 +204,7 @@ function ConfirmCard({ item, envNow, handled }: { item: PendingConfirmItem; envN
                 onClick={() => { if (choice) void run(() => resolvePendingConfirm(item, choice)); }}
             >
                 {busy ? '處理中…' : primaryLabel}
-            </button>
+            </Button>
             <div className={styles.note.muted}>這張卡不會送出任何委託，也不會自動重送。若要重新下單，請到下單面板自行下單。</div>
             {handled && <HandledButton item={item} envNow={envNow} />}
         </div>
@@ -243,10 +246,10 @@ function Rearm({ item, envNow }: { item: PendingConfirmItem; envNow: string | nu
     if (!pos) {
         return (
             <>
-                <button type='button' className={styles.button} disabled={busy || !!blocked} title={blocked ?? undefined}
+                <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy || !!blocked} title={blocked ?? undefined}
                     onClick={openIt}>
                     <RotateCcw size={12} aria-hidden /> 在新盤別重新啟用
-                </button>
+                </Button>
                 {blocked && <div className={styles.note.muted}>{blocked}</div>}
             </>
         );
@@ -266,19 +269,19 @@ function Rearm({ item, envNow }: { item: PendingConfirmItem; envNow: string | nu
             {qty !== null && plan.quantity !== null && qty !== String(plan.quantity) && (
                 <div className={styles.note.warn}>{`建議 ${plan.quantity} ${unit}，目前輸入 ${qty || '?'} ${unit}`}</div>
             )}
-            <label className={styles.stepRow}>
+            <Label className={styles.stepRow}>
                 <span className={styles.stepLabel}>數量（{unit}）</span>
-                <input aria-label='重新啟用口數' inputMode='numeric' value={value} disabled={busy || loading}
+                <Input aria-label='重新啟用口數' inputMode='numeric' value={value} disabled={busy || loading}
                     onChange={e => setQty(e.target.value.trim())} />
-            </label>
+            </Label>
             <div className={styles.note.muted}>
                 不會立即送單：只在這個盤別重新開始盯價，價格穿過觸發價時才照一般流程送出。若現在價格已經穿過，會先列在「觸價單待確認」由你決定。
                 重新啟用為單次觸價；若要循環，請到觸價單設定另行開啟。
             </div>
             {error && <div className={styles.note.err} role='alert'>{error}</div>}
             <div className={styles.stepRow}>
-                <button type='button' className={styles.button} disabled={busy} onClick={() => { setPos(null); setQty(null); }}>返回</button>
-                <button type='button' className={styles.primary} disabled={busy || loading || !valid || !!blocked}
+                <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy} onClick={() => { setPos(null); setQty(null); }}>返回</Button>
+                <Button size="compact" variant="default" type='button' className={styles.primary} disabled={busy || loading || !valid || !!blocked}
                     onClick={() => void run(async () => {
                         // the cap comes from the same read the suggestion did
                         const over = checkRearmQuantity(item, n, pos.state === 'ok' ? pos.view : UNKNOWN);
@@ -286,7 +289,7 @@ function Rearm({ item, envNow }: { item: PendingConfirmItem; envNow: string | nu
                         await resolvePendingConfirm(item, 'rearmInNewSession', { quantity: n });
                     })}>
                     {busy ? '處理中…' : `確認重新啟用（${act} ${valid ? n : '?'} ${unit}）`}
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -311,10 +314,10 @@ function ExpiredCard({ item, rearm, envNow, handled }: { item: PendingConfirmIte
             {error && <div className={styles.note.err} role='alert'>{error}</div>}
             <div className={styles.stepRow}>
                 <OpenOrdersButton />
-                <button type='button' className={styles.button} disabled={busy}
+                <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy}
                     onClick={() => void run(() => resolvePendingConfirm(item, 'acknowledgeExpired'))}>
                     {busy ? '處理中…' : '知道了，移除'}
-                </button>
+                </Button>
                 {handled && <HandledButton item={item} envNow={envNow} />}
             </div>
             {item.rearmed && (
@@ -340,14 +343,14 @@ export function PendingConfirmPanel({ compact = false }: { compact?: boolean }) 
     if (compact) {
         return (
             <div className={styles.badgeWrap} role='status'>
-                <button type='button' className={styles.badge} title='在主視窗處理待確認委託'
+                <Button size="compact" variant="ghost" type='button' className={styles.badge} title='在主視窗處理待確認委託'
                     onClick={() => void focusMainWindow().catch(() => undefined)}>
                     <TriangleAlert size={12} aria-hidden />
                     {!snapshot || error ? '委託待確認狀態無法取得'
                         : confirm.length === 0 && expired.length > 0 ? `委託已失效 ${expired.length} 筆`
                             : `委託待確認 ${confirm.length} 筆`}
                     {subscriptionError ? '（不會自動更新）' : ''} · 請在主視窗處理
-                </button>
+                </Button>
             </div>
         );
     }
@@ -362,10 +365,10 @@ export function PendingConfirmPanel({ compact = false }: { compact?: boolean }) 
                     <TriangleAlert size={14} aria-hidden />{quiet ? '委託已失效' : '委託待確認'}
                     {counts && <span className={styles.count}>{counts}</span>}
                 </span>
-                <button type='button' className={styles.button} onClick={() => setOpen(o => !o)} aria-expanded={open}>
+                <Button size="compact" variant="outline" type='button' className={styles.button} onClick={() => setOpen(o => !o)} aria-expanded={open}>
                     {open ? <ChevronDown size={12} aria-hidden /> : <ChevronUp size={12} aria-hidden />}
                     {open ? '收合' : '展開'}
-                </button>
+                </Button>
             </div>
             {open && (
                 <>
@@ -380,9 +383,9 @@ export function PendingConfirmPanel({ compact = false }: { compact?: boolean }) 
                             <span className={`${styles.note.err} ${styles.grow}`} role='alert'>
                                 {[error, subscriptionError].filter(Boolean).join('；')}
                             </span>
-                            <button type='button' className={styles.button} onClick={() => void refreshPendingConfirm()}>
+                            <Button size="compact" variant="outline" type='button' className={styles.button} onClick={() => void refreshPendingConfirm()}>
                                 <RefreshCw size={12} aria-hidden />重新整理
-                            </button>
+                            </Button>
                         </div>
                     )}
                     {confirm.map(i => <ConfirmCard key={`${generation}:${snapshot?.runId}:${i.id}:${i.revision}`} item={i} envNow={envNow}

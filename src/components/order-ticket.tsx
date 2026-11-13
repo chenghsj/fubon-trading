@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from '../lib/fubon-support';
 import { canTrade } from '../lib/account-tradable';
 // src/components/order-ticket.tsx — buy/sell ticket with two-step EXECUTE.
@@ -782,7 +785,7 @@ export function OrderTicket({
         <div className={styles.body}>
                 {activeAccount && (
                     <div className={styles.chipRow} ref={chipRef}>
-                        <button
+                        <Button size="compact" variant="destructive"
                             className={
                                 styles.acctChip[
                                     production
@@ -806,7 +809,7 @@ export function OrderTicket({
                             {acctTag} {activeAccount.broker_id}-
                             {maskAccountId(activeAccount.account_id, priv)}
                             {multi && <ChevronDown size={11} />}
-                        </button>
+                        </Button>
                         {production && (
                             <span className={styles.prodTag}>正式</span>
                         )}
@@ -816,7 +819,7 @@ export function OrderTicket({
                                     const on =
                                         acctKey(a) === acctKey(activeAccount);
                                     return (
-                                        <button
+                                        <Button size="compact" variant="ghost"
                                             key={acctKey(a)}
                                             className={
                                                 styles.acctMenuItem[
@@ -840,7 +843,7 @@ export function OrderTicket({
                                             {acctTag} {a.broker_id}-
                                             {maskAccountId(a.account_id, priv)}
                                             （{maskName(a.username, priv)}）
-                                        </button>
+                                        </Button>
                                     );
                                 })}
                             </div>
@@ -849,7 +852,7 @@ export function OrderTicket({
                 )}
 
                 <div className={styles.sideTabs}>
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.buyTab[action === 'Buy' ? 'on' : 'off']}
                         onClick={() => {
                             setAction('Buy');
@@ -857,8 +860,8 @@ export function OrderTicket({
                         }}
                     >
                         買進 Buy
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="ghost"
                         className={
                             styles.sellTab[action === 'Sell' ? 'on' : 'off']
                         }
@@ -868,12 +871,12 @@ export function OrderTicket({
                         }}
                     >
                         賣出 Sell
-                    </button>
+                    </Button>
                 </div>
 
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>價格</span>
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => {
                             priceTouched.current = true;
@@ -896,8 +899,8 @@ export function OrderTicket({
                         }}
                     >
                         −
-                    </button>
-                    <input
+                    </Button>
+                    <Input
                         className={styles.numInput}
                         value={priceType === 'LMT' ? price : 'MKT'}
                         disabled={priceType !== 'LMT'}
@@ -909,7 +912,7 @@ export function OrderTicket({
                         }}
                         inputMode='decimal'
                     />
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => {
                             priceTouched.current = true;
@@ -923,18 +926,18 @@ export function OrderTicket({
                         }}
                     >
                         +
-                    </button>
+                    </Button>
                 </div>
 
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>數量{qtyUnit}</span>
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => setQty((q) => Math.max(1, q - 1))}
                     >
                         −
-                    </button>
-                    <input
+                    </Button>
+                    <Input
                         className={styles.numInput}
                         value={qty}
                         aria-label={`數量（${qtyUnit}）`}
@@ -944,19 +947,19 @@ export function OrderTicket({
                         }}
                         inputMode='numeric'
                     />
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => setQty((q) => (odd ? clampLotQuantity(q + 1, orderLot) : q + 1))}
                     >
                         +
-                    </button>
+                    </Button>
                 </div>
 
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>價別</span>
                     <div className={styles.segGroup}>
                         {priceTypesFor(isFutures).map((pt) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={pt}
                                 className={`${styles.seg[priceType === pt ? 'on' : 'off']} ${pt !== 'LMT' && warrantMarketBlock ? styles.segRuleLocked : ''}`}
                                 disabled={!!(priceTypeDisabledReason(pt, odd) ?? (pt !== 'LMT' ? warrantMarketBlock : null))}
@@ -969,7 +972,7 @@ export function OrderTicket({
                             >
                                 {pt !== 'LMT' && warrantMarketBlock && <Lock size={9} aria-hidden className={styles.segLockIcon} />}
                                 {pt}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -984,7 +987,7 @@ export function OrderTicket({
                     <span className={styles.fieldLabel}>效期</span>
                     <div className={styles.segGroup}>
                         {ORDER_TYPES.map((ot) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={ot}
                                 className={
                                     styles.seg[orderType === ot ? 'on' : 'off']
@@ -997,7 +1000,7 @@ export function OrderTicket({
                                 }}
                             >
                                 {ot}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -1007,7 +1010,7 @@ export function OrderTicket({
                         <span className={styles.fieldLabel}>倉別</span>
                         <div className={styles.segGroup}>
                             {FUTURES_OCTYPES.map(({ value: oc, label }) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={oc}
                                     className={
                                         styles.seg[octype === oc ? 'on' : 'off']
@@ -1018,7 +1021,7 @@ export function OrderTicket({
                                     }}
                                 >
                                     {label}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </div>
@@ -1033,7 +1036,7 @@ export function OrderTicket({
                                     ['Odd', '盤後零股'],
                                 ] as const
                             ).filter(([lot]) => !warrant || lot === 'Common').map(([lot, label]) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={lot}
                                     className={
                                         styles.seg[
@@ -1072,7 +1075,7 @@ export function OrderTicket({
                                     }}
                                 >
                                     {label}
-                                </button>
+                                </Button>
                             ))}
                         </div>
                     </div>
@@ -1111,7 +1114,7 @@ export function OrderTicket({
                                         item.value === 'MarginTrading',
                                 )
                                 .map((item) => (
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         key={item.value}
                                         className={
                                             styles.seg[
@@ -1137,7 +1140,7 @@ export function OrderTicket({
                                         }}
                                     >
                                         {item.label}
-                                    </button>
+                                    </Button>
                                 ))}
                         </div>
                     </div>
@@ -1153,7 +1156,7 @@ export function OrderTicket({
                         <div className={styles.fieldRow}>
                             <span className={styles.fieldLabel}>沖賣</span>
                             <div className={styles.segGroup}>
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={
                                         styles.seg[daytradeShort ? 'on' : 'off']
                                     }
@@ -1166,7 +1169,7 @@ export function OrderTicket({
                                     {daytradeShort
                                         ? '✓ 現沖先賣（當日回補）'
                                         : '現股當沖先賣'}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -1175,7 +1178,7 @@ export function OrderTicket({
                     <div className={styles.fieldRow}>
                         <span className={styles.fieldLabel}>括號單</span>
                         <div className={styles.segGroup}>
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={`${styles.seg[bracketOn ? 'on' : 'off']} ${warrantBracketBlock ? styles.segRuleLocked : ''}`}
                                 // 外國標的權證：關著就停用（附原因）；已開著仍可按掉
                                 disabled={isFubonBroker() || (!!warrantBracketBlock && !bracketOn)}
@@ -1187,7 +1190,7 @@ export function OrderTicket({
                                 {bracketOn
                                     ? '✓ 成交後自動掛保護'
                                     : '停損停利保護'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -1195,14 +1198,14 @@ export function OrderTicket({
                     <div className={styles.fieldRow}>
                         <span className={styles.fieldLabel}>損/利</span>
                         <div className={styles.bracketInputs}>
-                            <input
+                            <Input
                                 className={styles.bracketInput}
                                 placeholder='停損價'
                                 value={stopPrice}
                                 inputMode='decimal'
                                 onChange={(e) => setStopPrice(e.target.value)}
                             />
-                            <input
+                            <Input
                                 className={styles.bracketInput}
                                 placeholder='停利價'
                                 value={takePrice}
@@ -1217,13 +1220,13 @@ export function OrderTicket({
                     <div className={styles.fieldRow}>
                         <span className={styles.fieldLabel}>分倉</span>
                         <div className={styles.segGroup}>
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.seg[splitOpen ? 'on' : 'off']}
                                 onClick={openSplit}
                                 title='將同一筆單拆到多個帳戶送出'
                             >
                                 {splitOpen ? '✓ 分倉下單' : '多帳戶分倉'}
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -1233,7 +1236,7 @@ export function OrderTicket({
                         <div className={styles.fieldRow}>
                             <span className={styles.fieldLabel}>模式</span>
                             <div className={styles.segGroup}>
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={
                                         styles.seg[
                                             splitMode === 'ratio'
@@ -1245,8 +1248,8 @@ export function OrderTicket({
                                     title='每戶填 %，總量取上方數量欄'
                                 >
                                     比例
-                                </button>
-                                <button
+                                </Button>
+                                <Button size="compact" variant="ghost"
                                     className={
                                         styles.seg[
                                             splitMode === 'fixed'
@@ -1258,7 +1261,7 @@ export function OrderTicket({
                                     title='每戶直接填數量，總量＝各戶合計'
                                 >
                                     固定
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -1273,7 +1276,7 @@ export function OrderTicket({
                                 </span>
                                 {splitMode === 'ratio' ? (
                                     <>
-                                        <input
+                                        <Input
                                             className={styles.splitInput}
                                             value={ratios[acctKey(a)] ?? ''}
                                             inputMode='decimal'
@@ -1292,7 +1295,7 @@ export function OrderTicket({
                                     </>
                                 ) : (
                                     <>
-                                        <input
+                                        <Input
                                             className={styles.splitInput}
                                             value={fixedQty[acctKey(a)] ?? ''}
                                             inputMode='numeric'
@@ -1330,8 +1333,8 @@ export function OrderTicket({
 
                         {splitMode === 'ratio' && (
                             <div className={styles.presetRow}>
-                                <select
-                                    className={styles.presetSelect}
+                                <NativeSelect
+                                    wrapperClassName="min-w-0 flex-1" className={styles.presetSelect}
                                     value={presetSel}
                                     onChange={(e) => {
                                         const name = e.target.value;
@@ -1355,14 +1358,14 @@ export function OrderTicket({
                                         }
                                     }}
                                 >
-                                    <option value=''>套用分配 preset…</option>
+                                    <NativeSelectOption value=''>套用分配 preset…</NativeSelectOption>
                                     {presets.map((p) => (
-                                        <option key={p.name} value={p.name}>
+                                        <NativeSelectOption key={p.name} value={p.name}>
                                             {p.name}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
-                                <button
+                                </NativeSelect>
+                                <Button size="compact" variant="outline"
                                     className={styles.presetBtn}
                                     disabled={!presetSel}
                                     onClick={() => {
@@ -1373,8 +1376,8 @@ export function OrderTicket({
                                     }}
                                 >
                                     刪除
-                                </button>
-                                <input
+                                </Button>
+                                <Input
                                     className={styles.presetInput}
                                     placeholder='preset 名稱'
                                     value={presetName}
@@ -1382,7 +1385,7 @@ export function OrderTicket({
                                         setPresetName(e.target.value)
                                     }
                                 />
-                                <button
+                                <Button size="compact" variant="outline"
                                     className={styles.presetBtn}
                                     disabled={!presetName.trim()}
                                     onClick={() => {
@@ -1407,7 +1410,7 @@ export function OrderTicket({
                                     }}
                                 >
                                     儲存
-                                </button>
+                                </Button>
                             </div>
                         )}
 
@@ -1462,7 +1465,7 @@ export function OrderTicket({
                 />
 
                 {splitOpen ? (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={
                             styles.execBtn[
                                 splitArmed
@@ -1482,9 +1485,9 @@ export function OrderTicket({
                               : splitArmed
                                 ? `確認分倉${action === 'Buy' ? '買進' : '賣出'} ${splitTotal}${qtyUnit}／${allocation.length} 戶`
                                 : `分倉${action === 'Buy' ? '買進' : '賣出'}（${allocation.length} 戶）`}
-                    </button>
+                    </Button>
                 ) : (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={
                             styles.execBtn[
                                 armed
@@ -1506,7 +1509,7 @@ export function OrderTicket({
                                 : action === 'Buy'
                                   ? '買進下單'
                                   : '賣出下單'}
-                    </button>
+                    </Button>
                 )}
 
             {feedback && (

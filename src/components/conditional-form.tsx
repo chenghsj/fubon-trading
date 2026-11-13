@@ -1,3 +1,10 @@
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Field } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 // src/components/conditional-form.tsx — 新增條件單 (#226, design v4). The
 // form only builds a request; the trigger engine validates and owns it.
 // Pressing 建立 is the approval of the order it will send: when the
@@ -94,41 +101,41 @@ function TargetRows({ target }: { target: Target }) {
     const name = target.resolved ? contractLabel(target.resolved, target.contract) : '';
     return (
         <>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>商品</span>
-                <input className={styles.inputWide} value={target.code} aria-label='商品代碼'
+                <Input className={styles.inputWide} value={target.code} aria-label='商品代碼'
                     onChange={e => target.setCode(e.target.value)}
                     onBlur={e => target.resolve(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') target.resolve((e.target as HTMLInputElement).value); }} />
                 <span className={styles.muted}>
                     {target.lookupError ?? (target.contract ? `${name !== target.resolved ? `${name} · ` : ''}現價 ${last === undefined ? '—' : fmtNum(last)}` : '輸入代碼後按 Enter')}
                 </span>
-            </div>
-            <div className={styles.formRow}>
+            </Field>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>帳戶</span>
                 {target.accounts.length === 0 ? (
                     <span className={styles.tone.err}>沒有可下單的{target.futures ? '期貨' : '證券'}帳戶</span>
                 ) : (
-                    <select className={styles.select} aria-label='帳戶' value={target.account ? accountKey(target.account) : ''}
+                    <NativeSelect className={styles.select} aria-label='帳戶' value={target.account ? accountKey(target.account) : ''}
                         onChange={e => target.setAccountId(e.target.value)}>
                         {target.accounts.map(a => (
-                            <option key={accountKey(a)} value={accountKey(a)}>
+                            <NativeSelectOption key={accountKey(a)} value={accountKey(a)}>
                                 {a.account_type === 'F' ? '[期]' : '[證]'} {maskAccountId(a.account_id, priv)}
-                            </option>
+                            </NativeSelectOption>
                         ))}
-                    </select>
+                    </NativeSelect>
                 )}
-            </div>
+            </Field>
             {target.contract && !target.futures && isWarrantContract(target.contract) && (
-                <div className={styles.formRow} data-testid='cond-warrant-note'>
+                <Field orientation="horizontal" className={styles.formRow} data-testid='cond-warrant-note'>
                     <span className={styles.label}>單位</span>
                     <span className={styles.muted}>
                         權證只能整張現股（1 張 = 1,000 單位）{isForeignUnderlyingWarrant(target.contract.code) ? `；${WARRANT_FLASH_TEXT.foreignTriggerMenu}，也不能附停損停利` : ''}
                     </span>
-                </div>
+                </Field>
             )}
             {target.contract && !target.futures && !isWarrantContract(target.contract) && (
-                <div className={styles.formRow}>
+                <Field orientation="horizontal" className={styles.formRow}>
                     <span className={styles.label}>單位</span>
                     <Seg label='單位' value={target.lot} onChange={target.setLot}
                         options={[{ id: 'Common', label: '整股' }, { id: 'IntradayOdd', label: '盤中零股' },
@@ -138,7 +145,7 @@ function TargetRows({ target }: { target: Target }) {
                             { id: 'MarginTrading', label: '融資', disabled: true, title: '條件單目前只送現股；融資融券請用下單面板' },
                             { id: 'ShortSelling', label: '融券', disabled: true, title: '條件單目前只送現股；融資融券請用下單面板' }]} />
                     {target.lot === 'IntradayOdd' && <span className={styles.muted}>零股以漲跌停價限價送出、只看成交價</span>}
-                </div>
+                </Field>
             )}
         </>
     );
@@ -152,15 +159,12 @@ function Seg<T extends string>({ value, options, onChange, tone, label }: {
     label: string;
 }) {
     return (
-        <span className={styles.seg} role='radiogroup' aria-label={label}>
-            {options.map(o => (
-                <button key={o.id} type='button' role='radio' aria-checked={value === o.id} disabled={o.disabled} title={o.title}
-                    className={value === o.id ? styles.segItem[tone ? tone(o.id) : 'on'] : styles.segItem.off}
-                    onClick={() => onChange(o.id)}>
-                    {o.label}
-                </button>
-            ))}
-        </span>
+        <ToggleGroup type="single" value={value} onValueChange={next => { if (next) onChange(next as T); }} className={styles.seg} aria-label={label}>
+            {options.map(o => <ToggleGroupItem key={o.id} value={o.id} disabled={o.disabled} title={o.title}
+                className={value === o.id ? styles.segItem[tone ? tone(o.id) : 'on'] : styles.segItem.off}>
+                {o.label}
+            </ToggleGroupItem>)}
+        </ToggleGroup>
     );
 }
 
@@ -190,7 +194,7 @@ export function SendControl({ value, onChange, futures, label = '觸發後', mar
     marketBlock?: string | null;
 }) {
     return (
-        <div className={styles.formRow}>
+        <Field orientation="horizontal" className={styles.formRow}>
             <span className={styles.label}>{label}</span>
             <Seg label={label} value={value.type} onChange={type => onChange({ ...value, type })}
                 options={[
@@ -202,12 +206,12 @@ export function SendControl({ value, onChange, futures, label = '觸發後', mar
             {value.type === 'LMT' && (
                 <>
                     <span>觸發價</span>
-                    <input className={styles.inputNarrow} value={value.ticks} inputMode='numeric' aria-label='限價檔數'
+                    <Input className={styles.inputNarrow} value={value.ticks} inputMode='numeric' aria-label='限價檔數'
                         onChange={e => onChange({ ...value, ticks: e.target.value })} />
                     <span>檔</span>
                 </>
             )}
-        </div>
+        </Field>
     );
 }
 
@@ -231,30 +235,30 @@ export function ValidityControl({ value, onChange, market, allowNone }: {
 }) {
     const res = validityOf(value, market);
     return (
-        <div className={styles.formRow}>
+        <Field orientation="horizontal" className={styles.formRow}>
             <span className={styles.label}>有效期</span>
             <Seg label='有效期' value={value.type} onChange={type => onChange({ ...value, type })}
                 options={[{ id: 'session', label: '本盤' }, { id: 'today', label: '今日' }, { id: 'date', label: '指定日' },
                     ...(allowNone ? [{ id: 'none' as const, label: '直到取消' }] : [])]} />
             {value.type === 'date' && (
-                <input className={styles.input} type='date' value={value.date} aria-label='指定日' onChange={e => onChange({ ...value, date: e.target.value })} />
+                <Input className={styles.input} type='date' value={value.date} aria-label='指定日' onChange={e => onChange({ ...value, date: e.target.value })} />
             )}
             {res !== null && (
                 <span className={typeof res === 'string' ? styles.tone.err : styles.muted}>
                     {typeof res === 'string' ? res : `${fmtUntil(res.until)} 失效`}
                 </span>
             )}
-        </div>
+        </Field>
     );
 }
 
 function QtyInput({ qty, setQty, unit, quick = QUICK_QTY }: { qty: string; setQty: (v: string) => void; unit: string; quick?: number[] }) {
     return (
         <>
-            <input className={styles.inputNarrow} value={qty} inputMode='numeric' aria-label='數量' onChange={e => setQty(e.target.value)} />
+            <Input className={styles.inputNarrow} value={qty} inputMode='numeric' aria-label='數量' onChange={e => setQty(e.target.value)} />
             <span>{unit}</span>
             {quick.map(n => (
-                <button key={n} type='button' className={styles.button.plain} onClick={() => setQty(String(n))}>{n}</button>
+                <Button size="compact" variant="outline" key={n} type='button' className={styles.button.plain} onClick={() => setQty(String(n))}>{n}</Button>
             ))}
         </>
     );
@@ -265,8 +269,8 @@ function Footer({ busy, problem, onClose, onSubmit }: { busy: boolean; problem: 
         <div className={styles.dialogFoot} style={{ margin: '12px -12px -12px' }}>
             {problem && <span className={styles.muted}>{problem}</span>}
             <span className={styles.grow} />
-            <button type='button' className={styles.button.plain} onClick={onClose}>取消</button>
-            <button type='button' className={styles.button.primary} disabled={busy || !!problem} onClick={onSubmit}>建立</button>
+            <Button size="compact" variant="outline" type='button' className={styles.button.plain} onClick={onClose}>取消</Button>
+            <Button size="compact" variant="default" type='button' className={styles.button.primary} disabled={busy || !!problem} onClick={onSubmit}>建立</Button>
         </div>
     );
 }
@@ -384,27 +388,27 @@ function TriggerForm({ target, onClose, defaults }: { target: Target; onClose: (
     const opWord = op === 'crossDown' ? '下穿' : op === 'crossUp' ? '上穿' : condition === 'below' ? '≤' : '≥';
     return (
         <>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>條件</span>
-                <select className={styles.select} aria-label='價格來源' value={odd ? 'last' : source} disabled={odd}
+                <NativeSelect className={styles.select} aria-label='價格來源' value={odd ? 'last' : source} disabled={odd}
                     title={odd ? '零股觸價單只看成交價' : undefined} onChange={e => setSource(e.target.value as 'last' | 'opposite')}>
-                    <option value='last'>成交價</option>
-                    <option value='opposite'>對手價</option>
-                </select>
+                    <NativeSelectOption value='last'>成交價</NativeSelectOption>
+                    <NativeSelectOption value='opposite'>對手價</NativeSelectOption>
+                </NativeSelect>
                 <Seg label='條件' value={op} onChange={setOp}
                     options={[{ id: 'below', label: '≤' }, { id: 'above', label: '≥' }, { id: 'crossDown', label: '下穿' }, { id: 'crossUp', label: '上穿' }]} />
-                <input className={styles.input} value={price} inputMode='decimal' aria-label='觸發價' placeholder='觸發價'
+                <Input className={styles.input} value={price} inputMode='decimal' aria-label='觸發價' placeholder='觸發價'
                     onChange={e => setPrice(e.target.value)} />
                 {p !== null && last !== undefined && (
                     <span className={styles.muted}>{p - last > 0 ? '+' : p - last < 0 ? '−' : ''}{fmtNum(Math.abs(p - last))}</span>
                 )}
-            </div>
-            <div className={styles.formRow}>
+            </Field>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>動作</span>
                 <Seg label='買賣' value={action} onChange={setAction} tone={id => id === 'Buy' ? 'buy' : 'sell'}
                     options={[{ id: 'Buy', label: '買進' }, { id: 'Sell', label: '賣出' }]} />
                 <QtyInput qty={qty} setQty={setQty} unit={unitOf(target)} quick={defaults.quickQty} />
-            </div>
+            </Field>
             {!odd && <SendControl value={send} onChange={setSend} futures={target.futures} marketBlock={marketBlockOf(target)} />}
             <ValidityControl value={validity} onChange={setValidity} market={market} />
             <Summary>
@@ -462,27 +466,27 @@ function OcoForm({ target, onClose, defaults }: { target: Target; onClose: () =>
         return !!made;
     });
     const side = (label: string, op: string, v: typeof up, set: (v: typeof up) => void, word: string) => (
-        <div className={styles.formRow}>
+        <Field orientation="horizontal" className={styles.formRow}>
             <span className={styles.label}>{label}</span>
             <span>成交價 {op}</span>
-            <input className={styles.input} value={v.price} inputMode='decimal' aria-label={`${label}價`} onChange={e => set({ ...v, price: e.target.value })} />
+            <Input className={styles.input} value={v.price} inputMode='decimal' aria-label={`${label}價`} onChange={e => set({ ...v, price: e.target.value })} />
             <Seg label={`${label}買賣`} value={v.action} onChange={action => set({ ...v, action })} tone={id => id === 'Buy' ? 'buy' : 'sell'}
                 options={[{ id: 'Buy', label: '買進' }, { id: 'Sell', label: '賣出' }]} />
-            <input className={styles.inputNarrow} value={v.qty} inputMode='numeric' aria-label={`${label}數量`} onChange={e => set({ ...v, qty: e.target.value })} />
+            <Input className={styles.inputNarrow} value={v.qty} inputMode='numeric' aria-label={`${label}數量`} onChange={e => set({ ...v, qty: e.target.value })} />
             <span>{unit}</span>
             <span className={styles.muted}>{word}</span>
-        </div>
+        </Field>
     );
     return (
         <>
             {side('上方', '≥', up, setUp, up.action === 'Buy' ? '突破' : '停利')}
             {side('下方', '≤', down, setDown, down.action === 'Sell' ? '跌破' : '拉回')}
             {!odd && <SendControl value={send} onChange={setSend} futures={target.futures} marketBlock={marketBlockOf(target)} />}
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>另一邊</span>
                 <Seg label='另一邊' value={mode} onChange={setMode}
                     options={[{ id: 'trigger', label: '任一觸發就刪除' }, { id: 'fill', label: '成交後刪對應口數' }]} />
-            </div>
+            </Field>
             <ValidityControl value={validity} onChange={setValidity} market={market} />
             {pu !== null && pd !== null && pu > pd && <OcoLadder up={pu} down={pd} last={last} upText={`${fmtNum(pu)} ${up.action === 'Buy' ? '突破買進' : '停利賣出'}`}
                 downText={`${fmtNum(pd)} ${down.action === 'Sell' ? '跌破賣出' : '拉回買進'}`} />}
@@ -587,110 +591,110 @@ function BracketForm({ target, onClose, defaults }: { target: Target; onClose: (
     const trailIdx = tiers.findIndex(t => t.trail);
     return (
         <>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>進場</span>
                 <Seg label='進場買賣' value={action} onChange={setAction} tone={id => id === 'Buy' ? 'buy' : 'sell'}
                     options={[{ id: 'Buy', label: '買進' }, { id: 'Sell', label: '賣出' }]} />
-                <input className={styles.inputNarrow} value={qty} inputMode='numeric' aria-label='進場數量'
+                <Input className={styles.inputNarrow} value={qty} inputMode='numeric' aria-label='進場數量'
                     onChange={e => { setQty(e.target.value); if (tiers.length === 1) setTier(0, { qty: e.target.value }); }} />
                 <span>{unit}</span>
                 <Seg label='進場方式' value={entryType} onChange={setEntryType}
                     options={[{ id: 'LMT', label: '限價' }, { id: 'touch', label: '觸價' }, { id: 'MKT', label: '市價' }]} />
                 {entryType !== 'MKT' && (
-                    <input className={styles.input} value={price} inputMode='decimal' aria-label={entryType === 'LMT' ? '進場限價' : '進場觸發價'}
+                    <Input className={styles.input} value={price} inputMode='decimal' aria-label={entryType === 'LMT' ? '進場限價' : '進場觸發價'}
                         placeholder={entryType === 'LMT' ? '限價' : '觸發價'} onChange={e => setPrice(e.target.value)} />
                 )}
-            </div>
+            </Field>
             <div className={styles.subhead}>
                 <Shield size={13} aria-hidden />成交後自動保護
                 <span className={styles.muted} style={{ fontWeight: 400 }}>以實際成交價計算，每成交一口就補上</span>
             </div>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>停損</span>
                 <span>成交價 {action === 'Buy' ? '−' : '+'}</span>
-                <input className={styles.inputNarrow} value={stopTicks} inputMode='numeric' aria-label='停損檔數' placeholder='例：40'
+                <Input className={styles.inputNarrow} value={stopTicks} inputMode='numeric' aria-label='停損檔數' placeholder='例：40'
                     onChange={e => setStopTicks(e.target.value)} />
                 <span>檔</span>
                 <span className={styles.muted}>
                     {Number.isFinite(st) && st > 0 ? fmtAt(-st) : ''}
                     {riskPerLot !== null ? ` · 每${target.futures ? '口' : '張'}風險 ${maskMoney(`${fmtNum(Math.round(riskPerLot))} 元`, priv)}` : ''}
                 </span>
-            </div>
-            <div className={styles.formRow}>
+            </Field>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>停利</span>
                 <span className={styles.muted}>分批（最多 3 層）</span>
                 {tiers.length < 3 && (
-                    <button type='button' className={styles.button.plain} onClick={() => setTiers(ts => [...ts, { ticks: '', qty: '1', trail: false }])}>
+                    <Button size="compact" variant="outline" type='button' className={styles.button.plain} onClick={() => setTiers(ts => [...ts, { ticks: '', qty: '1', trail: false }])}>
                         <Plus size={12} aria-hidden />加一層
-                    </button>
+                    </Button>
                 )}
-            </div>
+            </Field>
             {tiers.map((t, i) => (
                 <div key={i} className={styles.tier}>
                     <span className={styles.muted}>第 {i + 1} 層</span>
                     {t.trail ? <span className={styles.tone.ok}>移動停損</span> : (
                         <span>
                             {action === 'Buy' ? '+' : '−'}
-                            <input className={styles.inputNarrow} value={t.ticks} inputMode='numeric' aria-label={`第 ${i + 1} 層停利檔數`} placeholder='例：30'
+                            <Input className={styles.inputNarrow} value={t.ticks} inputMode='numeric' aria-label={`第 ${i + 1} 層停利檔數`} placeholder='例：30'
                                 onChange={e => setTier(i, { ticks: e.target.value })} /> 檔
                         </span>
                     )}
                     <span>
-                        <input className={styles.inputNarrow} value={t.qty} inputMode='numeric' aria-label={`第 ${i + 1} 層數量`}
+                        <Input className={styles.inputNarrow} value={t.qty} inputMode='numeric' aria-label={`第 ${i + 1} 層數量`}
                             onChange={e => setTier(i, { qty: e.target.value })} /> {unit}
                     </span>
                     <span className={styles.tierTail}>
                         <span className={styles.muted}>{t.trail ? '見下方' : t.ticks ? fmtAt(Number(t.ticks)) : ''}</span>
-                        <label className={styles.check}>
-                            <input type='checkbox' checked={t.trail} disabled={trailIdx >= 0 && trailIdx !== i}
-                                onChange={e => { setTier(i, { trail: e.target.checked }); if (e.target.checked) setTrailOn(true); }} />
+                        <Label className={styles.check}>
+                            <Checkbox checked={t.trail} disabled={trailIdx >= 0 && trailIdx !== i}
+                                onCheckedChange={e => { setTier(i, { trail: (e === true) }); if ((e === true)) setTrailOn(true); }} />
                             移動停損
-                        </label>
+                        </Label>
                         {tiers.length > 1 && (
-                            <button type='button' className={styles.iconButton.plain} aria-label={`刪除第 ${i + 1} 層`}
+                            <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} aria-label={`刪除第 ${i + 1} 層`}
                                 onClick={() => setTiers(ts => ts.filter((_, j) => j !== i))}>
                                 <X size={12} aria-hidden />
-                            </button>
+                            </Button>
                         )}
                     </span>
                 </div>
             ))}
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>移動停損</span>
                 <Switch on={trailOn} label='移動停損' onChange={setTrailOn} />
                 {/* groups keep each number with its unit when the row wraps */}
                 <span className={styles.group}>
                     獲利
-                    <input className={styles.inputNarrow} value={trail.activate} inputMode='numeric' aria-label='移動停損啟動檔數' placeholder='例：20'
+                    <Input className={styles.inputNarrow} value={trail.activate} inputMode='numeric' aria-label='移動停損啟動檔數' placeholder='例：20'
                         disabled={!trailOn} onChange={e => setTrail({ ...trail, activate: e.target.value })} />
                     檔後啟動
                 </span>
-            </div>
-            <div className={styles.formRow}>
+            </Field>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label} />
                 <span className={styles.group}>
                     距最{action === 'Buy' ? '高' : '低'}
-                    <input className={styles.inputNarrow} value={trail.distance} inputMode='numeric' aria-label='移動停損距離檔數' placeholder='例：15'
+                    <Input className={styles.inputNarrow} value={trail.distance} inputMode='numeric' aria-label='移動停損距離檔數' placeholder='例：15'
                         disabled={!trailOn} onChange={e => setTrail({ ...trail, distance: e.target.value })} />
                     檔，
                 </span>
                 <span className={styles.group}>
                     每
-                    <input className={styles.inputNarrow} value={trail.step} inputMode='numeric' aria-label='移動停損步長檔數' placeholder='例：5'
+                    <Input className={styles.inputNarrow} value={trail.step} inputMode='numeric' aria-label='移動停損步長檔數' placeholder='例：5'
                         disabled={!trailOn} onChange={e => setTrail({ ...trail, step: e.target.value })} />
                     檔移動
                 </span>
-            </div>
-            <div className={styles.formRow}>
+            </Field>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>保本</span>
                 <Switch on={beOn} label='保本' onChange={setBeOn} />
                 <span>第 1 層成交後，停損移到成本 {action === 'Buy' ? '+' : '−'}</span>
-                <input className={styles.inputNarrow} value={beOffset} inputMode='numeric' aria-label='保本檔數' disabled={!beOn}
+                <Input className={styles.inputNarrow} value={beOffset} inputMode='numeric' aria-label='保本檔數' disabled={!beOn}
                     onChange={e => setBeOffset(e.target.value)} />
                 <span>檔</span>
-            </div>
+            </Field>
             {entryType === 'touch' && <ValidityControl value={validity} onChange={setValidity} market={market} />}
-            {entryType === 'LMT' && <div className={`${styles.formRow} ${styles.muted}`}><span className={styles.label}>有效期</span>限價進場單當盤有效（ROD）；保護到出場或你移除為止</div>}
+            {entryType === 'LMT' && <Field orientation="horizontal" className={`${styles.formRow} ${styles.muted}`}><span className={styles.label}>有效期</span>限價進場單當盤有效（ROD）；保護到出場或你移除為止</Field>}
             <Summary>
                 {ref === null || !c ? '填好進場與停損後，這裡會用一句話說明這張單會做什麼。' : (
                     <>
@@ -713,7 +717,7 @@ function BracketForm({ target, onClose, defaults }: { target: Target; onClose: (
 
 function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
     return (
-        <button type='button' role='switch' aria-checked={on} aria-label={label} className={on ? styles.switchOn : styles.switchOff}
+        <Button size="compact" variant="ghost" type='button' role='switch' aria-checked={on} aria-label={label} className={on ? styles.switchOn : styles.switchOff}
             onClick={() => onChange(!on)} />
     );
 }
@@ -783,46 +787,46 @@ function TimeForm({ target, onClose, defaults }: { target: Target; onClose: () =
     const when = at === null ? '—' : fmtUntil(at);
     return (
         <>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>何時</span>
                 <Seg label='何時' value={mode} onChange={setMode} options={[{ id: 'send', label: '指定時間' }, { id: 'flatten', label: '收盤前平倉' }]} />
-            </div>
+            </Field>
             {mode === 'send' ? (
                 <>
-                    <div className={styles.formRow}>
+                    <Field orientation="horizontal" className={styles.formRow}>
                         <span className={styles.label}>時間</span>
-                        <input className={styles.input} type='time' value={time} aria-label='送單時間' onChange={e => setTime(e.target.value)} />
+                        <Input className={styles.input} type='time' value={time} aria-label='送單時間' onChange={e => setTime(e.target.value)} />
                         <span className={styles.muted}>今天（台北時間）</span>
-                    </div>
-                    <div className={styles.formRow}>
+                    </Field>
+                    <Field orientation="horizontal" className={styles.formRow}>
                         <span className={styles.label}>動作</span>
                         <Seg label='買賣' value={action} onChange={setAction} tone={id => id === 'Buy' ? 'buy' : 'sell'}
                             options={[{ id: 'Buy', label: '買進' }, { id: 'Sell', label: '賣出' }]} />
                         <QtyInput qty={qty} setQty={setQty} unit={unit} quick={defaults.quickQty} />
-                    </div>
+                    </Field>
                     {!odd && <SendControl value={send} onChange={setSend} futures={target.futures} label='送出方式' />}
                 </>
             ) : (
                 <>
-                    <div className={styles.formRow}>
+                    <Field orientation="horizontal" className={styles.formRow}>
                         <span className={styles.label}>盤別</span>
                         {target.futures && !expiryDay ? (
                             <Seg label='盤別' value={session} onChange={setSession}
                                 options={[{ id: 'day', label: '日盤 13:45' }, { id: 'night', label: '夜盤 05:00' }]} />
                         ) : <span>{expiryDay ? '最後交易日收盤 13:30' : '收盤 13:30'}</span>}
                         <span>提前</span>
-                        <input className={styles.inputNarrow} value={lead} inputMode='numeric' aria-label='提前分鐘' onChange={e => setLead(e.target.value)} />
+                        <Input className={styles.inputNarrow} value={lead} inputMode='numeric' aria-label='提前分鐘' onChange={e => setLead(e.target.value)} />
                         <span>分鐘</span>
-                    </div>
-                    <div className={styles.formRow}>
+                    </Field>
+                    <Field orientation="horizontal" className={styles.formRow}>
                         <span className={styles.label}>範圍</span>
                         <Seg label='範圍' value={scope} onChange={setScope}
                             options={[{ id: 'code', label: '此商品' }, { id: 'account', label: `此帳戶全部${target.futures ? '期貨' : '股票'}` }]} />
-                    </div>
-                    <div className={styles.formRow}>
+                    </Field>
+                    <Field orientation="horizontal" className={styles.formRow}>
                         <span className={styles.label}>做法</span>
                         <span>先刪未成交委託與條件單，再以{target.futures ? '範圍市價' : '整股市價、零股限價'}平掉剩餘部位</span>
-                    </div>
+                    </Field>
                 </>
             )}
             <Summary>
@@ -858,10 +862,10 @@ export function NewConditionalDialog({ contract, onClose, defaults = FORM_DEFAUL
     const [type, setType] = useState<CondFormType>('trigger');
     return (
         <Dialog title='新增條件單' icon={<Plus size={14} aria-hidden />} onClose={onClose}>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>類型</span>
                 <Seg label='類型' value={type} onChange={setType} options={[{ id: 'trigger', label: '觸價單' }, { id: 'oco', label: '二擇一' }, { id: 'bracket', label: '括號單' }, { id: 'time', label: '時間' }]} />
-            </div>
+            </Field>
             <TargetRows target={target} />
             {type === 'trigger' && <TriggerForm key={`t:${target.resolved}`} target={target} onClose={onClose} defaults={defaults} />}
             {type === 'oco' && <OcoForm key={`o:${target.resolved}`} target={target} onClose={onClose} defaults={defaults} />}

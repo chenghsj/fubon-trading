@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/bottom-dock-shared.tsx — dock 三 tab 共用：偏好持久化、
 // 面板量寬、帳戶歸屬推斷、arm-lock 與兩段式確認按鈕
 
@@ -189,7 +190,7 @@ export function ArmLockButton({
     hint: string;
 }) {
     return (
-        <button
+        <Button size="compact" variant="outline"
             className={styles.cancelBtn}
             title={armed ? `鎖定${hint}（防誤觸）` : `${hint}預設鎖定 — 點此解鎖`}
             style={
@@ -203,7 +204,7 @@ export function ArmLockButton({
             onClick={onToggle}
         >
             {armed ? <Unlock size={10} /> : <Lock size={10} />}
-        </button>
+        </Button>
     );
 }
 
@@ -231,7 +232,7 @@ export function ConfirmButton({
         if (disabled) setConfirming(false);
     }, [disabled]);
     return (
-        <button
+        <Button size="compact" variant="ghost"
             className={styles.batchExec[confirming ? 'confirm' : 'idle']}
             disabled={disabled}
             title={title}
@@ -245,6 +246,6 @@ export function ConfirmButton({
             }}
         >
             {confirming ? confirmLabel : label}
-        </button>
+        </Button>
     );
 }

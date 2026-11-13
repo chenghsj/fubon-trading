@@ -1,3 +1,11 @@
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { TerminalDialog } from './terminal-dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 // src/components/indicator-dialog.tsx — TradingView-style indicator picker
 // (search / category sidebar / favorites / add-in-place) and the
 // per-instance settings modal（輸入 / 樣式 分頁、確定/取消）.
@@ -14,8 +22,6 @@ import {
     X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useEscClose } from '../hooks/use-esc-close';
-import { createPortal } from 'react-dom';
 import {
     CUSTOM_PREFIX,
     customType,
@@ -112,7 +118,6 @@ export function IndicatorDialog({
     useEffect(() => {
         inputRef.current?.focus();
     }, []);
-    useEscClose(onClose);
 
     const toggleFav = (type: string) => {
         setFavs((prev) => {
@@ -160,7 +165,7 @@ export function IndicatorDialog({
     const renderRow = (d: IndicatorDef) => {
         const added = counts.get(d.type) ?? 0;
         return (
-            <button
+            <Button size="compact" variant="ghost"
                 key={d.type}
                 className={styles.row}
                 onClick={() => onAdd(d.type)}
@@ -230,30 +235,24 @@ export function IndicatorDialog({
                         fill={favs.has(d.type) ? 'currentColor' : 'none'}
                     />
                 </span>
-            </button>
+            </Button>
         );
     };
 
     // portal 到 body：面板（react-grid-item）有 transform，會把 fixed
     // overlay 困在面板的 containing block / stacking context 裡 —
     // 視窗溢出面板又被其他面板蓋住（issue #39）
-    return createPortal(
-        <div
-            className={styles.overlay}
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget) onClose();
-            }}
-        >
-            <div className={styles.dialog}>
+    return (
+        <TerminalDialog title="技術指標" onClose={onClose} className={styles.dialog}>
                 <div className={styles.header}>
                     技術指標
-                    <button className={styles.closeBtn} onClick={onClose}>
+                    <Button size="compact" variant="ghost" className={styles.closeBtn} onClick={onClose}>
                         <X size={16} />
-                    </button>
+                    </Button>
                 </div>
                 <div className={styles.searchWrap}>
                     <Search size={14} />
-                    <input
+                    <Input
                         ref={inputRef}
                         className={styles.searchInput}
                         placeholder='搜尋指標（名稱、縮寫、中英文都可以）'
@@ -261,19 +260,19 @@ export function IndicatorDialog({
                         onChange={(e) => setQuery(e.target.value)}
                     />
                     {query && (
-                        <button
+                        <Button size="compact" variant="ghost"
                             className={styles.closeBtn}
                             onClick={() => setQuery('')}
                         >
                             <X size={13} />
-                        </button>
+                        </Button>
                     )}
                 </div>
                 <div className={styles.body}>
                     <div className={styles.sidebar}>
                         <div className={styles.sideTitle}>分類</div>
                         {CATEGORIES.map((c) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={c.key}
                                 className={
                                     styles.sideItem[
@@ -296,15 +295,15 @@ export function IndicatorDialog({
                                     <Search size={13} />
                                 )}
                                 {c.label}
-                            </button>
+                            </Button>
                         ))}
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.newCustomBtn}
                             onClick={() => setEditorFor({ existing: null })}
                         >
                             <Plus size={13} />
                             建立自訂指標
-                        </button>
+                        </Button>
                     </div>
                     <div className={styles.list}>
                         {filtered.length === 0 &&
@@ -339,17 +338,16 @@ export function IndicatorDialog({
                 <div className={styles.footer}>
                     <span>點擊指標開啟設定，確定後加入；同型可加多個（不同參數）</span>
                     <span>已啟用 {instances.length} 個</span>
-                    {onSaveDefaults && <button type='button' onClick={onSaveDefaults}>存為新圖／回測預設</button>}
+                    {onSaveDefaults && <Button size="compact" variant="ghost" type='button' onClick={onSaveDefaults}>存為新圖／回測預設</Button>}
                 </div>
-            </div>
+
             {editorFor && (
                 <CustomIndicatorEditor
                     existing={editorFor.existing}
                     onClose={() => setEditorFor(null)}
                 />
             )}
-        </div>,
-        document.body,
+        </TerminalDialog>
     );
 }
 
@@ -373,7 +371,7 @@ function ColorPanel({
                 {COLOR_GRID.map((row, ri) => (
                     <div key={ri} className={styles.colorGridRow}>
                         {row.map((c) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={c}
                                 className={
                                     styles.gridSwatch[
@@ -395,7 +393,7 @@ function ColorPanel({
             </div>
             <div className={styles.colorTools}>
                 <span className={styles.colorToolLabel}>自訂</span>
-                <input
+                <Input
                     className={styles.hexInput}
                     value={hex}
                     spellCheck={false}
@@ -410,15 +408,14 @@ function ColorPanel({
             </div>
             <div className={styles.colorTools}>
                 <span className={styles.colorToolLabel}>透明度</span>
-                <input
-                    type='range'
+                <Slider
                     className={styles.opacitySlider}
                     min={10}
                     max={100}
                     step={5}
-                    value={s.opacity}
-                    onChange={(e) =>
-                        onChange({ opacity: Number(e.target.value) })
+                    value={[Number(s.opacity)]}
+                    onValueChange={(e) =>
+                        onChange({ opacity: Number(e[0]!) })
                     }
                 />
                 <span className={styles.opacityValue}>{s.opacity}%</span>
@@ -427,7 +424,7 @@ function ColorPanel({
                 <div className={styles.colorTools}>
                     <span className={styles.colorToolLabel}>粗細</span>
                     {WIDTHS.map((w) => (
-                        <button
+                        <Button size="compact" variant="outline"
                             key={w}
                             className={
                                 styles.widthBtn[
@@ -441,7 +438,7 @@ function ColorPanel({
                                 className={styles.widthLine}
                                 style={{ height: `${w}px` }}
                             />
-                        </button>
+                        </Button>
                     ))}
                 </div>
             )}
@@ -474,7 +471,6 @@ export function IndicatorSettingsModal({
     const [defaultsOpen, setDefaultsOpen] = useState(false);
     const [savedTip, setSavedTip] = useState(false);
 
-    useEscClose(onCancel);
 
     if (!def) return null;
 
@@ -501,58 +497,33 @@ export function IndicatorSettingsModal({
     };
 
     // 同 IndicatorDialog：portal 到 body 逃出面板的 transform 陷阱
-    return createPortal(
-        <div
-            className={styles.overlay}
-            onMouseDown={(e) => {
-                if (e.target === e.currentTarget) onCancel();
-            }}
-        >
-            <div className={styles.settingsDialog}>
+    return (
+        <TerminalDialog title="指標設定" onClose={onCancel} className={styles.settingsDialog}>
                 <div className={styles.header}>
                     {def.label}
-                    <button className={styles.closeBtn} onClick={onCancel}>
+                    <Button size="compact" variant="ghost" className={styles.closeBtn} onClick={onCancel}>
                         <X size={16} />
-                    </button>
+                    </Button>
                 </div>
-                <div className={styles.tabs}>
+                <Tabs value={tab} onValueChange={next => setTab(next as 'inputs' | 'style' | 'visibility')} className="flex min-h-0 flex-1 flex-col"><TabsList className={styles.tabs}>
                     {def.params.length > 0 && (
-                        <button
-                            className={
-                                styles.tab[
-                                    tab === 'inputs' ? 'active' : 'normal'
-                                ]
-                            }
-                            onClick={() => setTab('inputs')}
-                        >
+                        <TabsTrigger value="inputs">
                             輸入
-                        </button>
+                        </TabsTrigger>
                     )}
-                    <button
-                        className={
-                            styles.tab[tab === 'style' ? 'active' : 'normal']
-                        }
-                        onClick={() => setTab('style')}
-                    >
+                    <TabsTrigger value="style">
                         樣式
-                    </button>
-                    <button
-                        className={
-                            styles.tab[
-                                tab === 'visibility' ? 'active' : 'normal'
-                            ]
-                        }
-                        onClick={() => setTab('visibility')}
-                    >
+                    </TabsTrigger>
+                    <TabsTrigger value="visibility">
                         時框顯示
-                    </button>
-                </div>
-                <div className={styles.settingsBody}>
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value={tab} className={styles.settingsBody}>
                     {tab === 'inputs' &&
                         def.params.map((p) => (
-                            <label key={p.key} className={styles.fieldRow}>
+                            <Label key={p.key} className={styles.fieldRow}>
                                 <span>{p.label}</span>
-                                <input
+                                <Input
                                     type='number'
                                     className={styles.fieldInput}
                                     min={p.min}
@@ -573,7 +544,7 @@ export function IndicatorSettingsModal({
                                         });
                                     }}
                                 />
-                            </label>
+                            </Label>
                         ))}
                     {tab === 'style' && (
                         <>
@@ -597,29 +568,27 @@ export function IndicatorSettingsModal({
                                         className={styles.styleSection}
                                     >
                                         <div className={styles.styleRow}>
-                                            <label
+                                            <Label
                                                 className={styles.styleHead}
                                             >
-                                                <input
-                                                    type='checkbox'
+                                                <Checkbox
                                                     className={styles.checkbox}
                                                     checked={s.visible}
-                                                    onChange={(e) =>
+                                                    onCheckedChange={(e) =>
                                                         patchStyle(o.key, {
                                                             visible:
-                                                                e.target
-                                                                    .checked,
+                                                                (e === true),
                                                         })
                                                     }
                                                 />
                                                 {o.label}
-                                            </label>
+                                            </Label>
                                             <div
                                                 className={
                                                     styles.styleRowBtns
                                                 }
                                             >
-                                                <button
+                                                <Button size="compact" variant="ghost"
                                                     className={
                                                         styles.previewBtn[
                                                             colorFor === o.key
@@ -680,9 +649,9 @@ export function IndicatorSettingsModal({
                                                             }
                                                         />
                                                     )}
-                                                </button>
+                                                </Button>
                                                 {!isBand && (
-                                                    <button
+                                                    <Button size="compact" variant="outline"
                                                         className={
                                                             styles.plotBtn[
                                                                 plotFor === o.key
@@ -702,7 +671,7 @@ export function IndicatorSettingsModal({
                                                     >
                                                         {PLOT_LABEL[s.plot]}
                                                         <ChevronDown size={11} />
-                                                    </button>
+                                                    </Button>
                                                 )}
                                             </div>
                                         </div>
@@ -720,7 +689,7 @@ export function IndicatorSettingsModal({
                                                 className={styles.plotMenu}
                                             >
                                                 {PLOT_KINDS.map((k) => (
-                                                    <button
+                                                    <Button size="compact" variant="ghost"
                                                         key={k}
                                                         className={
                                                             styles.plotItem[
@@ -737,7 +706,7 @@ export function IndicatorSettingsModal({
                                                         }}
                                                     >
                                                         {PLOT_LABEL[k]}
-                                                    </button>
+                                                    </Button>
                                                 ))}
                                             </div>
                                         )}
@@ -747,9 +716,9 @@ export function IndicatorSettingsModal({
                             <div className={styles.sectionTitle}>
                                 輸出數值
                             </div>
-                            <label className={styles.fieldRow}>
+                            <Label className={styles.fieldRow}>
                                 <span>小數位數</span>
-                                <select
+                                <NativeSelect
                                     className={styles.fieldSelect}
                                     value={inst.precision ?? 'auto'}
                                     onChange={(e) =>
@@ -762,41 +731,39 @@ export function IndicatorSettingsModal({
                                     }
                                 >
                                     {PRECISIONS.map((p) => (
-                                        <option
+                                        <NativeSelectOption
                                             key={p ?? 'auto'}
                                             value={p ?? 'auto'}
                                         >
                                             {p === undefined ? '自動' : p}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                                </select>
-                            </label>
-                            <label className={styles.fieldRow}>
+                                </NativeSelect>
+                            </Label>
+                            <Label className={styles.fieldRow}>
                                 <span>價格軸最新值標籤</span>
-                                <input
-                                    type='checkbox'
+                                <Checkbox
                                     className={styles.checkbox}
                                     checked={inst.showLabels ?? false}
-                                    onChange={(e) =>
+                                    onCheckedChange={(e) =>
                                         onPatch({
-                                            showLabels: e.target.checked,
+                                            showLabels: (e === true),
                                         })
                                     }
                                 />
-                            </label>
-                            <label className={styles.fieldRow}>
+                            </Label>
+                            <Label className={styles.fieldRow}>
                                 <span>圖上顯示數值</span>
-                                <input
-                                    type='checkbox'
+                                <Checkbox
                                     className={styles.checkbox}
                                     checked={inst.showValues ?? true}
-                                    onChange={(e) =>
+                                    onCheckedChange={(e) =>
                                         onPatch({
-                                            showValues: e.target.checked,
+                                            showValues: (e === true),
                                         })
                                     }
                                 />
-                            </label>
+                            </Label>
                         </>
                     )}
                     {tab === 'visibility' && (
@@ -805,33 +772,32 @@ export function IndicatorSettingsModal({
                                 在哪些時框顯示這個指標
                             </div>
                             {timeframes.map((t) => (
-                                <label
+                                <Label
                                     key={t.minutes}
                                     className={styles.fieldRow}
                                 >
                                     <span>{t.label}</span>
-                                    <input
-                                        type='checkbox'
+                                    <Checkbox
                                         className={styles.checkbox}
                                         checked={tfChecked(t.minutes)}
-                                        onChange={() => toggleTf(t.minutes)}
+                                        onCheckedChange={() => toggleTf(t.minutes)}
                                     />
-                                </label>
+                                </Label>
                             ))}
                         </>
                     )}
-                </div>
+                </TabsContent></Tabs>
                 <div className={styles.settingsFooter}>
                     <div className={styles.defaultsWrap}>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.cancelBtn}
                             onClick={() => setDefaultsOpen((o) => !o)}
                         >
                             預設值 <ChevronDown size={11} />
-                        </button>
+                        </Button>
                         {defaultsOpen && (
                             <div className={styles.defaultsMenu}>
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.defaultsItem}
                                     onClick={() => {
                                         const f = factoryInstance(inst);
@@ -847,8 +813,8 @@ export function IndicatorSettingsModal({
                                     }}
                                 >
                                     重設為內建預設
-                                </button>
-                                <button
+                                </Button>
+                                <Button size="compact" variant="ghost"
                                     className={styles.defaultsItem}
                                     onClick={() => {
                                         saveTypeDefault(inst);
@@ -861,7 +827,7 @@ export function IndicatorSettingsModal({
                                     }}
                                 >
                                     存為我的預設
-                                </button>
+                                </Button>
                             </div>
                         )}
                         {savedTip && (
@@ -869,27 +835,26 @@ export function IndicatorSettingsModal({
                                 已存 — 之後新增 {def.short} 會直接套用
                             </span>
                         )}
-                        <button
+                        <Button size="compact" variant="destructive"
                             className={styles.dangerBtn}
                             onClick={onRemove}
                         >
                             移除
-                        </button>
+                        </Button>
                     </div>
                     <div className={styles.footerActions}>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.cancelBtn}
                             onClick={onCancel}
                         >
                             取消
-                        </button>
-                        <button className={styles.okBtn} onClick={onCommit}>
+                        </Button>
+                        <Button size="compact" variant="outline" className={styles.okBtn} onClick={onCommit}>
                             確定
-                        </button>
+                        </Button>
                     </div>
                 </div>
-            </div>
-        </div>,
-        document.body,
+
+        </TerminalDialog>
     );
 }

@@ -1,10 +1,15 @@
+import { TerminalDialog } from './terminal-dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 // src/components/custom-indicator-editor.tsx — in-app editor for
 // user-written indicators（JS + ta.* 函式庫）。儲存前先在 Web Worker
 // 驗證（2 秒逾時擋無窮迴圈）並自動偵測 plot()/hline() 的輸出。
 
 import { HelpCircle, Plus, Trash2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { useEscClose } from '../hooks/use-esc-close';
 import {
     CUSTOM_PALETTE,
     deleteCustom,
@@ -88,7 +93,6 @@ export function CustomIndicatorEditor({
     );
     const busyRef = useRef(false);
 
-    useEscClose(onClose);
 
     const paramDefaults = (list: ParamDef[]) => {
         const p: Record<string, number> = {};
@@ -223,40 +227,39 @@ export function CustomIndicatorEditor({
     };
 
     return (
-        <div className={styles.overlay}>
-            <div className={styles.dialog}>
+        <TerminalDialog title={existing ? `編輯自訂指標 — ${existing.name}` : '建立自訂指標'} onClose={onClose} className={styles.dialog}>
                 <div className={dlg.header}>
                     {existing ? `編輯自訂指標 — ${existing.name}` : '建立自訂指標'}
-                    <button className={dlg.closeBtn} onClick={onClose}>
+                    <Button size="compact" variant="ghost" className={dlg.closeBtn} onClick={onClose}>
                         <X size={16} />
-                    </button>
+                    </Button>
                 </div>
                 <div className={styles.body}>
                     <div className={styles.metaRow}>
-                        <label className={styles.field} style={{ flex: 2 }}>
+                        <Label className={styles.field} style={{ flex: 2 }}>
                             <span className={styles.fieldLabel}>名稱</span>
-                            <input
+                            <Input
                                 className={styles.textInput}
                                 value={name}
                                 placeholder='例：我的動能指標'
                                 onChange={(e) => setName(e.target.value)}
                             />
-                        </label>
-                        <label className={styles.field} style={{ flex: 1 }}>
+                        </Label>
+                        <Label className={styles.field} style={{ flex: 1 }}>
                             <span className={styles.fieldLabel}>
                                 縮寫（legend）
                             </span>
-                            <input
+                            <Input
                                 className={styles.textInput}
                                 value={short}
                                 placeholder='例：MOM'
                                 onChange={(e) => setShort(e.target.value)}
                             />
-                        </label>
+                        </Label>
                         <div className={styles.field}>
                             <span className={styles.fieldLabel}>位置</span>
                             <div className={styles.catBtnRow}>
-                                <button
+                                <Button size="compact" variant="outline"
                                     className={
                                         styles.catBtn[
                                             category === 'overlay'
@@ -267,8 +270,8 @@ export function CustomIndicatorEditor({
                                     onClick={() => setCategory('overlay')}
                                 >
                                     主圖疊加
-                                </button>
-                                <button
+                                </Button>
+                                <Button size="compact" variant="outline"
                                     className={
                                         styles.catBtn[
                                             category === 'pane'
@@ -279,23 +282,23 @@ export function CustomIndicatorEditor({
                                     onClick={() => setCategory('pane')}
                                 >
                                     副圖
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
-                    <label className={styles.field}>
+                    <Label className={styles.field}>
                         <span className={styles.fieldLabel}>說明（選填）</span>
-                        <input
+                        <Input
                             className={styles.textInput}
                             value={desc}
                             placeholder='一句話描述這個指標在看什麼'
                             onChange={(e) => setDesc(e.target.value)}
                         />
-                    </label>
+                    </Label>
 
                     <div className={styles.sectionTitle}>
                         <span>參數（程式碼裡用 p.代號 取值）</span>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.smallBtn}
                             onClick={() =>
                                 setParams((l) => [
@@ -311,7 +314,7 @@ export function CustomIndicatorEditor({
                             }
                         >
                             <Plus size={12} /> 加參數
-                        </button>
+                        </Button>
                     </div>
                     {params.length > 0 && (
                         <div className={styles.paramHead}>
@@ -326,7 +329,7 @@ export function CustomIndicatorEditor({
                     )}
                     {params.map((d, i) => (
                         <div key={i} className={styles.paramRow}>
-                            <input
+                            <Input
                                 className={styles.monoInput}
                                 value={d.key}
                                 spellCheck={false}
@@ -334,7 +337,7 @@ export function CustomIndicatorEditor({
                                     patchParam(i, { key: e.target.value })
                                 }
                             />
-                            <input
+                            <Input
                                 className={styles.textInput}
                                 value={d.label}
                                 placeholder={d.key}
@@ -343,7 +346,7 @@ export function CustomIndicatorEditor({
                                 }
                             />
                             {(['def', 'min', 'max'] as const).map((f) => (
-                                <input
+                                <Input
                                     key={f}
                                     type='number'
                                     className={styles.monoInput}
@@ -356,7 +359,7 @@ export function CustomIndicatorEditor({
                                     }}
                                 />
                             ))}
-                            <input
+                            <Input
                                 type='number'
                                 className={styles.monoInput}
                                 value={d.step ?? 1}
@@ -367,7 +370,7 @@ export function CustomIndicatorEditor({
                                     }
                                 }}
                             />
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.iconBtn}
                                 title='移除參數'
                                 onClick={() =>
@@ -377,19 +380,19 @@ export function CustomIndicatorEditor({
                                 }
                             >
                                 <Trash2 size={13} />
-                            </button>
+                            </Button>
                         </div>
                     ))}
 
                     <div className={styles.sectionTitle}>
                         <span>程式碼（JavaScript + ta 函式庫）</span>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.smallBtn}
                             onClick={() => setHelpOpen((o) => !o)}
                         >
                             <HelpCircle size={12} />{' '}
                             {helpOpen ? '收起說明' : '語法說明'}
-                        </button>
+                        </Button>
                     </div>
                     {helpOpen && (
                         <div className={styles.helpBox}>
@@ -403,7 +406,7 @@ export function CustomIndicatorEditor({
                             ))}
                         </div>
                     )}
-                    <textarea
+                    <Textarea
                         className={styles.codeArea}
                         value={source}
                         spellCheck={false}
@@ -436,7 +439,7 @@ export function CustomIndicatorEditor({
                             {outputs.map((o) => (
                                 <div key={o.key}>
                                     <div className={styles.outputRow}>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={styles.swatchBtn}
                                             style={{ background: o.color }}
                                             title='顏色'
@@ -456,7 +459,7 @@ export function CustomIndicatorEditor({
                                                 ? `band('${o.key}')`
                                                 : `plot('${o.key}')`}
                                         </span>
-                                        <input
+                                        <Input
                                             className={styles.textInput}
                                             value={o.label}
                                             placeholder='顯示名稱'
@@ -466,7 +469,7 @@ export function CustomIndicatorEditor({
                                                 })
                                             }
                                         />
-                                        <select
+                                        <NativeSelect
                                             className={styles.select}
                                             value={o.kind}
                                             onChange={(e) =>
@@ -481,16 +484,16 @@ export function CustomIndicatorEditor({
                                                     KIND_LABEL,
                                                 ) as OutputDef['kind'][]
                                             ).map((k) => (
-                                                <option key={k} value={k}>
+                                                <NativeSelectOption key={k} value={k}>
                                                     {KIND_LABEL[k]}
-                                                </option>
+                                                </NativeSelectOption>
                                             ))}
-                                        </select>
+                                        </NativeSelect>
                                     </div>
                                     {colorFor === o.key && (
                                         <div className={styles.swatchPop}>
                                             {COLOR_GRID.flat().map((c) => (
-                                                <button
+                                                <Button size="compact" variant="ghost"
                                                     key={c}
                                                     className={styles.swatch}
                                                     style={{ background: c }}
@@ -502,7 +505,7 @@ export function CustomIndicatorEditor({
                                                     }}
                                                 />
                                             ))}
-                                            <input
+                                            <Input
                                                 className={styles.hexInput}
                                                 value={o.color}
                                                 spellCheck={false}
@@ -530,7 +533,7 @@ export function CustomIndicatorEditor({
                 <div className={styles.footer}>
                     <div>
                         {existing && (
-                            <button
+                            <Button size="compact" variant="destructive"
                                 className={dlg.dangerBtn}
                                 onClick={() => {
                                     deleteCustom(existing.id);
@@ -538,30 +541,29 @@ export function CustomIndicatorEditor({
                                 }}
                             >
                                 刪除指標
-                            </button>
+                            </Button>
                         )}
                     </div>
                     <div className={styles.footerActions}>
-                        <button className={dlg.cancelBtn} onClick={onClose}>
+                        <Button size="compact" variant="outline" className={dlg.cancelBtn} onClick={onClose}>
                             取消
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="outline"
                             className={dlg.cancelBtn}
                             disabled={validating}
                             onClick={() => void validate()}
                         >
                             {validating ? '驗證中…' : '驗證'}
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="outline"
                             className={dlg.okBtn}
                             disabled={validating}
                             onClick={() => void save()}
                         >
                             儲存
-                        </button>
+                        </Button>
                     </div>
                 </div>
-            </div>
-        </div>
+        </TerminalDialog>
     );
 }

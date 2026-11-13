@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { RefreshButton } from './refresh-button';
 import { useQuery } from '../hooks/use-query';
 // src/components/scanner-panel.tsx — market movers leaderboard
@@ -136,7 +139,7 @@ export function ScannerPanel({
         <>
             <div className={styles.switcher}>
                 {MODES.map((m) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={m.key}
                         className={styles.sw[modeKey === m.key ? 'on' : 'off']}
                         onClick={() => {
@@ -145,7 +148,7 @@ export function ScannerPanel({
                         }}
                     >
                         {m.label}
-                    </button>
+                    </Button>
                 ))}
                 <RefreshButton label="更新排行" loading={query.loading} onClick={() => void query.refresh()} />
             </div>
@@ -158,7 +161,7 @@ export function ScannerPanel({
                                 ['放空', true],
                             ] as [string, boolean][]
                         ).map(([label, sh]) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={label}
                                 className={
                                     styles.sw[multiShort === sh ? 'on' : 'off']
@@ -172,7 +175,7 @@ export function ScannerPanel({
                                 }}
                             >
                                 {label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                     {(
@@ -187,9 +190,9 @@ export function ScannerPanel({
                             ['額≥億', minAmtB, setMinAmtB, 'sj-scan-minamt'],
                         ] as [string, number, (v: number) => void, string][]
                     ).map(([label, value, set, key]) => (
-                        <label key={key} className={styles.filterItem}>
+                        <Label key={key} className={styles.filterItem}>
                             {label}
-                            <input
+                            <Input
                                 className={styles.filterInput}
                                 value={value}
                                 inputMode='decimal'
@@ -201,7 +204,7 @@ export function ScannerPanel({
                                     }
                                 }}
                             />
-                        </label>
+                        </Label>
                     ))}
                 </div>
             )}
@@ -217,12 +220,12 @@ export function ScannerPanel({
                 {error && (
                     <div className={styles.errorBox}>
                         <AsyncStatus phase='error' text='排行資料無法取得' className={styles.scName} />
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.retryBtn}
                             disabled={query.loading} onClick={() => void query.refresh()}
                         >
                             重試
-                        </button>
+                        </Button>
                     </div>
                 )}
                 {items.map((it, i) => {
@@ -271,7 +274,7 @@ export function ScannerPanel({
                                 </span>
                             </span>
                             {cat && (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.sectorTag}
                                     title='跳到此類股熱力圖'
                                     onClick={(e) => {
@@ -280,7 +283,7 @@ export function ScannerPanel({
                                     }}
                                 >
                                     {sectorLabel(cat)}
-                                </button>
+                                </Button>
                             )}
                             <span className={styles.valueBlock}>
                                 <span

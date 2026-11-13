@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/hud-header.tsx — top status bar. 主題/帳號/版面/風控規則
 // 都收斂進統一設定 dialog（settings-dialog.tsx）；header 只留高頻操作：
 // 伺服器狀態、Kill Switch（一鍵鎖定/解鎖）、新增面板、閃電全開、設定。
@@ -51,12 +52,12 @@ function Menu({
     const fit = useHeaderPopoverFit(open, wrapRef, popRef);
     return (
         <div ref={wrapRef} className={styles.settingsWrap}>
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.resetBtn}
                 onClick={() => setOpen((o) => !o)}
             >
                 {label}
-            </button>
+            </Button>
             {open && (
                 <>
                     <div
@@ -77,7 +78,7 @@ function Menu({
 function KillSwitchButton() {
     const risk = useRiskSettings();
     return (
-        <button
+        <Button size="compact" variant="outline"
             className={risk.locked ? styles.killHeaderOn : styles.resetBtn}
             title={
                 risk.locked
@@ -96,7 +97,7 @@ function KillSwitchButton() {
                     <Lock size={11} style={{ verticalAlign: '-1px' }} /> 風控
                 </>
             )}
-        </button>
+        </Button>
     );
 }
 
@@ -158,7 +159,7 @@ function FlashTilesMenu({ flashCodes }: { flashCodes: string[] }) {
                             lay.cols * lay.rows,
                         );
                         return (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={lay.key}
                                 className={styles.flashLayoutItem}
                                 onClick={() => {
@@ -179,7 +180,7 @@ function FlashTilesMenu({ flashCodes }: { flashCodes: string[] }) {
                                         自選前 {count} 檔
                                     </span>
                                 </span>
-                            </button>
+                            </Button>
                         );
                     })}
                 </>
@@ -317,42 +318,42 @@ export function HudHeader({
                 onToggle={setServerMgrOpen}
             />
             <KillSwitchButton />
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.resetBtn}
                 onClick={onOpenPanelLibrary}
             >
                 ＋ 新增面板
-            </button>
+            </Button>
             {headerItems.layoutLibrary && (
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.resetBtn}
                     title='版面庫（預設版面/我的版面/儲存目前版面）'
                     onClick={() => setLayoutLibOpen(true)}
                 >
                     <LayoutGrid size={11} style={{ verticalAlign: '-1px' }} />{' '}
                     版面
-                </button>
+                </Button>
             )}
             {workspaceUndo && onUndoWorkspace && (
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.resetBtn}
                     title={`復原 Agent 版面變更「${workspaceUndo.label}」（${new Date(workspaceUndo.at).toLocaleTimeString('en-GB', { hour12: false })}）`}
                     onClick={onUndoWorkspace}
                 >
                     <Undo2 size={11} style={{ verticalAlign: '-1px' }} />{' '}
                     復原版面
-                </button>
+                </Button>
             )}
             {headerItems.flashAll && flashCodes.length > 0 && (
                 <FlashTilesMenu flashCodes={flashCodes} />
             )}
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.resetBtn}
                 title='設定（外觀/音效與隱私/帳號/風控/版面）'
                 onClick={() => setSettingsOpen(true)}
             >
                 <Settings size={11} style={{ verticalAlign: '-1px' }} /> 設定
-            </button>
+            </Button>
             <SettingsDialog
                 open={settingsOpen}
                 onClose={() => setSettingsOpen(false)}

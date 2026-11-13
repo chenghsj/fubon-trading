@@ -1,3 +1,38 @@
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 import '../test/mock-order-reconciliation';
 import { operationNotice } from '../test/operation-notice';
 // #216 閃電下單的觸價單與自動停損停利：觸價模式在點的價位掛觸價單（方向由

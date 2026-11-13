@@ -1,3 +1,7 @@
+import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { canTrade } from '../lib/account-tradable';
 // src/components/bottom-dock-positions.tsx — 持倉 tab：響應式欄位、
 // 分帳戶區段、批次市價平倉（arm-lock 防誤觸）
@@ -275,80 +279,78 @@ export function PositionsPane({
     const maxAbsPnl = Math.max(1, ...rows.map((p) => Math.abs(p.pnl)));
 
     const selectionCell = (p: AccountedPosition) => (
-        <input
-            type='checkbox'
+        <Checkbox
             className={styles.chk}
             disabled={!armed || busy !== null}
             checked={selected.has(posKey(p))}
             onClick={(e) => e.stopPropagation()}
-            onChange={() => toggleSelect(p)}
+            onCheckedChange={() => toggleSelect(p)}
             title={armed ? '選取加入批次平倉' : '批次平倉已鎖定 — 先解鎖'}
         />
     );
 
     const renderTable = (list: AccountedPosition[], sz: SizeClass) => (
-        <table className={styles.table}>
-            <thead>
-                <tr>
-                    <th className={styles.th} style={{ width: '1.4rem' }}>
-                        <input
-                            type='checkbox'
+        <Table containerClassName="contents" className={styles.table}>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className={styles.th} style={{ width: '1.4rem' }}>
+                        <Checkbox
                             className={styles.chk}
                             disabled={!armed || busy !== null}
                             checked={allSelected}
-                            onChange={toggleAll}
+                            onCheckedChange={toggleAll}
                             title='全選（批次平倉）'
                         />
-                    </th>
-                    <th className={styles.th}>代碼</th>
-                    {sz === 'wide' && <th className={styles.th}>名稱</th>}
-                    <th className={styles.th}>方向</th>
-                    <th className={styles.th}>數量</th>
-                    {sz === 'wide' && <th className={styles.th}>昨餘</th>}
-                    <th className={styles.th}>{sz === 'wide' ? '成本' : '現價'}</th>
-                    {sz === 'wide' && <th className={styles.th}>現價</th>}
-                    <th className={styles.th}>損益</th>
-                    <th className={styles.th}>報酬率</th>
+                    </TableHead>
+                    <TableHead className={styles.th}>代碼</TableHead>
+                    {sz === 'wide' && <TableHead className={styles.th}>名稱</TableHead>}
+                    <TableHead className={styles.th}>方向</TableHead>
+                    <TableHead className={styles.th}>數量</TableHead>
+                    {sz === 'wide' && <TableHead className={styles.th}>昨餘</TableHead>}
+                    <TableHead className={styles.th}>{sz === 'wide' ? '成本' : '現價'}</TableHead>
+                    {sz === 'wide' && <TableHead className={styles.th}>現價</TableHead>}
+                    <TableHead className={styles.th}>損益</TableHead>
+                    <TableHead className={styles.th}>報酬率</TableHead>
                     {sz === 'wide' && (
-                        <th className={styles.th} style={{ width: '16%' }}>
+                        <TableHead className={styles.th} style={{ width: '16%' }}>
                             損益分布
-                        </th>
+                        </TableHead>
                     )}
                     {sz === 'wide' && (
-                        <th className={styles.th}>
+                        <TableHead className={styles.th}>
                             <ArmLockButton
                                 armed={armed}
                                 onToggle={() => setArmed((v) => !v)}
                                 hint='平/反與批次平倉'
                             />
-                        </th>
+                        </TableHead>
                     )}
-                </tr>
-            </thead>
-            <tbody>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
                 {list.map((p) => {
                     const dir = p.pnl > 0 ? 'up' : p.pnl < 0 ? 'down' : 'flat';
                     const retPct = retPctOf(p);
                     return (
-                        <tr
+                        <TableRow
                             key={posKey(p)}
                             className={styles.clickableRow}
                             onClick={() => onSelectCode(p.code)}
                             title='點擊連動圖表與下單面板'
                         >
-                            <td
+                            <TableCell
                                 className={styles.td}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {selectionCell(p)}
-                            </td>
-                            <td className={styles.td}>{p.code}</td>
+                            </TableCell>
+                            <TableCell className={styles.td}>{p.code}</TableCell>
                             {sz === 'wide' && (
-                                <td className={styles.td}>
+                                <TableCell className={styles.td}>
                                     {names[p.code] ?? ''}
-                                </td>
+                                </TableCell>
                             )}
-                            <td
+                            <TableCell
                                 className={`${styles.td} ${panel.dirText[p.direction === 'Buy' ? 'up' : 'down']}`}
                             >
                                 {sz === 'wide'
@@ -358,42 +360,42 @@ export function PositionsPane({
                                     : p.direction === 'Buy'
                                       ? '多'
                                       : '空'}
-                            </td>
-                            <td className={`${styles.td} ${styles.qtyCell}`}>
+                            </TableCell>
+                            <TableCell className={`${styles.td} ${styles.qtyCell}`}>
                                 {maskMoney(
                                     isStockPosition(p)
                                         ? fmtStockLots(p.quantity)
                                         : fmtInt(p.quantity),
                                     privMoney,
                                 )}
-                            </td>
+                            </TableCell>
                             {sz === 'wide' && (
-                                <td className={`${styles.td} ${styles.qtyCell}`} title={isStockPosition(p) ? yesterdayNotice : undefined}>
+                                <TableCell className={`${styles.td} ${styles.qtyCell}`} title={isStockPosition(p) ? yesterdayNotice : undefined}>
                                     {isStockPosition(p)
                                         ? yesterdayNotice ? '待確認' : maskMoney(
                                               fmtStockLots(p.yd_quantity),
                                               privMoney,
                                           )
                                         : '—'}
-                                </td>
+                                </TableCell>
                             )}
                             {sz === 'wide' && (
-                                <td className={styles.td}>
+                                <TableCell className={styles.td}>
                                     {maskMoney(fmtPrice(p.price), privMoney)}
-                                </td>
+                                </TableCell>
                             )}
-                            <td className={styles.td}>
+                            <TableCell className={styles.td}>
                                 {fmtPrice(p.last_price)}
-                            </td>
-                            <td className={`${styles.td} ${panel.dirText[dir]}`}>
+                            </TableCell>
+                            <TableCell className={`${styles.td} ${panel.dirText[dir]}`}>
                                 {maskMoney(fmtSigned(p.pnl, 0), privMoney)}
-                            </td>
-                            <td className={`${styles.td} ${panel.dirText[dir]}`}>
+                            </TableCell>
+                            <TableCell className={`${styles.td} ${panel.dirText[dir]}`}>
                                 {retPct > 0 ? '+' : ''}
                                 {retPct.toFixed(2)}%
-                            </td>
+                            </TableCell>
                             {sz === 'wide' && (
-                                <td className={styles.td}>
+                                <TableCell className={styles.td}>
                                     <div className={styles.pnlBar}>
                                         <div
                                             className={styles.pnlFill}
@@ -414,11 +416,11 @@ export function PositionsPane({
                                             }}
                                         />
                                     </div>
-                                </td>
+                                </TableCell>
                             )}
                             {sz === 'wide' && (
-                                <td className={styles.td}>
-                                    <button
+                                <TableCell className={styles.td}>
+                                    <Button size="compact" variant="outline"
                                         className={styles.cancelBtn}
                                         disabled={
                                             busyCode === p.code ||
@@ -439,8 +441,8 @@ export function PositionsPane({
                                         }}
                                     >
                                         平
-                                    </button>{' '}
-                                    <button
+                                    </Button>{' '}
+                                    <Button size="compact" variant="outline"
                                         className={styles.cancelBtn}
                                         disabled={
                                             busyCode === p.code ||
@@ -461,14 +463,14 @@ export function PositionsPane({
                                         }}
                                     >
                                         反
-                                    </button>
-                                </td>
+                                    </Button>
+                                </TableCell>
                             )}
-                        </tr>
+                        </TableRow>
                     );
                 })}
-            </tbody>
-        </table>
+            </TableBody>
+        </Table>
     );
 
     // 窄版：兩行卡片式 row（代碼＋方向＋量 / 現價均價疊排＋損益率）
@@ -583,7 +585,7 @@ export function PositionsPane({
                         const isCollapsed = collapsed.has(g.key);
                         return (
                             <div key={g.key}>
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.groupHeader}
                                     onClick={() =>
                                         setCollapsed((prev) => {
@@ -626,7 +628,7 @@ export function PositionsPane({
                                         )}
                                     </span>
                                     <span className={styles.groupSpacer} />
-                                </button>
+                                </Button>
                                 {!isCollapsed && renderRows(g.rows)}
                             </div>
                         );
@@ -642,12 +644,11 @@ export function PositionsPane({
                     hint='批次平倉'
                 />
                 {size === 'narrow' && (
-                    <input
-                        type='checkbox'
+                    <Checkbox
                         className={styles.chk}
                         disabled={!armed || busy !== null}
                         checked={allSelected}
-                        onChange={toggleAll}
+                        onCheckedChange={toggleAll}
                         title='全選（批次平倉）'
                     />
                 )}
@@ -682,17 +683,17 @@ export function PositionsPane({
                     />
                 )}
                 <span className={styles.batchSpacer} />
-                <select
+                <NativeSelect
                     className={styles.accountSelect}
                     title='排序'
                     value={sort}
                     onChange={(e) => setSort(e.target.value as SortMode)}
                 >
-                    <option value='default'>預設排序</option>
-                    <option value='value'>市值</option>
-                    <option value='pnl'>損益</option>
-                    <option value='code'>代碼</option>
-                </select>
+                    <NativeSelectOption value='default'>預設排序</NativeSelectOption>
+                    <NativeSelectOption value='value'>市值</NativeSelectOption>
+                    <NativeSelectOption value='pnl'>損益</NativeSelectOption>
+                    <NativeSelectOption value='code'>代碼</NativeSelectOption>
+                </NativeSelect>
             </div>
         </div>
     );

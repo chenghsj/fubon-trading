@@ -203,3 +203,31 @@ globalStyle('::-webkit-scrollbar-thumb', {
 globalStyle('::-webkit-scrollbar-thumb:hover', {
     background: vars.color.borderBright,
 });
+
+// shadcn semantic tokens reference the active terminal palette, including
+// custom inline overrides. Portals inherit these aliases from <html>.
+globalStyle(':root', {
+    vars: {
+        '--background': vars.color.background,
+        '--foreground': vars.color.foreground,
+        '--card': vars.color.panel,
+        '--card-foreground': vars.color.foreground,
+        '--popover': vars.color.panelRaised,
+        '--popover-foreground': vars.color.foreground,
+        '--primary': vars.color.accent,
+        '--primary-soft': vars.color.accentDim,
+        '--primary-foreground': '#ffffff',
+        '--secondary': vars.color.muted,
+        '--secondary-foreground': vars.color.foreground,
+        '--muted': vars.color.muted,
+        '--muted-foreground': vars.color.mutedForeground,
+        '--accent': vars.color.muted,
+        '--accent-foreground': vars.color.foreground,
+        '--destructive': vars.color.dangerSolid,
+        '--destructive-foreground': '#ffffff',
+        '--border': vars.color.border,
+        '--input': vars.color.borderBright,
+        '--ring': vars.color.accent,
+        '--radius': vars.radius.lg,
+    },
+});

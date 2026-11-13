@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/foreign-server-chip.tsx — #285: another program's shioaji
 // server that this App did not use (wrong environment, another account, or
 // not confirmable). Says so in the header and offers to start this App's
@@ -50,7 +51,7 @@ export function ForeignServerChip() {
         <span className={styles.foreignChip} title={a.text} role='status'>
             <Unplug size={13} aria-hidden />
             未連上 :{a.port}（另一個程式的{env}伺服器）
-            <button
+            <Button size="compact" variant="ghost"
                 className={styles.foreignChipAction}
                 disabled={busy}
                 onClick={() => {
@@ -59,7 +60,7 @@ export function ForeignServerChip() {
                 }}
             >
                 {busy ? '啟動中…' : '啟動本 App 的伺服器'}
-            </button>
+            </Button>
         </span>
     );
 }

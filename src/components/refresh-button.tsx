@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import type { ComponentProps } from 'react';
 import { RefreshCw } from 'lucide-react';
 import * as styles from './refresh-button.css';
@@ -12,7 +13,7 @@ type Props = Pick<ComponentProps<'button'>, 'onClick' | 'disabled' | 'className'
 /** Manual refresh for the current panel; accessible text stays in the tooltip. */
 export function RefreshButton({ label, loading = false, disabled = false, className, onClick, iconSize = 14 }: Props) {
     return (
-        <button
+        <Button size="compact" variant="outline"
             type='button'
             className={[styles.refreshButton, className].filter(Boolean).join(' ')}
             aria-label={label}
@@ -22,6 +23,6 @@ export function RefreshButton({ label, loading = false, disabled = false, classN
             onClick={onClick}
         >
             <RefreshCw size={iconSize} aria-hidden='true' className={loading ? styles.refreshSpinning : undefined} />
-        </button>
+        </Button>
     );
 }

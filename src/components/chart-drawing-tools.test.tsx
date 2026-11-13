@@ -1,3 +1,60 @@
+
+// Business tests drive the controlled Tabs API; DOM acceptance covers roving focus.
+vi.mock('./ui/tabs', async () => {
+    const { createElement, createContext, useContext } = await import('react');
+    type State = { value?: string; onValueChange?: (value: string) => void };
+    type Container = { children?: import('react').ReactNode; [key: string]: unknown };
+    const Context = createContext<State>({});
+    return {
+        Tabs: ({ children, value, onValueChange, ...props }: State & Container) =>
+            createElement(Context.Provider, { value: { value, onValueChange } }, createElement('div', props, children)),
+        TabsList: ({ children, ...props }: Container) => createElement('div', { ...props, role: 'tablist' }, children),
+        TabsTrigger: ({ children, value, onClick, ...props }: Container & { value: string; onClick?: () => void }) => {
+            const group = useContext(Context);
+            return createElement('button', { ...props, role: 'tab', 'aria-selected': group.value === value,
+                onClick: () => { onClick?.(); group.onValueChange?.(value); } }, children);
+        },
+        TabsContent: ({ children, value, ...props }: Container & { value: string }) => {
+            const group = useContext(Context);
+            return value === group.value ? createElement('div', { ...props, role: 'tabpanel' }, children) : null;
+        },
+    };
+});
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, onEscapeClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; onEscapeClose?: () => void; [key: string]: unknown;
+    }) => {
+        useEscClose(onEscapeClose ?? (() => { if (!locked && (canClose?.() ?? true)) onClose?.(); }));
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,7 +119,7 @@ describe('設定對話框：規則 R 與欄位 diff', () => {
         const staleTextBlur = view.root.findByProps({ 'aria-label': '文字內容' }).props.onBlur;
         const staleName = view.root.findByProps({ 'aria-label': '物件名稱' }).props;
         const staleStyle = view.root.findByProps({ 'aria-label': '線寬 4' }).props.onClick;
-        await act(async () => view.root.findAllByProps({ role: 'tab' })[1]!.props.onClick());
+        await act(async () => view.root.findAll(n => n.type === 'button' && n.props.role === 'tab')[1]!.props.onClick());
         const time = view.root.findAllByType('input').find((n) => n.props.type === 'datetime-local')!;
         const staleTime = time.props.onBlur;
         const remote = { ...d, text: '遠端', revision: '0000000000000100:remote' };
@@ -90,7 +147,7 @@ describe('設定對話框：規則 R 與欄位 diff', () => {
             name.onBlur({ target: { value: '' } });
             name.onKeyDown({ key: 'Enter', currentTarget: { value: '' } });
             view.root.findByProps({ 'aria-label': `線寬 ${d.style.width}` }).props.onClick();
-            view.root.findAllByProps({ role: 'tab' })[1]!.props.onClick();
+            view.root.findAll(n => n.type === 'button' && n.props.role === 'tab')[1]!.props.onClick();
         });
         const time = view.root.findAllByType('input').find((n) => n.props.type === 'datetime-local')!;
         await act(async () => time.props.onBlur({ target: { value: time.props.defaultValue } }));
@@ -118,7 +175,7 @@ describe('設定對話框：規則 R 與欄位 diff', () => {
 
     it('改價格只提交 price，改時間只提交 time', async () => {
         const { api, d } = await dialog('trend');
-        await act(async () => view.root.findAllByProps({ role: 'tab' })[1]!.props.onClick());
+        await act(async () => view.root.findAll(n => n.type === 'button' && n.props.role === 'tab')[1]!.props.onClick());
         const price = view.root.findAllByType(PriceInput)[0]!;
         await act(async () => price.props.onCommit(25123));
         expect(api.setAnchor).toHaveBeenLastCalledWith(d.id, 0, { price: 25123 });

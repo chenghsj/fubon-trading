@@ -1,3 +1,17 @@
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
 import { createElement, type ReactElement } from 'react';
 import { act, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -538,7 +552,7 @@ it('游標未移動時，補入商品產生的 hover 或同座標 mousemove 不�
     const { view } = render('palette');
     const session = await start(view);
     act(() => session.onUpdate([stock, future]));
-    const overlay = view.root.find((node) => node.type === 'div' && node.props.className === paletteStyles.overlay);
+    const overlay = view.root.find((node) => node.type === 'div' && node.props.className === paletteStyles.box);
     act(() => overlay.props.onMouseMove({ clientX: 30, clientY: 40 }));
     act(() => input(view).props.onKeyDown({ key: 'ArrowDown', preventDefault: vi.fn() }));
     expect(activeText(view)).toContain('CDFR1');

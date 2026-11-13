@@ -66,6 +66,14 @@ export default defineConfig(({ mode, command }) => {
                 output: {
                     codeSplitting: {
                         groups: [
+                            // Keep React's CommonJS initialization in one chunk.
+                            // Size-based vendor splitting can otherwise create
+                            // a cycle through Radix / scroll-lock and react-dom.
+                            {
+                                name: 'react',
+                                test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/,
+                                priority: 5,
+                            },
                             {
                                 name: 'agent',
                                 test: /[\\/]modules[\\/]agent[\\/]/,

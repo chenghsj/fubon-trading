@@ -10,8 +10,6 @@ export const backdrop = style({
 });
 
 export const pop = style({
-    position: 'fixed',
-    zIndex: 61,
     width: '15.5rem',
     maxHeight: 'calc(100vh - 16px)',
     overflowY: 'auto',

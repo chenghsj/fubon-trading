@@ -1,3 +1,7 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { remainingWorkingOrderQuantity } from '../lib/working-order-quantity';
 import { canUpdateOrderPrice, isOddLot, lotLabel } from '../lib/odd-lot';
 import { cancellationSummary } from '../lib/trade-mutations';
@@ -132,7 +136,7 @@ export function OrderEditor({
     const [val, setVal] = useState('');
     if (!editing) {
         return (
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.cancelBtn}
                 title={field === 'qty' ? '減量（輸入新的剩餘數量）' : '改價（輸入新價格）'}
                 onClick={() => {
@@ -150,7 +154,7 @@ export function OrderEditor({
                 }}
             >
                 {field === 'qty' ? '改量' : '改價'}
-            </button>
+            </Button>
         );
     }
     const submit = () => {
@@ -190,7 +194,7 @@ export function OrderEditor({
         setEditing(false);
     };
     return (
-        <input
+        <Input
             autoFocus
             aria-label={field === 'qty' ? '新的剩餘數量' : '新的委託價格'}
             className={styles.qtyInline}
@@ -403,13 +407,12 @@ export function OrdersPane({
     const selectionCell = (t: Trade) => {
         const active = remainingWorkingOrderQuantity(t) > 0;
         return (
-            <input
-                type='checkbox'
+            <Checkbox
                 className={styles.chk}
                 disabled={!armed || !active || busy !== null}
                 checked={active && selected.has(t.order.id)}
                 onClick={(e) => e.stopPropagation()}
-                onChange={() =>
+                onCheckedChange={() =>
                     setSelected((prev) => {
                         const next = new Set(prev);
                         if (next.has(t.order.id)) next.delete(t.order.id);
@@ -453,7 +456,7 @@ export function OrdersPane({
                         </span>{' '}
                     </>
                 )}
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.cancelBtn}
                     disabled={cancelling !== null || busy !== null}
                     onClick={(e) => {
@@ -462,69 +465,68 @@ export function OrdersPane({
                     }}
                 >
                     {cancelling === t.order.id ? '…' : 'CANCEL'}
-                </button>
+                </Button>
             </>
         );
     };
 
     const renderTable = (list: Trade[]) => (
-        <table className={styles.table}>
-            <thead>
-                <tr>
-                    <th className={styles.th} style={{ width: '1.4rem' }}>
-                        <input
-                            type='checkbox'
+        <Table containerClassName="contents" className={styles.table}>
+            <TableHeader>
+                <TableRow>
+                    <TableHead className={styles.th} style={{ width: '1.4rem' }}>
+                        <Checkbox
                             className={styles.chk}
                             disabled={
                                 !armed || activeIds.size === 0 || busy !== null
                             }
                             checked={allSelected}
-                            onChange={toggleAll}
+                            onCheckedChange={toggleAll}
                             title='全選有效單（批次刪單）'
                         />
-                    </th>
-                    <th className={styles.th}>代碼</th>
-                    <th className={styles.th}>買賣</th>
-                    {size === 'wide' && <th className={styles.th}>類別</th>}
-                    <th className={styles.th}>價格</th>
-                    <th className={styles.th}>數量</th>
-                    <th className={styles.th}>狀態</th>
-                    {size === 'wide' && <th className={styles.th}>訊息</th>}
-                    <th className={styles.th} />
-                </tr>
-            </thead>
-            <tbody>
+                    </TableHead>
+                    <TableHead className={styles.th}>代碼</TableHead>
+                    <TableHead className={styles.th}>買賣</TableHead>
+                    {size === 'wide' && <TableHead className={styles.th}>類別</TableHead>}
+                    <TableHead className={styles.th}>價格</TableHead>
+                    <TableHead className={styles.th}>數量</TableHead>
+                    <TableHead className={styles.th}>狀態</TableHead>
+                    {size === 'wide' && <TableHead className={styles.th}>訊息</TableHead>}
+                    <TableHead className={styles.th} />
+                </TableRow>
+            </TableHeader>
+            <TableBody>
                 {list.map((t) => {
                     const st = t.status.status;
                     return (
-                        <tr
+                        <TableRow
                             key={t.order.id}
                             className={styles.clickableRow}
                             onClick={() => onSelectCode(t.contract.code)}
                             title='點擊連動圖表與下單面板'
                         >
-                            <td
+                            <TableCell
                                 className={styles.td}
                                 onClick={(e) => e.stopPropagation()}
                             >
                                 {selectionCell(t)}
-                            </td>
-                            <td className={styles.td}>{t.contract.code}</td>
-                            <td
+                            </TableCell>
+                            <TableCell className={styles.td}>{t.contract.code}</TableCell>
+                            <TableCell
                                 className={`${styles.td} ${panel.dirText[t.order.action === 'Buy' ? 'up' : 'down']}`}
                             >
                                 {t.order.action === 'Buy' ? '買' : '賣'}
-                            </td>
+                            </TableCell>
                             {size === 'wide' && (
-                                <td
+                                <TableCell
                                     className={`${styles.td} ${styles.detailCell}`}
                                 >
                                     {orderDetail(t) || '—'}
-                                </td>
+                                </TableCell>
                             )}
-                            <td className={styles.td}>{priceCell(t)}</td>
-                            <td className={styles.td}>{fillCell(t)}</td>
-                            <td className={styles.td}>
+                            <TableCell className={styles.td}>{priceCell(t)}</TableCell>
+                            <TableCell className={styles.td}>{fillCell(t)}</TableCell>
+                            <TableCell className={styles.td}>
                                 <span
                                     title={`狀態 ${orderStatusLabel(st)}；原始量 ${t.order.quantity}；成交 ${t.status.deal_quantity}；取消 ${t.status.cancel_quantity}`}
                                     className={
@@ -533,9 +535,9 @@ export function OrdersPane({
                                 >
                                     {ACTIVE_STATUSES.has(st) && remainingWorkingOrderQuantity(t) === 0 ? '無未成交量' : orderStatusLabel(st)}
                                 </span>
-                            </td>
+                            </TableCell>
                             {size === 'wide' && (
-                                <td
+                                <TableCell
                                     className={styles.td}
                                     style={{
                                         maxWidth: '14rem',
@@ -545,16 +547,16 @@ export function OrdersPane({
                                     }}
                                 >
                                     {t.status.msg || '—'}
-                                </td>
+                                </TableCell>
                             )}
-                            <td className={styles.td}>
+                            <TableCell className={styles.td}>
                                 {actionsCell(t, true)}
-                            </td>
-                        </tr>
+                            </TableCell>
+                        </TableRow>
                     );
                 })}
-            </tbody>
-        </table>
+            </TableBody>
+        </Table>
     );
 
     // 窄版：兩行卡片式 row（代碼＋買賣＋狀態 / 價格＋進度圈＋刪單）
@@ -622,7 +624,7 @@ export function OrdersPane({
         <div className={styles.dockBody} ref={measureRef}>
             <div className={styles.filterRow}>
                 {filterChips.map((c) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={c.key}
                         className={
                             styles.ctrlOpt[
@@ -641,7 +643,7 @@ export function OrdersPane({
                         }
                     >
                         {c.label} {c.n ?? 0}
-                    </button>
+                    </Button>
                 ))}
             </div>
             <div className={styles.paneScroll}>
@@ -664,7 +666,7 @@ export function OrdersPane({
                                     ? '市場/帳戶範圍'
                                     : '狀態'}
                                 篩選隱藏{' '}
-                                <button
+                                <Button size="compact" variant="outline"
                                     className={styles.cancelBtn}
                                     onClick={() => {
                                         setStatusFilter('all');
@@ -672,7 +674,7 @@ export function OrdersPane({
                                     }}
                                 >
                                     顯示全部
-                                </button>
+                                </Button>
                             </>
                         )}
                     </div>
@@ -685,7 +687,7 @@ export function OrdersPane({
                         return (
                             <div key={g.key}>
                                 <div className={styles.groupHeader}>
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         className={styles.groupHeader}
                                         style={{
                                             border: 'none',
@@ -719,7 +721,7 @@ export function OrdersPane({
                                         <span className={styles.groupStat}>
                                             有效 {gActive.length}
                                         </span>
-                                    </button>
+                                    </Button>
                                     <span className={styles.groupSpacer} />
                                     {gActive.length > 0 && (
                                         <span
@@ -766,14 +768,13 @@ export function OrdersPane({
                     hint='批次刪單'
                 />
                 {size === 'narrow' && (
-                    <input
-                        type='checkbox'
+                    <Checkbox
                         className={styles.chk}
                         disabled={
                             !armed || activeIds.size === 0 || busy !== null
                         }
                         checked={allSelected}
-                        onChange={toggleAll}
+                        onCheckedChange={toggleAll}
                         title='全選有效單（批次刪單）'
                     />
                 )}

@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+import { Toaster } from './ui/sonner';
 // src/components/event-toasts.tsx — order/deal/notice toasts.
 // Prominent, kind-coded cards (成交/委託/錯誤/訊息) with clean formatted
 // content instead of raw event dumps; size follows the 通知大小 setting.
@@ -8,7 +10,7 @@ import {
     Info,
     Receipt,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { describeOrderReport } from '../lib/order-report';
 import { playAlert, playDeal, playError, playOrder } from '../lib/sounds';
 import { onOrderEvent } from '../lib/stream';
@@ -34,26 +36,24 @@ const KIND_ICON: Record<ToastKind, React.ReactNode> = {
 };
 
 export function EventToasts({ onEvent }: { onEvent?: () => void }) {
-    const [toasts, setToasts] = useState<ToastItem[]>([]);
+    const ids = useRef(new Set<string | number>());
     const nextId = useRef(1);
     const onEventRef = useRef(onEvent);
     onEventRef.current = onEvent;
     const scale = useToastScale();
-    // toast 顯示期間才打開隱私／遮金額也要立即遮（#268）
-    const reveal = useRevealText();
-
     useEffect(() => {
         const push = (
             kind: ToastKind,
             title: string,
             lines: ToastItem['lines'],
         ) => {
-            const id = nextId.current++;
-            setToasts((prev) => [...prev.slice(-4), { id, kind, title, lines }]);
-            setTimeout(
-                () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-                kind === 'err' ? 9000 : 6000,
-            );
+            const item = { id: nextId.current++, kind, title, lines };
+            const id = toast.custom(() => <TradeToast item={item} />, {
+                duration: kind === 'err' ? 9000 : 6000,
+                onDismiss: item => { ids.current.delete(item.id); },
+                onAutoClose: item => { ids.current.delete(item.id); },
+            });
+            ids.current.add(id);
         };
         const offOrder = onOrderEvent((ev) => {
             const d = describeOrderReport(ev);
@@ -75,39 +75,27 @@ export function EventToasts({ onEvent }: { onEvent?: () => void }) {
         return () => {
             offOrder();
             offNotice();
+            ids.current.forEach(id => toast.dismiss(id));
+            ids.current.clear();
         };
     }, []);
 
-    return (
-        <div
-            className={styles.stack}
-            style={{
-                fontSize: `${scale}rem`,
-                width: `${21 * scale}rem`,
-            }}
-        >
-            {toasts.map((t) => (
-                <div key={t.id} className={styles.toast[t.kind]}>
-                    <span className={styles.icon[t.kind]}>
-                        {KIND_ICON[t.kind]}
-                    </span>
-                    <div className={styles.content}>
-                        <div className={styles.title}>{reveal(t.title)}</div>
-                        {t.lines.map((l, i) => (
-                            <div
-                                key={i}
-                                className={
-                                    l.dir
-                                        ? styles.line[l.dir]
-                                        : styles.line.plain
-                                }
-                            >
-                                {reveal(l.text)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ))}
+    return <Toaster position="top-right" expand visibleToasts={5} offset={52}
+        style={{ width: `${21 * scale}rem` }} />;
+}
+
+/** External-store hooks stay mounted inside Sonner so visible cards respond
+ * immediately to privacy and scale changes without retaining rendered secrets. */
+function TradeToast({ item: t }: { item: ToastItem }) {
+    const reveal = useRevealText();
+    const scale = useToastScale();
+    return <div style={{ fontSize: `${scale}rem`, width: `${21 * scale}rem`, maxWidth: 'calc(100vw - 32px)' }}>
+        <div className={styles.toast[t.kind]}>
+            <span className={styles.icon[t.kind]}>{KIND_ICON[t.kind]}</span>
+            <div className={styles.content}>
+                <div className={styles.title}>{reveal(t.title)}</div>
+                {t.lines.map((line, i) => <div key={i} className={line.dir ? styles.line[line.dir] : styles.line.plain}>{reveal(line.text)}</div>)}
+            </div>
         </div>
-    );
+    </div>;
 }

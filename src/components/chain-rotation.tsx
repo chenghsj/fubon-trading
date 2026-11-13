@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/chain-rotation.tsx — 輪動 view: every chain/theme as a bubble.
 //
 // x = net inflow since the first received bar (asinh scale, so a small group
@@ -427,7 +428,7 @@ export function FlowRotation({
         <div className={s.rot} ref={ref}>
             <div className={s.rotStates} role='group' aria-label='族群狀態'>
                 {QUADRANTS.map((q) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={q}
                         type='button'
                         className={`${s.rotState} ${focus === q ? s.rotStateOn : ''}`}
@@ -450,7 +451,7 @@ export function FlowRotation({
                         <span className={s.rotDot[q]} aria-hidden='true' />
                         <span className={s.rotStateLabel}>{QUADRANT_LABEL[q]}</span>
                         <span className={s.rotStateCount}>{now === null ? '--' : warming ? '—' : counts[q]}</span>
-                    </button>
+                    </Button>
                 ))}
             </div>
             {w > 0 && h > 0 && (

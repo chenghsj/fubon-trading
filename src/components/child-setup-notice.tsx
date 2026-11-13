@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/child-setup-notice.tsx — shown in the tray panel / popouts
 // while first-run setup is not done. Child windows cannot call native
 // credential commands, so setup happens in the main window.
@@ -14,14 +15,14 @@ export function ChildSetupNotice() {
             <p className={styles.body}>
                 API 金鑰只在主視窗讀取與設定。完成設定後，這個視窗會自動更新。
             </p>
-            <button
+            <Button size="compact" variant="outline"
                 type='button'
                 className={styles.button}
                 onClick={() => void focusMainWindow().catch(() => undefined)}
             >
                 <AppWindow size={14} aria-hidden />
                 開啟主視窗
-            </button>
+            </Button>
         </div>
     );
 }
@@ -36,10 +37,10 @@ export function SettingsLoadError({ onRetry }: { onRetry: () => void }) {
             <p className={styles.body}>
                 API 金鑰等設定暫時無法讀取，已保留原設定不做變更。請重試；若持續失敗，請重新開啟 App。
             </p>
-            <button type='button' className={styles.button} onClick={onRetry}>
+            <Button size="compact" variant="outline" type='button' className={styles.button} onClick={onRetry}>
                 <RotateCw size={14} aria-hidden />
                 重試
-            </button>
+            </Button>
         </div>
     );
 }

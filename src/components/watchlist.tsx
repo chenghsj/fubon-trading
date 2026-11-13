@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 // src/components/watchlist.tsx — server-backed editable watchlists.
 // Pick a list, add symbols (type auto-detected), hover a row to remove,
 // drag rows to reorder (persisted to the server).
@@ -242,7 +245,7 @@ const WatchRow = memo(function WatchRow({
             </span>
             {arrange ? (
                 <span className={styles.moveCol}>
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.moveBtn}
                         title='上移'
                         disabled={!canUp}
@@ -252,8 +255,8 @@ const WatchRow = memo(function WatchRow({
                         }}
                     >
                         <ChevronUp size={11} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="outline"
                         className={styles.moveBtn}
                         title='下移'
                         disabled={!canDown}
@@ -263,10 +266,10 @@ const WatchRow = memo(function WatchRow({
                         }}
                     >
                         <ChevronDown size={11} />
-                    </button>
+                    </Button>
                 </span>
             ) : (
-                <button
+                <Button size="compact" variant="destructive"
                     className={styles.rowRemove}
                     title='從清單移除'
                     disabled={!canRemove}
@@ -276,7 +279,7 @@ const WatchRow = memo(function WatchRow({
                     }}
                 >
                     <X size={10} />
-                </button>
+                </Button>
             )}
         </div>
     );
@@ -558,7 +561,7 @@ export function Watchlist({
             <div className={styles.listPicker}>
                 {creating ? (
                     <>
-                        <input
+                        <Input
                             autoFocus
                             className={styles.addInput}
                             placeholder='新清單名稱'
@@ -569,15 +572,15 @@ export function Watchlist({
                                 if (e.key === 'Escape') setCreating(false);
                             }}
                         />
-                        <button
+                        <Button size="compact" variant="outline"
                             className={panel.btn}
                             onClick={submitNewList}
                         >
                             建立
-                        </button>
+                        </Button>
                     </>
                 ) : renaming ? (
-                    <input
+                    <Input
                         autoFocus
                         className={styles.addInput}
                         placeholder='清單名稱'
@@ -598,8 +601,8 @@ export function Watchlist({
                     />
                 ) : (
                     <>
-                        <select
-                            className={styles.listSelect}
+                        <NativeSelect
+                            wrapperClassName="flex-1" className={styles.listSelect}
                             value={activeListId}
                             disabled={structureBusy}
                             onChange={(e) => {
@@ -608,11 +611,11 @@ export function Watchlist({
                             }}
                         >
                             {serverLists.map((l) => (
-                                <option key={l.id} value={l.id}>
+                                <NativeSelectOption key={l.id} value={l.id}>
                                     {l.name}（{l.contracts.length}）
-                                </option>
+                                </NativeSelectOption>
                             ))}
-                        </select>
+                        </NativeSelect>
                         {onReload && (
                             <RefreshButton
                                 label='重新讀取清單'
@@ -626,14 +629,14 @@ export function Watchlist({
                                 }}
                             />
                         )}
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.listBtn}
                             title='重新命名清單'
                             onClick={startRename}
                         >
                             <Pencil size={12} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="outline"
                             className={`${styles.listBtn} ${
                                 arrange ? styles.listBtnOn : ''
                             }`}
@@ -659,8 +662,8 @@ export function Watchlist({
                             ) : (
                                 <GripVertical size={12} />
                             )}
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="outline"
                             className={`${styles.listBtn} ${
                                 sortMode !== 'custom' ? styles.listBtnOn : ''
                             }`}
@@ -691,8 +694,8 @@ export function Watchlist({
                             ) : (
                                 <ArrowUp size={12} />
                             )}
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="outline"
                             className={`${styles.listBtn} ${
                                 spark ? styles.listBtnOn : ''
                             }`}
@@ -708,16 +711,16 @@ export function Watchlist({
                             }
                         >
                             <TrendingUp size={12} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="outline"
                             className={styles.listBtn}
                             title='建立新清單'
                             disabled={loading || loadError}
                             onClick={() => setCreating(true)}
                         >
                             <Plus size={12} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="destructive"
                             className={`${styles.listBtn} ${
                                 confirmDelete ? styles.listBtnDanger : ''
                             }`}
@@ -740,7 +743,7 @@ export function Watchlist({
                             }}
                         >
                             {confirmDelete ? '確認?' : <Trash2 size={12} />}
-                        </button>
+                        </Button>
                     </>
                 )}
             </div>
@@ -751,7 +754,7 @@ export function Watchlist({
                     )}
                     {!loading && loadError && (
                         <AsyncStatus phase='error' text='自選清單讀取或同步失敗。'
-                            action={<button type="button" onClick={onRetryLoad}>重試</button>}
+                            action={<Button size="compact" variant="ghost" type="button" onClick={onRetryLoad}>重試</Button>}
                             className={styles.loadingHint} />
                     )}
                     {!loading && !loadError && items.length === 0 && (
@@ -831,15 +834,15 @@ export function Watchlist({
                         {(searchError || searching || addError) && <AsyncStatus phase={searchError || addError ? 'error' : 'loading'}
                             text={addError ? '加入自選失敗，可重新搜尋' : searchError ? '搜尋失敗，可重試' : '搜尋中…'}
                             className={styles.loadingHint}
-                            action={searchError || addError ? <button type='button' onMouseDown={(event) => event.preventDefault()} onClick={() => {
+                            action={searchError || addError ? <Button size="compact" variant="ghost" type='button' onMouseDown={(event) => event.preventDefault()} onClick={() => {
                                 setAddError(false);
                                 search.retry();
                                 // The button disappears with the error; keep typing in the input.
                                 inputRef.current?.focus();
-                            }}>{addError ? '重新搜尋' : '重試'}</button> : undefined} />}
+                            }}>{addError ? '重新搜尋' : '重試'}</Button> : undefined} />}
                     </div>,
                 )}
-                <input
+                <Input
                     ref={inputRef}
                     className={styles.addInput}
                     placeholder='股票、期貨或指數（如 台積電期）'
@@ -896,9 +899,9 @@ export function Watchlist({
                         }
                     }}
                 />
-                <button ref={addButtonRef} className={panel.btn} onClick={() => void submit()} disabled={busy || loading || !activeListId}>
+                <Button size="compact" variant="outline" ref={addButtonRef} className={panel.btn} onClick={() => void submit()} disabled={busy || loading || !activeListId}>
                     {busy ? '…' : '+'}
-                </button>
+                </Button>
             </div>
         </>
     );

@@ -1,3 +1,6 @@
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 // src/components/odd-spread.tsx — 整零價差面板（整股 vs 盤中零股）。
 //
 // 上方兩張卡各算一個方向（買整→賣零、買零→賣整）的毛價差、扣費後淨價差、
@@ -150,7 +153,7 @@ export function OddSpread(props: {
 function NumPref({ label, value, onChange, title, width = 'narrow' }: { label: string; value: number; onChange: (v: number) => void; title?: string; width?: 'narrow' | 'tiny' }) {
     const [text, setText] = useState<string | null>(null);
     return (
-        <input
+        <Input
             className={width === 'tiny' ? styles.inputTiny : styles.inputNarrow}
             aria-label={label}
             title={title}
@@ -414,7 +417,7 @@ export function OddSpreadView({
             {clickLocks.map(l => (
                 <div key={l.id} className={styles.notice} role='alert'>
                     {l.text}；點價已鎖定，請先在委託查詢核對
-                    <button className={styles.noticeBtn} onClick={() => clearClickLock(l.id)}>已核對委託，解除鎖定</button>
+                    <Button size="compact" variant="outline" className={styles.noticeBtn} onClick={() => clearClickLock(l.id)}>已核對委託，解除鎖定</Button>
                 </div>
             ))}
             <div className={styles.cards}>
@@ -430,14 +433,14 @@ export function OddSpreadView({
             </div>
             <div className={styles.ladderHead}>
                 <span className={styles.groupCell}>整股（張）</span>
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.armBtn[armed ? 'on' : 'off']}
                     disabled={!live || !account || clickLocks.length > 0}
                     title={clickLocks.length > 0 ? '有點價委託結果未確認，核對後解除鎖定' : armed ? '點價下單中 — 點擊或 Esc 鎖定' : '啟用後點左側量＝整股限價、右側量＝零股限價'}
                     onClick={() => setArmed(a => !a)}
                 >
                     {armed ? '點價中' : '啟用點價'}
-                </button>
+                </Button>
                 <span className={styles.groupCell}>零股（股）</span>
                 <span className={styles.headCell}>買量</span>
                 <span className={styles.headCell}>賣量</span>
@@ -482,8 +485,8 @@ export function OddSpreadView({
             <div className={styles.footer}>
                 <div className={styles.fRow}>
                     <span className={styles.fLabel}>整股</span>
-                    <button className={styles.smallBtn} aria-label='整股減 1 張' disabled={lots <= 0} onClick={() => setLots(v => Math.max(0, v - 1))}><Minus size={11} /></button>
-                    <input
+                    <Button size="compact" variant="outline" className={styles.smallBtn} aria-label='整股減 1 張' disabled={lots <= 0} onClick={() => setLots(v => Math.max(0, v - 1))}><Minus size={11} /></Button>
+                    <Input
                         className={styles.input}
                         aria-label='整股張數'
                         inputMode='numeric'
@@ -493,9 +496,9 @@ export function OddSpreadView({
                             if (Number.isInteger(v) && v >= 0 && v <= 999) setLots(v);
                         }}
                     />
-                    <button className={styles.smallBtn} aria-label='整股加 1 張' disabled={lots >= 999} onClick={() => setLots(v => Math.min(999, v + 1))}><Plus size={11} /></button>
+                    <Button size="compact" variant="outline" className={styles.smallBtn} aria-label='整股加 1 張' disabled={lots >= 999} onClick={() => setLots(v => Math.min(999, v + 1))}><Plus size={11} /></Button>
                     <span>張</span>
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.lockBtn[paired ? 'on' : 'off']}
                         aria-pressed={paired}
                         title={paired ? '配對中：1 張 = 1,000 股。點擊解除，分開設定零股股數' : '已解除配對。點擊恢復 1 張 = 1,000 股'}
@@ -505,10 +508,10 @@ export function OddSpreadView({
                         }}
                     >
                         {paired ? <Link2 size={12} /> : <Link2Off size={12} />}配對
-                    </button>
+                    </Button>
                     <span className={styles.fLabel}>零股</span>
-                    <button className={styles.smallBtn} aria-label='零股減 1 股' disabled={paired || oddShares <= 0} onClick={() => setOddShares(v => Math.max(0, v - 1))}><Minus size={11} /></button>
-                    <input
+                    <Button size="compact" variant="outline" className={styles.smallBtn} aria-label='零股減 1 股' disabled={paired || oddShares <= 0} onClick={() => setOddShares(v => Math.max(0, v - 1))}><Minus size={11} /></Button>
+                    <Input
                         className={styles.input}
                         aria-label='零股股數'
                         inputMode='numeric'
@@ -519,7 +522,7 @@ export function OddSpreadView({
                             if (Number.isInteger(v) && v >= 0 && v <= 999_000) setOddShares(v);
                         }}
                     />
-                    <button className={styles.smallBtn} aria-label='零股加 1 股' disabled={paired || oddShares >= 999_000} onClick={() => setOddShares(v => Math.min(999_000, v + 1))}><Plus size={11} /></button>
+                    <Button size="compact" variant="outline" className={styles.smallBtn} aria-label='零股加 1 股' disabled={paired || oddShares >= 999_000} onClick={() => setOddShares(v => Math.min(999_000, v + 1))}><Plus size={11} /></Button>
                     <span>股</span>
                     <span
                         className={styles.inventory}
@@ -531,12 +534,12 @@ export function OddSpreadView({
                 </div>
                 <div className={styles.fRow}>
                     <span className={styles.fLabel}>送單方式</span>
-                    <select className={styles.select} aria-label='送單方式' value={mode} onChange={e => setMode(e.target.value as ExecMode)}>
-                        <option value='sequential'>零股成交後再送整股</option>
-                        <option value='simultaneous'>兩腳同時送</option>
-                    </select>
+                    <NativeSelect className={styles.select} aria-label='送單方式' value={mode} onChange={e => setMode(e.target.value as ExecMode)}>
+                        <NativeSelectOption value='sequential'>零股成交後再送整股</NativeSelectOption>
+                        <NativeSelectOption value='simultaneous'>兩腳同時送</NativeSelectOption>
+                    </NativeSelect>
                     <span className={styles.fLabel}>手續費</span>
-                    <input
+                    <Input
                         className={styles.inputTiny}
                         aria-label='手續費折數'
                         title='券商手續費折數（6 折填 6、2.8 折填 2.8、無折扣填 10）'
@@ -549,7 +552,7 @@ export function OddSpreadView({
                     />
                     <span>折</span>
                     <span className={styles.fLabel}>證交稅</span>
-                    <input
+                    <Input
                         className={styles.inputTiny}
                         aria-label='證交稅率（%）'
                         title={`賣出證交稅率（%）：一般股票 0.3、當沖 0.15、ETF 0.1；債券 ETF（代號 B 結尾）停徵至 2026-12-31 自動帶 0。其他免稅或減半的例外請自行修改${bondEtf ? '（此檔為債券 ETF）' : ''}`}
@@ -627,7 +630,7 @@ function SpreadExecuteButton({ q, blocked, label, privMoney, contextKey, onExecu
     const loss = maskMoney(`${int(Math.max(0, -(q.pnl ?? 0)))} 元`, privMoney);
     const buttonText = belowCostOnly ? confirming ? `${label} · 再按一次確認 · 虧損 ${loss}` : `${label} · 仍要送出（預估虧損 ${loss}）` : label;
     return (
-        <button
+        <Button size="compact" variant="destructive"
             className={styles.bigBtn[!on ? 'off' : belowCostOnly ? confirming ? 'danger' : 'warn' : 'on']}
             disabled={!on}
             aria-label={`${DIRECTION_LABEL[q.direction]}：${buttonText}`}
@@ -643,7 +646,7 @@ function SpreadExecuteButton({ q, blocked, label, privMoney, contextKey, onExecu
             }}
         >
             {buttonText}
-        </button>
+        </Button>
     );
 }
 
@@ -703,9 +706,9 @@ function SpreadCard({ q, blocked, privMoney, onExecute }: { q: SpreadQuote; bloc
                     {showPlan && q.pnl !== null ? maskMoney(`${signed(q.pnl, 0)} 元`, privMoney) : '—'}
                 </span>
             </div>
-            <button className={styles.goBtn[on ? 'on' : 'off']} disabled={!on} onClick={onExecute}>
+            <Button size="compact" variant="outline" className={styles.goBtn[on ? 'on' : 'off']} disabled={!on} onClick={onExecute}>
                 {on ? `以 ${q.lots} 張執行` : blocked ?? '無法執行'}
-            </button>
+            </Button>
         </div>
     );
 }
@@ -776,10 +779,10 @@ function ExecStatus({ rec, paused }: { rec: SpreadExecRecord; paused: boolean })
                             <span className={styles.execActions}>
                                 委託列有相同價量但沒有標記的委託，是否為這筆：
                                 {candidates.map(t => (
-                                    <button key={t.order.id} className={styles.smallBtn} title='指定後以此委託追蹤成交'
+                                    <Button size="compact" variant="outline" key={t.order.id} className={styles.smallBtn} title='指定後以此委託追蹤成交'
                                         onClick={() => claimOrder(rec.id, x.key, t.order.id)}>
                                         是 {t.order.ordno || t.order.seqno || t.order.id}
-                                    </button>
+                                    </Button>
                                 ))}
                             </span>
                         )}
@@ -794,7 +797,7 @@ function ExecStatus({ rec, paused }: { rec: SpreadExecRecord; paused: boolean })
             {marked.length > 0 && (
                 <span className={styles.execDetail}>
                     已標記未送出：{marked.map(slotText).join('、')}（暫定；若委託列出現這筆會自動接回並重新計算。在確認前，同商品不能開始新的價差單）
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.smallBtn}
                         disabled={paused}
                         title='已在券商委託查詢確認這些委託確實不存在：結束追蹤，之後就算出現也不再接回'
@@ -805,7 +808,7 @@ function ExecStatus({ rec, paused }: { rec: SpreadExecRecord; paused: boolean })
                         }}
                     >
                         確認沒有送出，結束追蹤
-                    </button>
+                    </Button>
                 </span>
             )}
             {cancelFailed.length > 0 && (
@@ -821,31 +824,31 @@ function ExecStatus({ rec, paused }: { rec: SpreadExecRecord; paused: boolean })
             <span className={styles.execActions}>
                 {p && (
                     <>
-                        <button className={styles.smallBtnPrimary} disabled={paused} onClick={() => void confirmHedge(rec)}>以最新價補單</button>
-                        <button className={styles.smallBtn} disabled={paused} title='不補單，保留未配對部位自行處理' onClick={() => spreadExecAction(rec.id, { type: 'hedgeDecline', version: p.version })}>取消</button>
+                        <Button size="compact" variant="default" className={styles.smallBtnPrimary} disabled={paused} onClick={() => void confirmHedge(rec)}>以最新價補單</Button>
+                        <Button size="compact" variant="outline" className={styles.smallBtn} disabled={paused} title='不補單，保留未配對部位自行處理' onClick={() => spreadExecAction(rec.id, { type: 'hedgeDecline', version: p.version })}>取消</Button>
                     </>
                 )}
                 {unknown.length > 0 && (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.smallBtn}
                         disabled={paused}
                         title='已在委託查詢確認這些委託沒有送出；若之後仍出現帶本單標記的委託，會自動接回並重新計算'
                         onClick={() => { for (const x of unknown) spreadExecAction(rec.id, { type: 'resolveUnknown', key: x.key }); }}
                     >
                         已核對：未送出
-                    </button>
+                    </Button>
                 )}
                 {!done && !p && (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.smallBtn}
                         disabled={paused}
                         title='刪除未成交的委託；已成交的零股會以整張配對送出整股，不足一張列為未配對'
                         onClick={() => spreadExecAction(rec.id, { type: 'cancel' })}
                     >
                         {cancelFailed.length > 0 ? '再次取消' : '取消剩餘'}
-                    </button>
+                    </Button>
                 )}
-                {done && <button className={styles.smallBtn} onClick={() => dismissSpreadExecution(rec.id)}>關閉</button>}
+                {done && <Button size="compact" variant="outline" className={styles.smallBtn} onClick={() => dismissSpreadExecution(rec.id)}>關閉</Button>}
             </span>
         </div>
     );

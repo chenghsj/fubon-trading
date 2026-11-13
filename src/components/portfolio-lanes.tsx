@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/portfolio-lanes.tsx — 持股「資金通道」: one lane per held group.
 //
 // The lanes are drawn by the same river engine as 排行 (chain-river.tsx):
@@ -118,7 +119,7 @@ export function HoldingLanes({
                 <span className={s.title}>持有{label}資金通道</span>
                 <span className={s.windows} role='group' aria-label='淨流入區間'>
                     {WINDOWS.map((w) => (
-                        <button
+                        <Button size="compact" variant="outline"
                             key={w.value}
                             type='button'
                             className={s.windowBtn[w.value === win ? 'on' : 'off']}
@@ -126,7 +127,7 @@ export function HoldingLanes({
                             onClick={() => setWin(w.value)}
                         >
                             {w.label}
-                        </button>
+                        </Button>
                     ))}
                 </span>
                 {now === null ? (
@@ -193,7 +194,7 @@ export function HoldingLanes({
                                     title={`${g.name}・持有 ${g.stocks.length} 檔\n${span}淨流入 ${fmtTwd(r.net, true)}${ratio !== null ? `（占成交值 ${fmtSignedPct(ratio, 1)}）` : ''}\n${label}漲跌 ${fmtSignedPct(g.flow.pct)}・權重 ${(g.weight * 100).toFixed(1)}%`}
                                 >
                                     {flip && !reducedMotion && <span key={flip.slot} className={s.flip} aria-hidden='true' />}
-                                    <button
+                                    <Button size="compact" variant="outline"
                                         type='button'
                                         className={s.nameBtn}
                                         aria-pressed={selected}
@@ -210,7 +211,7 @@ export function HoldingLanes({
                                                 <BellRing size={10} aria-hidden='true' />
                                             </span>
                                         )}
-                                    </button>
+                                    </Button>
                                     <span className={s.sub}>
                                         {g.id === 'none' ? (
                                             <span>持股自身資金</span>
@@ -224,7 +225,7 @@ export function HoldingLanes({
                                     <span className={s.track} data-track='' aria-hidden='true' />
                                     <span className={s.chips[now === null ? 'start' : side]}>
                                         {g.stocks.slice(0, fit).map((st) => (
-                                            <button
+                                            <Button size="compact" variant="ghost"
                                                 key={st.code}
                                                 type='button'
                                                 className={s.chip}
@@ -246,7 +247,7 @@ export function HoldingLanes({
                                                     style={{ width: `${maxStock > 0 ? Math.max(6, (st.weight / maxStock) * 100) : 0}%` }}
                                                     aria-hidden='true'
                                                 />
-                                            </button>
+                                            </Button>
                                         ))}
                                         {more > 0 && <span className={s.chipMore}>+{more}</span>}
                                     </span>

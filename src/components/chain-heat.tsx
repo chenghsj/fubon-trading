@@ -1,3 +1,5 @@
+import { TableCell, Table, TableHeader, TableRow, TableHead, TableBody } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 // src/components/chain-heat.tsx：漲跌 view: heat of every group, and of the
 // selected group's member stocks.
 //
@@ -248,65 +250,65 @@ export function HeatList({
     const cell = (t: Tile, c: Figure) => {
         if (c === 'price') {
             return (
-                <td key={c} className={`${s.listTd} ${panel.dirText[dir(t.pct)]}`}>
+                <TableCell key={c} className={`${s.listTd} ${panel.dirText[dir(t.pct)]}`}>
                     {t.price ? fmtPrice(t.price) : '--'}
-                </td>
+                </TableCell>
             );
         }
         if (c === 'pct') {
             return (
-                <td key={c} className={`${s.listTd} ${panel.dirText[dir(t.pct)]}`}>
+                <TableCell key={c} className={`${s.listTd} ${panel.dirText[dir(t.pct)]}`}>
                     {fmtSignedPct(t.pct)}
-                </td>
+                </TableCell>
             );
         }
         if (c === 'vol') {
             return (
-                <td key={c} className={s.listTd}>
+                <TableCell key={c} className={s.listTd}>
                     {t.volRatio == null ? '--' : t.volRatio.toFixed(2)}
-                </td>
+                </TableCell>
             );
         }
         if (c === 'net') {
             const net = tileNet(t, now);
             return (
-                <td key={c} className={`${s.listTd} ${panel.dirText[dir(net)]}`}>
+                <TableCell key={c} className={`${s.listTd} ${panel.dirText[dir(net)]}`}>
                     {fmtTwd(net, true)}
-                </td>
+                </TableCell>
             );
         }
         return (
-            <td key={c} className={s.listTd}>
+            <TableCell key={c} className={s.listTd}>
                 {fmtYi(t.order)}
-            </td>
+            </TableCell>
         );
     };
     return (
         <div ref={paneRef} className={s.listPane}>
-            <table className={s.listTable} aria-label={label}>
-                <thead>
-                    <tr>
-                        <th className={s.listThName} scope='col' title={nameLabel}>
+            <Table containerClassName="contents" className={s.listTable} aria-label={label}>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead className={s.listThName} scope='col' title={nameLabel}>
                             {nameLabel}
-                        </th>
+                        </TableHead>
                         {figures.map((c) => {
                             const style = { width: `${rem[c]}rem` };
                             if (!isSortKey(c)) {
                                 return (
-                                    <th key={c} className={s.listThText} scope='col' style={style} title={heading[c].title}>
+                                    <TableHead key={c} className={s.listThText} scope='col' style={style} title={heading[c].title}>
                                         {heading[c].label}
-                                    </th>
+                                    </TableHead>
                                 );
                             }
                             return (
-                                <th
+                                <TableHead
                                     key={c}
                                     className={s.listTh}
                                     scope='col'
                                     style={style}
                                     aria-sort={sort.key === c ? (sort.desc ? 'descending' : 'ascending') : undefined}
                                 >
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         type='button'
                                         className={s.listSort}
                                         // 淨流入 has nothing to sort before the first bar
@@ -316,24 +318,24 @@ export function HeatList({
                                     >
                                         {heading[c].label}
                                         {sort.key === c && <span aria-hidden='true'>{sort.desc ? ' ▼' : ' ▲'}</span>}
-                                    </button>
-                                </th>
+                                    </Button>
+                                </TableHead>
                             );
                         })}
-                    </tr>
-                </thead>
-                <tbody onKeyDown={onKeyDown}>
+                    </TableRow>
+                </TableHeader>
+                <TableBody onKeyDown={onKeyDown}>
                     {sorted.length === 0 && (
-                        <tr>
-                            <td className={s.listTdName} colSpan={figures.length + 1}>
+                        <TableRow>
+                            <TableCell className={s.listTdName} colSpan={figures.length + 1}>
                                 尚無報價
-                            </td>
-                        </tr>
+                            </TableCell>
+                        </TableRow>
                     )}
                     {sorted.map((t) => {
                         const on = t.id === selectedId;
                         return (
-                            <tr
+                            <TableRow
                                 key={t.id}
                                 ref={on ? selectedRef : undefined}
                                 className={`${s.listRow} ${on ? s.listRowOn : ''}`}
@@ -343,9 +345,9 @@ export function HeatList({
                                     onClick(t.id);
                                 }}
                             >
-                                <td className={s.listTdName}>
+                                <TableCell className={s.listTdName}>
                                     {/* keyboard / screen-reader handle; its click bubbles to the row */}
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         type='button'
                                         className={s.listName}
                                         tabIndex={t.id === current ? 0 : -1}
@@ -361,14 +363,14 @@ export function HeatList({
                                         {t.kind && <span className={s.rankDot[markKind(t.kind)]} aria-hidden='true' />}
                                         <span className={s.listNameText}>{t.name}</span>
                                         {t.code && fit.shown.has('code') && <span className={s.listCode}>{t.code}</span>}
-                                    </button>
-                                </td>
+                                    </Button>
+                                </TableCell>
                                 {figures.map((c) => cell(t, c))}
-                            </tr>
+                            </TableRow>
                         );
                     })}
-                </tbody>
-            </table>
+                </TableBody>
+            </Table>
         </div>
     );
 }
@@ -426,7 +428,7 @@ function HeatTile({
     const title = `${tile.name}${tile.sub ? `・${tile.sub}` : ''}\n漲跌 ${fmtSignedPct(tile.pct)}\n今日成交值 ${fmtTwd(tile.order)}\n近 ${cell.minutes.length} 分鐘淨流入 ${fmtTwd(cell.net, true)}・占成交值 ${cell.ratio !== null ? fmtSignedPct(cell.ratio * 100, 1) : '--'}（成交值 ${fmtTwd(cell.turnover)}）`;
     const label = fit.mode === 'code' ? (tile.code ?? tile.name) : tile.name;
     return (
-        <button
+        <Button size="compact" variant="ghost"
             type='button'
             className={`${s.heatTile[side]} ${selected ? s.heatTileOn : ''} ${reducedMotion ? s.still : ''}`}
             style={style}
@@ -456,7 +458,7 @@ function HeatTile({
                     ))}
                 </span>
             )}
-        </button>
+        </Button>
     );
 }
 

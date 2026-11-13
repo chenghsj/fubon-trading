@@ -1,3 +1,38 @@
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 // src/components/conditional-panel.test.tsx — 條件單管理面板 (#226): rows,
 // sections, tabs and the per-row actions (every one a command to the engine).
 
@@ -269,7 +304,7 @@ describe('ConditionalPanel', () => {
     it('the 操作 column stays pinned right; 帳戶／有效期／現價 give way first (QA 10/12 overflow)', () => {
         m.sources = sources({ triggers: [trig()] });
         const r = render();
-        const cells = r.root.findAll(n => n.type === 'td' && n.parent?.type === 'tr').filter(n => n.parent!.findAll(c => c.type === 'td').length === 9);
+        const cells = r.root.findAll(n => n.type === 'td' && n.parent?.parent?.type === 'tr').filter(n => n.parent!.parent!.findAll(c => c.type === 'td').length === 9);
         const last = cells.at(-1)!;
         expect(last.props.className).toContain(styles.opsCell);
         expect(last.findAll(n => n.type === 'button' && n.props['data-testid'] === 'cond-delete')).toHaveLength(1);

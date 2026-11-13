@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { Bot } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { registerOnboardingAppStateHost } from '../lib/agent-app-command';
@@ -110,8 +111,8 @@ export function OnboardingSetup() {
             {loaded && settings.migrationError && <div className={styles.logoutBox}>
                 <p className={styles.hint}>無法轉移時可以登出重來：會停止本 App 的 Agent 與伺服器，並清除舊金鑰、CA 密碼與使用中帳號的金鑰。</p>
                 <div className={styles.logoutActions}>
-                    {confirmLogout && <button className={dialog.smallButton} disabled={busy} onClick={() => setConfirmLogout(false)}>取消</button>}
-                    <button className={confirmLogout ? dialog.confirmDanger : dialog.smallButton} disabled={busy} onClick={() => void logout()}>{confirmLogout ? '確認登出並清除' : '登出並清除'}</button>
+                    {confirmLogout && <Button size="compact" variant="outline" className={dialog.smallButton} disabled={busy} onClick={() => setConfirmLogout(false)}>取消</Button>}
+                    <Button size="compact" variant="destructive" className={confirmLogout ? dialog.confirmDanger : dialog.smallButton} disabled={busy} onClick={() => void logout()}>{confirmLogout ? '確認登出並清除' : '登出並清除'}</Button>
                 </div>
             </div>}
             {busy && <p className={styles.hint}>啟動中 — 登入與載入合約約需 10–30 秒…</p>}

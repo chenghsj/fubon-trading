@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Slider } from '@/components/ui/slider';
 import { RefreshButton } from './refresh-button';
 import { fetchChartHistory, nextChartHistoryRevision } from '../lib/chart-history';
 // src/components/intraday-wall.tsx — 當日走勢牆: a grid of compact
@@ -853,7 +856,7 @@ function CellHead({
                     : ''}
             </span>
             {onGear && (
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.cellGear}
                     title={`單獨設定 ${contract.code} 的顯示`}
                     onClick={(e) => {
@@ -862,7 +865,7 @@ function CellHead({
                     }}
                 >
                     <Settings2 size={10} />
-                </button>
+                </Button>
             )}
         </div>
     );
@@ -1076,7 +1079,7 @@ export function IntradayWallPanel({
     return (
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
-                <select
+                <NativeSelect
                     className={styles.select}
                     value={list.id}
                     onChange={(e) => {
@@ -1086,19 +1089,19 @@ export function IntradayWallPanel({
                     }}
                 >
                     {lists.map((l) => (
-                        <option key={l.id} value={l.id}>
+                        <NativeSelectOption key={l.id} value={l.id}>
                             {l.name}（{l.contracts.length}）
-                        </option>
+                        </NativeSelectOption>
                     ))}
-                </select>
+                </NativeSelect>
                 <span className={styles.layoutWrap}>
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.select}
                         title='排列設定 — 自訂欄×列'
                         onClick={() => setLayoutOpen((v) => !v)}
                     >
                         {cols}×{rows}
-                    </button>
+                    </Button>
                     {layoutOpen && (
                         <>
                             <span
@@ -1127,23 +1130,23 @@ export function IntradayWallPanel({
                                         className={styles.popRow}
                                     >
                                         {label}
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={styles.stepBtn}
                                             disabled={value <= WALL_DIM_MIN}
                                             onClick={() => set(value - 1)}
                                         >
                                             −
-                                        </button>
+                                        </Button>
                                         <span className={styles.stepVal}>
                                             {value}
                                         </span>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={styles.stepBtn}
                                             disabled={value >= max}
                                             onClick={() => set(value + 1)}
                                         >
                                             ＋
-                                        </button>
+                                        </Button>
                                     </span>
                                 ))}
                                 <span className={styles.popHint}>
@@ -1154,18 +1157,18 @@ export function IntradayWallPanel({
                     )}
                 </span>
                 <span className={styles.spacer} />
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.pagerBtn}
                     disabled={safePage <= 0}
                     title='上一頁'
                     onClick={() => setPage(Math.max(0, safePage - 1))}
                 >
                     <ChevronLeft size={12} />
-                </button>
+                </Button>
                 <span className={styles.pageInfo}>
                     {safePage + 1}/{maxPage}
                 </span>
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.pagerBtn}
                     disabled={safePage >= maxPage - 1}
                     title='下一頁'
@@ -1174,15 +1177,15 @@ export function IntradayWallPanel({
                     }
                 >
                     <ChevronRight size={12} />
-                </button>
+                </Button>
                 <span className={chartUi.settingsWrap}>
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.pagerBtn}
                         title='顯示設定 — 類別全域與單檔覆寫'
                         onClick={() => setDispOpen((v) => !v)}
                     >
                         <Settings2 size={12} />
-                    </button>
+                    </Button>
                     {dispOpen && (
                         <>
                             <span
@@ -1192,7 +1195,7 @@ export function IntradayWallPanel({
                             <span className={chartUi.settingsPop}>
                                 <span className={styles.dispTabs}>
                                     {WALL_CATS.map((c) => (
-                                        <button
+                                        <Button size="compact" variant="ghost"
                                             key={c.key}
                                             className={
                                                 styles.dispTab[
@@ -1212,15 +1215,15 @@ export function IntradayWallPanel({
                                             }
                                         >
                                             {c.label}
-                                        </button>
+                                        </Button>
                                     ))}
                                     {editTarget.kind === 'code' && (
-                                        <button
+                                        <Button size="compact" variant="ghost"
                                             className={styles.dispTab.active}
                                             title='此檔的單獨覆寫設定'
                                         >
                                             {editTarget.code}
-                                        </button>
+                                        </Button>
                                     )}
                                 </span>
                                 {editTarget.kind === 'code' && (
@@ -1243,7 +1246,7 @@ export function IntradayWallPanel({
                                             }
                                             」類別設定
                                         </span>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 chartUi.scaleBtn.normal
                                             }
@@ -1255,7 +1258,7 @@ export function IntradayWallPanel({
                                             }
                                         >
                                             清除覆寫
-                                        </button>
+                                        </Button>
                                     </span>
                                 )}
                                 <span className={chartUi.settingsRow}>
@@ -1270,7 +1273,7 @@ export function IntradayWallPanel({
                                             ['bars', '美國線'],
                                         ] as const
                                     ).map(([v, label]) => (
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             key={v}
                                             className={
                                                 chartUi.scaleBtn[
@@ -1284,7 +1287,7 @@ export function IntradayWallPanel({
                                             }
                                         >
                                             {label}
-                                        </button>
+                                        </Button>
                                     ))}
                                 </span>
                                 <span className={chartUi.settingsRow}>
@@ -1300,7 +1303,7 @@ export function IntradayWallPanel({
                                             ['band', '漲跌停'],
                                         ] as const
                                     ).map(([v, label]) => (
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             key={v}
                                             className={
                                                 chartUi.scaleBtn[
@@ -1319,7 +1322,7 @@ export function IntradayWallPanel({
                                             }
                                         >
                                             {label}
-                                        </button>
+                                        </Button>
                                     ))}
                                 </span>
                                 <span className={chartUi.settingsRow}>
@@ -1335,7 +1338,7 @@ export function IntradayWallPanel({
                                             ['hide', '隱藏'],
                                         ] as const
                                     ).map(([v, label]) => (
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             key={v}
                                             className={
                                                 chartUi.scaleBtn[
@@ -1356,7 +1359,7 @@ export function IntradayWallPanel({
                                             }
                                         >
                                             {label}
-                                        </button>
+                                        </Button>
                                     ))}
                                 </span>
                                 <span className={chartUi.settingsRow}>
@@ -1371,7 +1374,7 @@ export function IntradayWallPanel({
                                             [false, '隱藏'],
                                         ] as const
                                     ).map(([v, label]) => (
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             key={label}
                                             className={
                                                 chartUi.scaleBtn[
@@ -1385,7 +1388,7 @@ export function IntradayWallPanel({
                                             }
                                         >
                                             {label}
-                                        </button>
+                                        </Button>
                                     ))}
                                 </span>
                                 <span className={chartUi.settingsRow}>
@@ -1394,8 +1397,7 @@ export function IntradayWallPanel({
                                     >
                                         線寬
                                     </span>
-                                    <input
-                                        type='range'
+                                    <Slider
                                         className={chartUi.slider}
                                         style={
                                             {
@@ -1405,11 +1407,11 @@ export function IntradayWallPanel({
                                         min={0.5}
                                         max={4}
                                         step={0.5}
-                                        value={targetEff.width}
-                                        onChange={(e) =>
+                                        value={[Number(targetEff.width)]}
+                                        onValueChange={(e) =>
                                             patchDisp({
                                                 width: Number(
-                                                    e.target.value,
+                                                    e[0]!,
                                                 ),
                                             })
                                         }

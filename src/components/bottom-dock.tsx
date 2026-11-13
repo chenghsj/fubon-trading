@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { canTrade } from '../lib/account-tradable';
 import { remainingWorkingOrderQuantity } from '../lib/working-order-quantity';
 // src/components/bottom-dock.tsx — positions / orders / account tabs.
@@ -207,20 +209,20 @@ export function BottomDock({
         <div className={styles.dock}>
             <div className={styles.tabBar}>
                 {tabs.map((t) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={t.key}
                         className={styles.tab[tab === t.key ? 'on' : 'off']}
                         onClick={() => setTab(t.key)}
                     >
                         {t.label}
-                    </button>
+                    </Button>
                 ))}
                 <span style={{ fontSize: 11, whiteSpace: 'nowrap' }} title={queryStatus.error ?? (tab === 'positions' ? '持倉依成交與行情在本機估算' : tab === 'orders' ? '委託依主動回報更新' : '帳務為上次查詢快照')}>
                     {queryStatus.needsReconcile || (tab === 'account' && accountRefresh?.error) ? reconcileLabel(queryStatus.reasons) : tab === 'positions' ? '即時估算' : tab === 'orders' ? '即時回報' : '帳務快照'}
                     {queryStatus.updatedAt ? ` · 查詢 ${new Date(queryStatus.updatedAt).toLocaleTimeString()}` : ' · 尚未查詢'}
                 </span>
                 <span className={styles.tabSpacer} />
-                <select
+                <NativeSelect
                     className={styles.accountSelect}
                     title='帳戶範圍（選個別帳戶會同步下單面板）'
                     value={scope}
@@ -237,21 +239,21 @@ export function BottomDock({
                         }
                     }}
                 >
-                    <option value=''>全部帳戶</option>
+                    <NativeSelectOption value=''>全部帳戶</NativeSelectOption>
                     {tradable.map((a) => {
                         const key = refKey(accountToRef(a));
                         return (
-                            <option key={key} value={key}>
+                            <NativeSelectOption key={key} value={key}>
                                 {a.account_type === 'S' ? '[證]' : '[期]'}{' '}
                                 {a.broker_id}-
                                 {maskAccountId(a.account_id, priv)}
-                            </option>
+                            </NativeSelectOption>
                         );
                     })}
                     {unsigned.map((a) => {
                         const key = refKey(accountToRef(a));
                         return (
-                            <option
+                            <NativeSelectOption
                                 key={key}
                                 value={key}
                                 disabled
@@ -260,31 +262,31 @@ export function BottomDock({
                                 {a.account_type === 'S' ? '[證]' : '[期]'}{' '}
                                 {a.broker_id}-
                                 {maskAccountId(a.account_id, priv)} · {UNSIGNED_LABEL}
-                            </option>
+                            </NativeSelectOption>
                         );
                     })}
-                </select>
+                </NativeSelect>
                 <span className={styles.ctrlGroup}>
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={
                             styles.ctrlOpt[mode === 'merged' ? 'on' : 'off']
                         }
                         onClick={() => setMode('merged')}
                     >
                         合併
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="ghost"
                         className={
                             styles.ctrlOpt[mode === 'grouped' ? 'on' : 'off']
                         }
                         onClick={() => setMode('grouped')}
                     >
                         分帳戶
-                    </button>
+                    </Button>
                 </span>
                 <span className={styles.ctrlGroup}>
                     {marketChips.map((c) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={c.key}
                             className={
                                 styles.ctrlOpt[market === c.key ? 'on' : 'off']
@@ -292,7 +294,7 @@ export function BottomDock({
                             onClick={() => setMarket(c.key)}
                         >
                             {c.label}
-                        </button>
+                        </Button>
                     ))}
                 </span>
                 <RefreshButton label={`更新${tabLabel}`} loading={refreshing} onClick={refreshTab} />

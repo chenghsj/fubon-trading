@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/flash-totals-bar.tsx — 閃電梯子最底部的合計列，每格對齊上方的欄：
 //   觸買｜買單：我的買委託（成交）｜買量：五檔買量合計｜價格：現沖先賣回補狀態｜
 //   賣量：五檔賣量合計｜賣單：我的賣委託（成交）｜觸賣
@@ -39,7 +40,7 @@ function Mine({ side, s, unit, priv, cancel }: { side: 'buy' | 'sell'; s: SideTo
     const action = priv ? `刪除全部${word}單` : `刪除全部${word}單（${count} 筆）`;
     const hint = cancel.armed ? `點一下${action}` : `先啟用閃電下單，才能點一下${action}`;
     return (
-        <button
+        <Button size="compact" variant="outline"
             type='button'
             className={`${styles.totMine[side]} ${styles.totMineBtn[side]}`}
             aria-label={action}
@@ -49,7 +50,7 @@ function Mine({ side, s, unit, priv, cancel }: { side: 'buy' | 'sell'; s: SideTo
             onClick={() => { if (cancel.armed) cancel.onCancel(side); }}
         >
             {body}
-        </button>
+        </Button>
     );
 }
 

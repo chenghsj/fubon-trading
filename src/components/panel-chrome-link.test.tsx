@@ -1,3 +1,37 @@
+// State/selection contract for react-test-renderer; browser E2E covers the
+// Radix portal, trigger pointer handling and menu keyboard navigation.
+vi.mock('./ui/dropdown-menu', async () => {
+    const { createElement, cloneElement, Children, createContext, useContext } = await import('react');
+    type Content = { children?: import('react').ReactNode; [key: string]: unknown };
+    type MenuState = { open: boolean; onOpenChange?: (open: boolean) => void };
+    type RadioState = { value?: string; onValueChange?: (value: string) => void };
+    const Menu = createContext<MenuState>({ open: false });
+    const Radio = createContext<RadioState>({});
+    return {
+        DropdownMenu: ({ children, open, onOpenChange }: Content & MenuState) =>
+            createElement(Menu.Provider, { value: { open, onOpenChange } }, children),
+        DropdownMenuTrigger: ({ children, asChild, ...props }: Content & { asChild?: boolean }) => {
+            const menu = useContext(Menu);
+            const triggerProps = { ...props, 'aria-haspopup': 'menu', 'aria-expanded': menu.open,
+                onClick: () => menu.onOpenChange?.(!menu.open) };
+            return asChild ? cloneElement(Children.only(children) as import('react').ReactElement<Record<string, unknown>>, triggerProps)
+                : createElement('button', triggerProps, children);
+        },
+        DropdownMenuContent: ({ children, ...props }: Content) => useContext(Menu).open
+            ? createElement('div', { ...props, role: 'menu' }, children) : null,
+        DropdownMenuRadioGroup: ({ children, value, onValueChange, ...props }: Content & RadioState) =>
+            createElement(Radio.Provider, { value: { value, onValueChange } }, createElement('div', { ...props, role: 'group' }, children)),
+        DropdownMenuRadioItem: ({ children, value, ...props }: Content & { value: string }) => {
+            const radio = useContext(Radio);
+            const menu = useContext(Menu);
+            return createElement('button', { ...props, role: 'menuitemradio', 'aria-checked': radio.value === value,
+                onClick: () => { radio.onValueChange?.(value); menu.onOpenChange?.(false); } }, children);
+        },
+        DropdownMenuGroup: ({ children, ...props }: Content) => createElement('div', { ...props, role: 'group' }, children),
+        DropdownMenuLabel: ({ children, ...props }: Content) => createElement('div', props, children),
+        DropdownMenuSeparator: (props: Record<string, unknown>) => createElement('div', { ...props, role: 'separator' }),
+    };
+});
 // 標題列的連動下拉：連動（跟自選）／群組 A／B／C／鎖定。群組的代碼框輸入代碼
 // 全組一起換；頂端色條與群組色點標出同一組。
 import { createElement } from 'react';

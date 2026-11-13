@@ -1,3 +1,19 @@
+// These are business-state tests; DOM acceptance exercises the Radix radio group.
+vi.mock('./ui/radio-group', async () => {
+    const { createElement, createContext, useContext } = await import('react');
+    type State = { value?: string; onValueChange?: (value: string) => void; disabled?: boolean };
+    const Context = createContext<State>({});
+    return {
+        RadioGroup: ({ children, ...props }: State & { children?: import('react').ReactNode }) =>
+            createElement(Context.Provider, { value: props }, createElement('div', { ...props, role: 'radiogroup' }, children)),
+        RadioGroupItem: ({ value, ...props }: { value: string; disabled?: boolean }) => {
+            const group = useContext(Context);
+            return createElement('button', { ...props, role: 'radio', value,
+                disabled: props.disabled || group.disabled, 'aria-checked': group.value === value,
+                onClick: () => group.onValueChange?.(value) });
+        },
+    };
+});
 // src/components/pending-confirm.test.tsx — 委託待確認卡 (#201 ③, A 方案):
 // show the order, send the user to the order list, record their decision.
 // The card never sends or resends an order.
@@ -55,9 +71,9 @@ function render(props: { compact?: boolean } = {}) {
 const text = (n: ReactTestInstance): string => n.children.map(c => typeof c === 'string' ? c : text(c)).join('');
 const buttons = (r: ReactTestRenderer) => r.root.findAllByType('button');
 const button = (r: ReactTestRenderer, label: string) => buttons(r).find(b => text(b).includes(label))!;
-const radios = (r: ReactTestRenderer) => r.root.findAll(n => n.type === 'input' && n.props.type === 'radio');
+const radios = (r: ReactTestRenderer) => r.root.findAll(n => n.type === 'button' && n.props.role === 'radio');
 const click = async (b: ReactTestInstance) => { await act(async () => { b.props.onClick(); }); };
-const choose = (r: ReactTestRenderer, i: number) => act(() => { radios(r)[i]!.props.onChange({ target: { checked: true } }); });
+const choose = (r: ReactTestRenderer, i: number) => act(() => { radios(r)[i]!.props.onClick(); });
 const show = (items: PendingConfirmItem[], over: Partial<PendingConfirmSnapshot> = {}) => {
     m.state = { snapshot: mockPendingConfirmSnapshot({ items, ...over }), error: null, subscriptionError: null, loading: false, generation: 1 };
 };

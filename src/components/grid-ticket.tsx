@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 // src/components/grid-ticket.tsx — 鋪單 (order grid): lay N limit orders
 // at stepped price levels in one click, cancel them in one click, and an
 // optional 動態跟隨 mode that cancel/replaces the grid as the last price
@@ -550,13 +552,13 @@ export function GridTicket({
     ) => (
         <div className={styles.fieldRow}>
             <span className={styles.fieldLabel}>{label}</span>
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.stepBtn}
                 onClick={() => set(Math.max(min, value - 1))}
             >
                 −
-            </button>
-            <input
+            </Button>
+            <Input
                 className={styles.numInput}
                 value={value}
                 inputMode='numeric'
@@ -565,19 +567,19 @@ export function GridTicket({
                     if (Number.isInteger(v) && v >= min && v <= max) set(v);
                 }}
             />
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.stepBtn}
                 onClick={() => set(Math.min(max, value + 1))}
             >
                 ＋
-            </button>
+            </Button>
         </div>
     );
 
     return (
         <div className={styles.body}>
             <div className={styles.sideTabs}>
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.buyTab[side === 'Buy' ? 'on' : 'off']}
                     onClick={() => {
                         setSide('Buy');
@@ -585,8 +587,8 @@ export function GridTicket({
                     }}
                 >
                     買進鋪單
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="ghost"
                     className={styles.sellTab[side === 'Sell' ? 'on' : 'off']}
                     onClick={() => {
                         setSide('Sell');
@@ -594,7 +596,7 @@ export function GridTicket({
                     }}
                 >
                     賣出鋪單
-                </button>
+                </Button>
             </div>
 
             {numField('起始檔距', startOff, setStartOff, 1, 50)}
@@ -608,7 +610,7 @@ export function GridTicket({
                             ['Common', '整股'],
                             ['IntradayOdd', '盤中零股'],
                         ] as const).map(([value, label]) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={value}
                                 className={styles.seg[lot === value ? 'on' : 'off']}
                                 role="radio"
@@ -625,7 +627,7 @@ export function GridTicket({
                                 }}
                             >
                                 {label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -640,7 +642,7 @@ export function GridTicket({
                 </span>
             )}
 
-            <button
+            <Button size="compact" variant="outline"
                 className={flash.armBtn[armed ? 'on' : 'off']}
                 onClick={() => {
                     setArmed((a) => !a);
@@ -654,10 +656,10 @@ export function GridTicket({
                 ) : (
                     '解鎖鋪單'
                 )}
-            </button>
+            </Button>
 
             <div className={styles.fieldRow}>
-                <button
+                <Button size="compact" variant="outline"
                     className={
                         styles.execBtn[side === 'Buy' ? 'buy' : 'sell']
                     }
@@ -672,18 +674,18 @@ export function GridTicket({
                           : busy
                           ? '處理中…'
                           : `鋪 ${preview.length} 檔`}
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="destructive"
                     className={flash.cancelAllBtn}
                     disabled={busy || ownGrid.length === 0}
                     title={otherGrid > 0 ? `只撤本面板目前單位與帳戶的鋪單；另有 ${otherGrid} 筆其他鋪單請在委託面板處理` : '撤掉本面板送出的鋪單'}
                     onClick={() => void cancelGrid()}
                 >
                     全撤 {ownGrid.length > 0 ? ownGrid.length : ''}
-                </button>
+                </Button>
             </div>
 
-            <button
+            <Button size="compact" variant="outline"
                 className={flash.followBtn[follow ? 'on' : 'off']}
                 disabled={!armed}
                 title='價格移動時自動撤舊補新，維持與現價的相對距離'
@@ -697,7 +699,7 @@ export function GridTicket({
                 ) : (
                     '動態跟隨現價'
                 )}
-            </button>
+            </Button>
             {follow && followAccountShown && (
                 <span className={styles.costRow} title='動態跟隨啟動時固定的下單帳戶'>
                     跟隨帳戶 {followAccountShown.broker_id}-{maskAccountId(followAccountShown.account_id, priv)}

@@ -1,3 +1,5 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
 // src/components/combo-strategy.tsx — 選擇權策略快建（issue #32 追加）
 //
 // 專業建倉動線：選商品/月份 → 選策略 → 選履約價（預設貼 ATM）→
@@ -247,28 +249,28 @@ export function OptionStrategyBuilder({
         onChange: (v: number) => void,
         label: string,
     ) => (
-        <select
+        <NativeSelect
             className={dx.select}
             aria-label={label}
             value={value ?? ''}
             onChange={(e) => onChange(Number(e.target.value))}
         >
             {strikes.map((s) => (
-                <option key={s} value={s}>
+                <NativeSelectOption key={s} value={s}>
                     {s}
                     {nearestIdx >= 0 && strikes[nearestIdx] === s
                         ? '（ATM）'
                         : ''}
-                </option>
+                </NativeSelectOption>
             ))}
-        </select>
+        </NativeSelect>
     );
 
     return (
         <div className={css.section}>
             <div className={styles.fieldRow}>
                 <span className={styles.fieldLabel}>商品</span>
-                <select
+                <NativeSelect
                     className={dx.select}
                     value={root}
                     onChange={(e) => {
@@ -277,32 +279,32 @@ export function OptionStrategyBuilder({
                     }}
                 >
                     {!roots.some((r) => r.root === root) && (
-                        <option value={root}>{root}</option>
+                        <NativeSelectOption value={root}>{root}</NativeSelectOption>
                     )}
                     {roots.map((r) => (
-                        <option key={r.root} value={r.root}>
+                        <NativeSelectOption key={r.root} value={r.root}>
                             {r.name.replace(/\s*\d{6}$/, '')}（{r.root}）
-                        </option>
+                        </NativeSelectOption>
                     ))}
-                </select>
-                <select
+                </NativeSelect>
+                <NativeSelect
                     className={dx.select}
                     aria-label='月份'
                     value={month}
                     onChange={(e) => setMonth(e.target.value)}
                 >
                     {months.map((m) => (
-                        <option key={m} value={m}>
+                        <NativeSelectOption key={m} value={m}>
                             {m.slice(0, 4)}/{m.slice(4)}
-                        </option>
+                        </NativeSelectOption>
                     ))}
-                </select>
+                </NativeSelect>
             </div>
             <div className={styles.fieldRow}>
                 <span className={styles.fieldLabel}>策略</span>
                 <div className={styles.segGroup}>
                     {(Object.keys(STRATEGY_LABEL) as Strategy[]).map((s) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={s}
                             className={styles.seg[strategy === s ? 'on' : 'off']}
                             title={
@@ -319,7 +321,7 @@ export function OptionStrategyBuilder({
                             onClick={() => setStrategy(s)}
                         >
                             {STRATEGY_LABEL[s]}
-                        </button>
+                        </Button>
                     ))}
                 </div>
             </div>
@@ -327,13 +329,13 @@ export function OptionStrategyBuilder({
                 {needRight && (
                     <div className={styles.segGroup} style={{ flex: '0 0 auto' }}>
                         {(['C', 'P'] as const).map((r) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={r}
                                 className={styles.seg[right === r ? 'on' : 'off']}
                                 onClick={() => setRight(r)}
                             >
                                 {r === 'C' ? 'Call' : 'Put'}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 )}
@@ -350,7 +352,7 @@ export function OptionStrategyBuilder({
                         {strikeSelect(k1, setK1, '履約價')}
                         {needK2 && strikeSelect(k2, (v) => setK2(v), '第二履約價')}
                         {strategy === 'calendar' && (
-                            <select
+                            <NativeSelect
                                 className={dx.select}
                                 aria-label='遠月'
                                 value={farMonth}
@@ -359,11 +361,11 @@ export function OptionStrategyBuilder({
                                 {months
                                     .filter((m) => m > month)
                                     .map((m) => (
-                                        <option key={m} value={m}>
+                                        <NativeSelectOption key={m} value={m}>
                                             遠 {m.slice(0, 4)}/{m.slice(4)}
-                                        </option>
+                                        </NativeSelectOption>
                                     ))}
-                            </select>
+                            </NativeSelect>
                         )}
                     </>
                 )}

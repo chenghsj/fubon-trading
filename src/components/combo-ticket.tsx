@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { RefreshButton } from './refresh-button';
 import { reportOrderError } from '../lib/order-outcome';
 import { useDisplayBook } from '../hooks/use-display-book';
@@ -659,22 +661,22 @@ export function ComboTicket() {
                 <RefreshButton label="更新組合委託" loading={tradesQuery.loading} onClick={() => void tradesQuery.refresh()} />
             </div>
             <div className={styles.fieldRow}>
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.iconToggle[sbOpen ? 'on' : 'off']}
                     title='選擇權策略快建：選策略與履約價，兩腳自動帶入'
                     onClick={() => setSbOpen((v) => !v)}
                     style={{ width: 'auto', padding: '2px 8px', gap: '4px' }}
                 >
                     <Zap size={11} /> 策略快建
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="ghost"
                     className={styles.iconToggle[linkChain ? 'on' : 'off']}
                     title='連動選擇權 T 字：點 T 字報價自動填入未鎖定的腳'
                     onClick={() => setLinkChain((v) => !v)}
                     style={{ width: 'auto', padding: '2px 8px', gap: '4px' }}
                 >
                     <Link2 size={11} /> 連動 T 字
-                </button>
+                </Button>
                 {linkChain && (
                     <span className={styles.costRow} style={{ margin: 0 }}>
                         點 T 字填入未鎖定的腳，交替填兩腳
@@ -724,7 +726,7 @@ export function ComboTicket() {
                                         : '賣'
                                     : i + 1}
                             </span>
-                            <input
+                            <Input
                                 className={styles.numInput}
                                 placeholder='代碼 如 TXFF6 / TX417000C6'
                                 value={leg.input}
@@ -734,7 +736,7 @@ export function ComboTicket() {
                                 onBlur={() => resolveLeg(i)}
                             />
                             {linkChain && (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.iconToggle[leg.locked ? 'on' : 'off']}
                                     title={leg.locked ? '已鎖定（T 字點擊不覆寫）' : '鎖定此腳'}
                                     onClick={() => setLeg(i, { locked: !leg.locked })}
@@ -744,7 +746,7 @@ export function ComboTicket() {
                                     ) : (
                                         <Unlock size={11} />
                                     )}
-                                </button>
+                                </Button>
                             )}
                         </div>
                         {leg.contract && (
@@ -765,7 +767,7 @@ export function ComboTicket() {
                     <span className={styles.fieldLabel}>型別</span>
                     <div className={styles.segGroup}>
                         {resolution.ambiguous.map((t) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={t}
                                 className={styles.seg[pickType === t ? 'on' : 'off']}
                                 onClick={() => {
@@ -774,7 +776,7 @@ export function ComboTicket() {
                                 }}
                             >
                                 {COMBO_TYPE_LABEL[t]}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -824,7 +826,7 @@ export function ComboTicket() {
                 <span className={styles.fieldLabel}>組合</span>
                 <div className={styles.segGroup}>
                     {(['Buy', 'Sell'] as const).map((a) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={a}
                             className={styles.seg[action === a ? 'on' : 'off']}
                             onClick={() => {
@@ -833,7 +835,7 @@ export function ComboTicket() {
                             }}
                         >
                             {a === 'Buy' ? '買進組合' : '賣出組合'}
-                        </button>
+                        </Button>
                     ))}
                 </div>
             </div>
@@ -859,7 +861,7 @@ export function ComboTicket() {
             )}
             <div className={styles.fieldRow}>
                 <span className={styles.fieldLabel}>淨價</span>
-                <input
+                <Input
                     className={styles.numInput}
                     value={price}
                     inputMode='decimal'
@@ -870,7 +872,7 @@ export function ComboTicket() {
                     }}
                 />
                 <span className={styles.fieldLabel}>量</span>
-                <input
+                <Input
                     className={styles.numInput}
                     value={qty}
                     inputMode='numeric'
@@ -885,7 +887,7 @@ export function ComboTicket() {
                 <span className={styles.fieldLabel}>條件</span>
                 <div className={styles.segGroup}>
                     {orderTypes.map((ot) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={ot}
                             className={styles.seg[orderType === ot ? 'on' : 'off']}
                             onClick={() => {
@@ -901,12 +903,12 @@ export function ComboTicket() {
                             }
                         >
                             {ot}
-                        </button>
+                        </Button>
                     ))}
                 </div>
             </div>
 
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.execBtn[armed ? 'armed' : action === 'Buy' ? 'buy' : 'sell']}
                 disabled={busy || !ready || !live}
                 onClick={execute}
@@ -922,11 +924,11 @@ export function ComboTicket() {
                           : resolution?.ambiguous && !pickType
                             ? '先選擇組合型別'
                             : '先輸入兩腳合約代碼'}
-            </button>
+            </Button>
 
             <div className={styles.fieldRow}>
                 <span className={styles.fieldLabel}>到價</span>
-                <input
+                <Input
                     className={styles.numInput}
                     placeholder='目標淨價'
                     value={watchPrice}
@@ -934,7 +936,7 @@ export function ComboTicket() {
                     disabled={watchOn}
                     onChange={(e) => setWatchPrice(e.target.value)}
                 />
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.seg[watchOn ? 'on' : 'off']}
                     disabled={!ready || !watchPrice}
                     title={`組合${action === 'Buy' ? '賣價跌至' : '買價漲至'}目標時自動送 IOC（最多 ${MAX_ATTEMPTS} 次，間隔 ${COOLDOWN_MS / 1000}s）`}
@@ -967,7 +969,7 @@ export function ComboTicket() {
                     ) : (
                         '啟動監控'
                     )}
-                </button>
+                </Button>
                 {watchOn && watchAccount && (
                     <span className={styles.costRow} title='監控啟動時固定的下單帳戶'>
                         帳戶 {watchAccount.broker_id}-{maskAccountId(watchAccount.account_id, priv)}
@@ -997,12 +999,12 @@ export function ComboTicket() {
                                 .join(' ')}{' '}
                             {t.order.quantity} @ {fmtPrice(t.order.price)}（
                             {orderStatusLabel(t.status.status)}）{' '}
-                            <button
+                            <Button size="compact" variant="outline"
                                 className={dock.cancelBtn}
                                 onClick={() => void doCancel(t)}
                             >
                                 刪單
-                            </button>
+                            </Button>
                         </span>
                     ))}
                 </>

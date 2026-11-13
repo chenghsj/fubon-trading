@@ -1,3 +1,12 @@
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { TerminalDialog } from './terminal-dialog';
+import { isFormControlTarget } from '../lib/keyboard-target';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 // src/components/chart-drawing-tools.tsx — K 線圖畫圖工具的畫面
 //
 // - ChartDrawingTools：左側分組工具列（組＋小三角展開、★ 收藏、磁吸／
@@ -138,7 +147,7 @@ export function placeFloatingToolbar(
 function keepChartFocus(api: ChartDrawingsApi) {
     return (e: ReactMouseEvent) => {
         const t = e.target as HTMLElement | null;
-        if (t?.closest?.('input, label, textarea, select')) return;
+        if (isFormControlTarget(t)) return;
         e.preventDefault(); // 按鈕不搶焦點（WebKit 點按鈕本來就不給焦點）
         api.focusChart();
     };
@@ -348,7 +357,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
         const armed = api.tool === t;
         const blocked = full && t !== 'measure' && !armed;
         return (
-            <button
+            <Button size="compact" variant="outline"
                 key={key ?? t}
                 className={styles.railBtn[armed ? 'armed' : blocked ? 'disabled' : 'normal']}
                 aria-pressed={armed}
@@ -357,20 +366,20 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                 onClick={() => arm(t)}
             >
                 <Icon size={13} />
-            </button>
+            </Button>
         );
     };
 
     return (
         <div className={styles.rail} {...drawingCapture(api.onInteraction)} onMouseDown={keepChartFocus(api)} onScroll={hideTip}>
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.tool === null ? 'active' : 'normal']}
                 aria-pressed={api.tool === null}
                 {...tipProps('游標 — 瀏覽模式：選取、拖曳既有物件；Shift 點選可多選（Esc 退出畫圖工具）', '游標')}
                 onClick={() => api.setTool(null)}
             >
                 <MousePointer2 size={13} />
-            </button>
+            </Button>
 
             <span className={styles.railDivider} />
 
@@ -384,7 +393,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                 const blocked = full && shown !== 'measure' && !armed;
                 return (
                     <span key={g.group} className={styles.groupWrap}>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.railBtn[armed ? 'armed' : blocked ? 'disabled' : 'normal']}
                             aria-pressed={armed}
                             {...tipProps(
@@ -395,9 +404,9 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                             onClick={() => arm(shown)}
                         >
                             <Icon size={13} />
-                        </button>
+                        </Button>
                         {tools.length > 1 && (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.caret}
                                 aria-label={`${g.label}：更多工具`}
                                 aria-expanded={flyout?.group === g.group}
@@ -418,15 +427,15 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             <span className={styles.railSpacer} />
             <span className={styles.railDivider} />
 
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.magnet ? 'on' : 'normal']}
                 aria-pressed={api.magnet}
                 {...tipProps(`磁吸 — 畫點與拖曳控制點時貼齊 K 棒開高低收（${api.magnet ? '開' : '關'}）`, '磁吸')}
                 onClick={() => api.setMagnet(!api.magnet)}
             >
                 <Magnet size={13} />
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.allLocked ? 'on' : api.drawings.length ? 'normal' : 'disabled']}
                 aria-pressed={api.allLocked}
                 disabled={!api.drawings.length}
@@ -434,47 +443,47 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                 onClick={api.lockAll}
             >
                 {api.allLocked ? <Lock size={13} /> : <LockOpen size={13} />}
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[anyHidden ? 'normal' : 'disabled']}
                 disabled={!anyHidden}
                 {...tipProps('全部顯示 — 把隱藏的物件顯示回來', '全部顯示')}
                 onClick={api.showAll}
             >
                 <Eye size={13} />
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.canUndo ? 'normal' : 'disabled']}
                 disabled={!api.canUndo}
                 {...tipProps('復原（Ctrl/Cmd+Z）', '復原')}
                 onClick={api.undo}
             >
                 <Undo2 size={13} />
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.canRedo ? 'normal' : 'disabled']}
                 disabled={!api.canRedo}
                 {...tipProps('重做（Ctrl/Cmd+Shift+Z 或 Ctrl+Y）', '重做')}
                 onClick={api.redo}
             >
                 <Redo2 size={13} />
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.objectListOpen ? 'on' : 'normal']}
                 aria-pressed={api.objectListOpen}
                 {...tipProps('物件列表 — 顯示／隱藏、鎖定、改名、調整圖層', '物件列表')}
                 onClick={() => api.setObjectListOpen(!api.objectListOpen)}
             >
                 <Layers size={13} />
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="outline"
                 className={styles.railBtn[api.drawings.some((d) => !d.locked) ? 'normal' : 'disabled']}
                 disabled={!api.drawings.some((d) => !d.locked)}
                 {...tipProps('清除全部 — 刪除目前商品的畫圖（鎖定的保留，可復原）', '清除全部')}
                 onClick={api.clearAll}
             >
                 <Trash2 size={13} />
-            </button>
+            </Button>
 
             {flyout && (
                 <Popover
@@ -504,7 +513,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                                     arm(d.tool);
                                 }}
                             >
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.starBtn[fav ? 'on' : 'off']}
                                     aria-label={fav ? `取消收藏${d.label}` : `收藏${d.label}到工具列`}
                                     aria-pressed={fav}
@@ -514,7 +523,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                                     }}
                                 >
                                     <Star size={11} fill={fav ? 'currentColor' : 'none'} />
-                                </button>
+                                </Button>
                                 <Icon size={13} />
                                 <span className={styles.flyLabel}>{d.label}</span>
                                 {sc && <kbd className={styles.kbd}>{sc}</kbd>}
@@ -548,16 +557,15 @@ export function OpacitySlider({
     return (
         <span className={styles.row}>
             <span className={styles.label}>{label}</span>
-            <input
-                type='range'
+            <Slider
                 className={styles.slider}
                 min={min}
                 max={max}
                 step={max - min > 60 ? 5 : 2}
                 aria-label={label}
-                value={pct}
+                value={[Number(pct)]}
                 style={{ ['--sj-fill' as string]: `${fill}%` }}
-                onChange={(e) => onChange(Number(e.target.value) / 100)}
+                onValueChange={(e) => onChange(Number(e[0]!) / 100)}
             />
             <span>{pct}%</span>
         </span>
@@ -619,7 +627,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                         keepChartFocus(api)(e);
                     }}
                 >
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.floatText}
                         {...tipProps('顏色', '顏色')}
                         onClick={(e) => {
@@ -628,8 +636,8 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                         }}
                     >
                         <span className={styles.swatchDot} style={{ background: style.color }} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="ghost"
                         className={styles.floatText}
                         {...tipProps('線寬', '線寬')}
                         onClick={(e) => {
@@ -638,26 +646,26 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                         }}
                     >
                         {style.width}px
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="ghost"
                         className={styles.floatText}
                         {...tipProps(style.dash === 'solid' ? '線型：實線（點一下改虛線）' : '線型：虛線（點一下改實線）', '線型')}
                         onClick={() => api.applyStyle({ dash: style.dash === 'solid' ? 'dashed' : 'solid' })}
                     >
                         <span className={styles.dashIcon[style.dash]} />
-                    </button>
+                    </Button>
                     <span className={styles.floatSep} />
                     {sel.length === 1 && (
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.railBtn.normal}
                             {...tipProps('設定 — 樣式與座標', '設定')}
                             onClick={() => setSettingsOpen(true)}
                         >
                             <Settings2 size={13} />
-                        </button>
+                        </Button>
                     )}
                     {layerable.length > 0 && (
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.railBtn[allBehind ? 'on' : 'normal']}
                             aria-pressed={allBehind}
                             {...tipProps(
@@ -667,39 +675,39 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                             onClick={api.toggleBehind}
                         >
                             {allBehind ? <SendToBack size={13} /> : <BringToFront size={13} />}
-                        </button>
+                        </Button>
                     )}
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.railBtn[locked ? 'on' : 'normal']}
                         aria-pressed={locked}
                         {...tipProps(locked ? '解鎖' : '鎖定 — 不可拖曳、刪除', locked ? '解鎖' : '鎖定')}
                         onClick={api.toggleLock}
                     >
                         {locked ? <Lock size={13} /> : <LockOpen size={13} />}
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="outline"
                         className={styles.railBtn.normal}
                         {...tipProps('隱藏 — 可從物件列表或「全部顯示」找回', '隱藏')}
                         onClick={api.toggleHidden}
                     >
                         <EyeOff size={13} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="outline"
                         className={styles.railBtn[full ? 'disabled' : 'normal']}
                         disabled={full}
                         {...tipProps('複製', '複製')}
                         onClick={api.duplicate}
                     >
                         <Copy size={13} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button size="compact" variant="outline"
                         className={styles.railBtn[anyUnlocked ? 'normal' : 'disabled']}
                         disabled={!anyUnlocked}
                         {...tipProps(anyUnlocked ? '刪除（Delete／Backspace）' : '刪除 — 已鎖定，請先解鎖', '刪除')}
                         onClick={api.remove}
                     >
                         <Trash2 size={13} />
-                    </button>
+                    </Button>
                 </div>
             )}
 
@@ -707,7 +715,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                 <Popover anchor={menu.anchor} label='顏色' onClose={() => setMenu(null)} onInteraction={api.onInteraction}>
                     <span className={styles.palette}>
                         {DRAWING_PALETTE.map((c) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={c}
                                 className={styles.swatch[style.color === c ? 'active' : 'normal']}
                                 style={{ background: c }}
@@ -738,7 +746,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
             {showBar && menu?.kind === 'width' && (
                 <Popover anchor={menu.anchor} label='線寬' onClose={() => setMenu(null)} onInteraction={api.onInteraction}>
                     {WIDTHS.map((w) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={w}
                             className={styles.flyItem[style.width === w ? 'active' : 'normal']}
                             aria-label={`線寬 ${w}`}
@@ -749,7 +757,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                         >
                             <span style={{ width: 28, borderTop: `${w}px solid currentColor` }} />
                             {w}px
-                        </button>
+                        </Button>
                     ))}
                 </Popover>
             )}
@@ -800,7 +808,7 @@ export function TextEditor({
         onCommit(text);
     };
     return (
-        <textarea
+        <Textarea
             ref={ref}
             className={styles.textEditor}
             data-drawing-overlay=''
@@ -904,50 +912,45 @@ export function DrawingSettingsDialog({
     };
     // Esc 關閉：入 modal stack（preventDefault），不算進 Esc×2 全部刪單。
     // 輸入框裡的 Esc 是還原輸入（輸入框自己處理），不關視窗
-    useEscClose(() => {
+    const closeWithEscape = () => {
         const active = typeof document !== 'undefined' ? document.activeElement : null;
         if (isTextInput(active) && dialogRef.current?.contains(active!)) return;
         // modal 的 window capture 可能先關閉並卸載 UI；不能等根節點 keydown。
         sourceApi.onInteraction();
         closeRef.current();
-    });
+    };
     const d = drawing;
     const style = d.style;
     const showsFill = d.tool === 'box' || d.tool === 'channel';
     const names = ANCHOR_NAMES[d.tool] ?? (d.anchors.length === 1 ? ['位置'] : ['起點', '終點']);
     const [text, setText] = useState(d.text ?? '');
 
-    const body = (
-        <div className={styles.overlay} {...drawingCapture(api.onInteraction)} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-            <div
-                ref={dialogRef}
-                className={styles.dialog}
-                style={d.tool === 'fib' ? { width: 'min(30rem, 94vw)' } : undefined}
-                role='dialog'
-                aria-label='畫圖物件設定'
-            >
+    return (
+        <TerminalDialog title="畫圖物件設定" onClose={() => { sourceApi.onInteraction(); onClose(); }} onEscapeClose={closeWithEscape}
+            ref={dialogRef} className={styles.dialog} {...drawingCapture(api.onInteraction)}
+            style={d.tool === 'fib' ? { width: 'min(30rem, 94vw)' } : undefined}>
                 <div className={styles.dialogHeader}>
                     <span>{drawingLabel(d)}</span>
-                    <button className={styles.iconBtn} aria-label='關閉' onClick={onClose}>
+                    <Button size="compact" variant="ghost" className={styles.iconBtn} aria-label='關閉' onClick={onClose}>
                         <X size={14} />
-                    </button>
+                    </Button>
                 </div>
-                <div className={styles.tabs} role='tablist'>
-                    <button role='tab' aria-selected={tab === 'style'} className={styles.tab[tab === 'style' ? 'active' : 'normal']} onClick={() => setTab('style')}>
+                <Tabs value={tab} onValueChange={next => setTab(next as 'style' | 'coords')} className="flex min-h-0 flex-1 flex-col"><TabsList className={styles.tabs}>
+                    <TabsTrigger value="style">
                         樣式
-                    </button>
-                    <button role='tab' aria-selected={tab === 'coords'} className={styles.tab[tab === 'coords' ? 'active' : 'normal']} onClick={() => setTab('coords')}>
+                    </TabsTrigger>
+                    <TabsTrigger value="coords">
                         座標
-                    </button>
-                </div>
-                <div className={styles.dialogBody}>
+                    </TabsTrigger>
+                </TabsList>
+                <TabsContent value={tab} className={styles.dialogBody}>
                     {tab === 'style' ? (
                         <>
                             <span className={styles.row}>
                                 <span className={styles.label}>顏色</span>
                                 <span className={styles.palette}>
                                     {DRAWING_PALETTE.map((c) => (
-                                        <button
+                                        <Button size="compact" variant="ghost"
                                             key={c}
                                             className={styles.swatch[style.color === c ? 'active' : 'normal']}
                                             style={{ background: c }}
@@ -960,19 +963,19 @@ export function DrawingSettingsDialog({
                             <span className={styles.row}>
                                 <span className={styles.label}>線寬</span>
                                 {WIDTHS.map((w) => (
-                                    <button key={w} className={styles.chip[style.width === w ? 'active' : 'normal']} aria-label={`線寬 ${w}`} onClick={() => api.applyStyle({ width: w })}>
+                                    <Button size="compact" variant="ghost" key={w} className={styles.chip[style.width === w ? 'active' : 'normal']} aria-label={`線寬 ${w}`} onClick={() => api.applyStyle({ width: w })}>
                                         {w}
-                                    </button>
+                                    </Button>
                                 ))}
                             </span>
                             <span className={styles.row}>
                                 <span className={styles.label}>線型</span>
-                                <button className={styles.chip[style.dash === 'solid' ? 'active' : 'normal']} onClick={() => api.applyStyle({ dash: 'solid' })}>
+                                <Button size="compact" variant="ghost" className={styles.chip[style.dash === 'solid' ? 'active' : 'normal']} onClick={() => api.applyStyle({ dash: 'solid' })}>
                                     實線
-                                </button>
-                                <button className={styles.chip[style.dash === 'dashed' ? 'active' : 'normal']} onClick={() => api.applyStyle({ dash: 'dashed' })}>
+                                </Button>
+                                <Button size="compact" variant="ghost" className={styles.chip[style.dash === 'dashed' ? 'active' : 'normal']} onClick={() => api.applyStyle({ dash: 'dashed' })}>
                                     虛線
-                                </button>
+                                </Button>
                             </span>
                             <OpacitySlider
                                 label='不透明度'
@@ -994,7 +997,7 @@ export function DrawingSettingsDialog({
                             {d.tool === 'text' && (
                                 <span className={styles.row}>
                                     <span className={styles.label}>文字</span>
-                                    <input
+                                    <Input
                                         className={styles.wideInput}
                                         aria-label='文字內容'
                                         value={text}
@@ -1007,7 +1010,7 @@ export function DrawingSettingsDialog({
                             )}
                             <span className={styles.row}>
                                 <span className={styles.label}>名稱</span>
-                                <input
+                                <Input
                                     className={styles.wideInput}
                                     aria-label='物件名稱'
                                     defaultValue={d.name ?? ''}
@@ -1033,7 +1036,7 @@ export function DrawingSettingsDialog({
                                         />
                                     )}
                                     {d.tool !== 'horizontal' && (
-                                        <input
+                                        <Input
                                             type='datetime-local'
                                             className={styles.input}
                                             style={{ width: '11.5rem' }}
@@ -1051,17 +1054,14 @@ export function DrawingSettingsDialog({
                             <span className={styles.hint}>價格會吸附到合法跳動價位（水平線）；時間以本機時區顯示。</span>
                         </>
                     )}
-                </div>
+                </TabsContent></Tabs>
                 <div className={styles.dialogFooter}>
-                    <button className={styles.chip.primary} onClick={onClose}>
+                    <Button size="compact" variant="default" className={styles.chip.primary} onClick={onClose}>
                         完成
-                    </button>
+                    </Button>
                 </div>
-            </div>
-        </div>
+        </TerminalDialog>
     );
-    const host = typeof document !== 'undefined' ? document.body : null;
-    return host ? createPortal(body, host) : body;
 }
 
 // ── 斐波那契設定（樣式分頁內）─────────────────────────────────────────
@@ -1083,10 +1083,10 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
         set({ levels: fib.levels.map((l, i) => (i === index ? { ...l, ...patch } : l)) });
     const chip = (on: boolean) => styles.chip[on ? 'active' : 'normal'];
     const check = (label: string, on: boolean, onChange: (v: boolean) => void) => (
-        <label className={styles.row} style={{ cursor: 'pointer' }}>
-            <input type='checkbox' checked={on} disabled={locked} onChange={(e) => onChange(e.target.checked)} />
+        <Label className={styles.row} style={{ cursor: 'pointer' }}>
+            <Checkbox checked={on} disabled={locked} onCheckedChange={(e) => onChange((e === true))} />
             {label}
-        </label>
+        </Label>
     );
     const addValue = (v: number) => {
         if (!Number.isFinite(v) || fib.levels.some((l) => l.value === v)) return;
@@ -1099,17 +1099,16 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
         <>
             <span className={styles.row}>
                 <span className={styles.label}>色帶</span>
-                <input
-                    type='range'
+                <Slider
                     className={styles.slider}
                     min={0}
                     max={50}
                     step={2}
                     aria-label='色帶透明度'
                     disabled={locked}
-                    value={Math.round(fib.bandOpacity * 100)}
+                    value={[Number(Math.round(fib.bandOpacity * 100))]}
                     style={{ ['--sj-fill' as string]: `${fib.bandOpacity * 200}%` }}
-                    onChange={(e) => set({ bandOpacity: Number(e.target.value) / 100 })}
+                    onValueChange={(e) => set({ bandOpacity: Number(e[0]!) / 100 })}
                 />
                 <span>{Math.round(fib.bandOpacity * 100)}%</span>
             </span>
@@ -1122,14 +1121,13 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                         const color = fibLevelColor(l, fib, drawing.style.color, api.themeMode);
                         return (
                             <span key={`${l.value}-${i}`} className={styles.fibLevelRow}>
-                                <input
-                                    type='checkbox'
+                                <Checkbox
                                     aria-label={`顯示比例 ${l.value}`}
                                     checked={l.visible}
                                     disabled={locked}
-                                    onChange={(e) => setLevel(i, { visible: e.target.checked })}
+                                    onCheckedChange={(e) => setLevel(i, { visible: (e === true) })}
                                 />
-                                <input
+                                <Input
                                     className={styles.input}
                                     style={{ width: '4.2rem' }}
                                     aria-label={`比例 ${l.value}`}
@@ -1145,7 +1143,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                                     }}
                                     onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                                 />
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.swatch.normal}
                                     style={{ background: color, opacity: fib.singleColor ? 0.4 : 1 }}
                                     aria-label={`比例 ${l.value} 的顏色`}
@@ -1155,19 +1153,19 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                                         setColorFor((c) => (c?.index === i ? null : { index: i, anchor }));
                                     }}
                                 />
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={styles.iconBtn}
                                     aria-label={`移除比例 ${l.value}`}
                                     disabled={locked || fib.levels.length <= 1}
                                     onClick={() => set({ levels: fib.levels.filter((_, j) => j !== i) })}
                                 >
                                     <X size={11} />
-                                </button>
+                                </Button>
                             </span>
                         );
                     })}
                     <span className={styles.fibLevelRow}>
-                        <input
+                        <Input
                             className={styles.input}
                             style={{ width: '4.2rem' }}
                             aria-label='新增比例'
@@ -1181,7 +1179,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                                 setNewValue('');
                             }}
                         />
-                        <button
+                        <Button size="compact" variant="ghost"
                             className={styles.chip.normal}
                             disabled={locked || fib.levels.length >= MAX_FIB_LEVELS}
                             onClick={() => {
@@ -1190,72 +1188,72 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                             }}
                         >
                             新增比例
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="ghost"
                             className={styles.chip.normal}
                             disabled={locked}
                             onClick={() => set({ levels: defaultFibLevels() })}
                         >
                             還原預設
-                        </button>
+                        </Button>
                     </span>
                 </span>
             </span>
 
             <span className={styles.row}>
                 <span className={styles.label}>標籤</span>
-                <button className={chip(fib.labelH === 'left')} disabled={locked} onClick={() => set({ labelH: 'left' })}>左</button>
-                <button className={chip(fib.labelH === 'right')} disabled={locked} onClick={() => set({ labelH: 'right' })}>右</button>
+                <Button size="compact" variant="ghost" className={chip(fib.labelH === 'left')} disabled={locked} onClick={() => set({ labelH: 'left' })}>左</Button>
+                <Button size="compact" variant="ghost" className={chip(fib.labelH === 'right')} disabled={locked} onClick={() => set({ labelH: 'right' })}>右</Button>
                 <span className={styles.floatSep} />
-                <button className={chip(fib.labelV === 'top')} disabled={locked} onClick={() => set({ labelV: 'top' })}>上</button>
-                <button className={chip(fib.labelV === 'middle')} disabled={locked} onClick={() => set({ labelV: 'middle' })}>中</button>
-                <button className={chip(fib.labelV === 'bottom')} disabled={locked} onClick={() => set({ labelV: 'bottom' })}>下</button>
+                <Button size="compact" variant="ghost" className={chip(fib.labelV === 'top')} disabled={locked} onClick={() => set({ labelV: 'top' })}>上</Button>
+                <Button size="compact" variant="ghost" className={chip(fib.labelV === 'middle')} disabled={locked} onClick={() => set({ labelV: 'middle' })}>中</Button>
+                <Button size="compact" variant="ghost" className={chip(fib.labelV === 'bottom')} disabled={locked} onClick={() => set({ labelV: 'bottom' })}>下</Button>
             </span>
             <span className={styles.row}>
                 <span className={styles.label} />
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input type='checkbox' checked={fib.showLevel} disabled={locked} onChange={(e) => set({ showLevel: e.target.checked })} />
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox checked={fib.showLevel} disabled={locked} onCheckedChange={(e) => set({ showLevel: (e === true) })} />
                     顯示層級
-                </label>
-                <button className={chip(fib.levelFormat === 'value')} disabled={locked || !fib.showLevel} onClick={() => set({ levelFormat: 'value' })}>數值</button>
-                <button className={chip(fib.levelFormat === 'percent')} disabled={locked || !fib.showLevel} onClick={() => set({ levelFormat: 'percent' })}>百分比</button>
+                </Label>
+                <Button size="compact" variant="ghost" className={chip(fib.levelFormat === 'value')} disabled={locked || !fib.showLevel} onClick={() => set({ levelFormat: 'value' })}>數值</Button>
+                <Button size="compact" variant="ghost" className={chip(fib.levelFormat === 'percent')} disabled={locked || !fib.showLevel} onClick={() => set({ levelFormat: 'percent' })}>百分比</Button>
             </span>
             <span className={styles.row}>
                 <span className={styles.label} />
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input type='checkbox' checked={fib.showPrice} disabled={locked} onChange={(e) => set({ showPrice: e.target.checked })} />
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox checked={fib.showPrice} disabled={locked} onCheckedChange={(e) => set({ showPrice: (e === true) })} />
                     顯示價格
-                </label>
+                </Label>
             </span>
             <span className={styles.row}>
                 <span className={styles.label}>字級</span>
                 {FIB_FONT_SIZES.map((f) => (
-                    <button key={f} className={chip(fib.fontSize === f)} disabled={locked} onClick={() => set({ fontSize: f })}>
+                    <Button size="compact" variant="ghost" key={f} className={chip(fib.fontSize === f)} disabled={locked} onClick={() => set({ fontSize: f })}>
                         {f}
-                    </button>
+                    </Button>
                 ))}
             </span>
             <span className={styles.row}>
                 <span className={styles.label}>延伸線段</span>
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input type='checkbox' checked={fib.extendLeft} disabled={locked} onChange={(e) => set({ extendLeft: e.target.checked })} />
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox checked={fib.extendLeft} disabled={locked} onCheckedChange={(e) => set({ extendLeft: (e === true) })} />
                     向左
-                </label>
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input type='checkbox' checked={fib.extendRight} disabled={locked} onChange={(e) => set({ extendRight: e.target.checked })} />
+                </Label>
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox checked={fib.extendRight} disabled={locked} onCheckedChange={(e) => set({ extendRight: (e === true) })} />
                     向右
-                </label>
+                </Label>
             </span>
             <span className={styles.row}>
                 <span className={styles.label} />
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input type='checkbox' checked={fib.reverse} disabled={locked} onChange={(e) => set({ reverse: e.target.checked })} />
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox checked={fib.reverse} disabled={locked} onCheckedChange={(e) => set({ reverse: (e === true) })} />
                     反轉
-                </label>
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input type='checkbox' checked={fib.showTrend} disabled={locked} onChange={(e) => set({ showTrend: e.target.checked })} />
+                </Label>
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox checked={fib.showTrend} disabled={locked} onCheckedChange={(e) => set({ showTrend: (e === true) })} />
                     趨勢線
-                </label>
+                </Label>
             </span>
             <span className={styles.hint}>預設終點＝0、起點＝1；反轉後起點＝0。標籤放在回撤範圍外側，延伸到圖表邊緣時改貼畫面內緣。</span>
 
@@ -1263,7 +1261,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                 <Popover anchor={colorFor.anchor} label='比例顏色' onClose={() => setColorFor(null)} onInteraction={api.onInteraction}>
                     <span className={styles.palette}>
                         {FIB_COLOR_CHOICES[api.themeMode].map((c) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={c}
                                 className={styles.swatch[fibLevelColor(fib.levels[colorFor.index]!, fib, drawing.style.color, api.themeMode) === c ? 'active' : 'normal']}
                                 style={{ background: c }}
@@ -1275,7 +1273,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                             />
                         ))}
                     </span>
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.chip.normal}
                         onClick={() => {
                             const l = fib.levels[colorFor.index]!;
@@ -1284,7 +1282,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                         }}
                     >
                         預設顏色
-                    </button>
+                    </Button>
                 </Popover>
             )}
         </>
@@ -1314,9 +1312,9 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                 <span>
                     物件列表 <span className={styles.listCount}>{api.drawings.length}</span>
                 </span>
-                <button className={styles.iconBtn} aria-label='收起物件列表' onClick={() => api.setObjectListOpen(false)}>
+                <Button size="compact" variant="ghost" className={styles.iconBtn} aria-label='收起物件列表' onClick={() => api.setObjectListOpen(false)}>
                     <X size={12} />
-                </button>
+                </Button>
             </div>
             <div className={styles.listBody}>
                 {rows.length === 0 && <div className={styles.empty}>這個商品還沒有畫圖物件。從左側工具列選一個工具開始畫。</div>}
@@ -1357,7 +1355,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                             </span>
                             <span className={styles.dot} style={{ background: d.style.color }} />
                             {renaming === d.id ? (
-                                <input
+                                <Input
                                     className={styles.wideInput}
                                     autoFocus
                                     aria-label='物件名稱'
@@ -1384,7 +1382,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                     {drawingLabel(d)}
                                 </span>
                             )}
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.iconBtn}
                                 aria-label={d.hidden ? `顯示 ${drawingLabel(d)}` : `隱藏 ${drawingLabel(d)}`}
                                 aria-pressed={d.hidden}
@@ -1394,9 +1392,9 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                 }}
                             >
                                 {d.hidden ? <EyeOff size={11} /> : <Eye size={11} />}
-                            </button>
+                            </Button>
                             {canSendBehind(d) && (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     className={isBehindCandles(d) ? styles.iconBtnOn : styles.iconBtn}
                                     aria-label={isBehindCandles(d) ? `${drawingLabel(d)} 移到 K 棒前方` : `${drawingLabel(d)} 移到 K 棒後方`}
                                     title={isBehindCandles(d) ? 'K 棒後方（點一下移到前方）' : 'K 棒前方（點一下移到後方）'}
@@ -1407,11 +1405,11 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                     }}
                                 >
                                     {isBehindCandles(d) ? <SendToBack size={11} /> : <BringToFront size={11} />}
-                                </button>
+                                </Button>
                             )}
                             {/* 文字註記沒有前後可選：留同寬的空位，各列按鈕才對齊 */}
                             {!canSendBehind(d) && <span className={styles.iconBtn} aria-hidden style={{ visibility: 'hidden' }} />}
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.iconBtn}
                                 aria-label={d.locked ? `解鎖 ${drawingLabel(d)}` : `鎖定 ${drawingLabel(d)}`}
                                 aria-pressed={d.locked}
@@ -1421,8 +1419,8 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                 }}
                             >
                                 {d.locked ? <Lock size={11} /> : <LockOpen size={11} />}
-                            </button>
-                            <button
+                            </Button>
+                            <Button size="compact" variant="ghost"
                                 className={styles.iconBtn}
                                 aria-label={`刪除 ${drawingLabel(d)}`}
                                 disabled={d.locked}
@@ -1433,21 +1431,20 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                 }}
                             >
                                 <Trash2 size={11} />
-                            </button>
+                            </Button>
                         </div>
                     );
                 })}
             </div>
             <div className={styles.listFooter}>
                 <span className={styles.hint}>拖曳調整圖層順序；前方／後方按鈕切換畫在 K 棒前或後；雙擊改名；Shift 點選可多選。</span>
-                <label className={styles.row} style={{ cursor: 'pointer' }}>
-                    <input
-                        type='checkbox'
+                <Label className={styles.row} style={{ cursor: 'pointer' }}>
+                    <Checkbox
                         checked={api.shareContinuousMonth}
-                        onChange={(e) => api.setShareContinuousMonth(e.target.checked)}
+                        onCheckedChange={(e) => api.setShareContinuousMonth((e === true))}
                     />
                     期貨連續月與月份合約共用畫圖
-                </label>
+                </Label>
                 <span className={styles.hint}>商品鍵：{api.symbolKey}。多開的 K 線面板與彈出視窗同步顯示。</span>
             </div>
         </aside>
@@ -1485,7 +1482,7 @@ export function PriceInput({
         setDraft(null);
     };
     return (
-        <input
+        <Input
             className={styles.priceInput}
             value={draft ?? (format ? format(price) : String(Number(price.toFixed(2))))}
             inputMode='decimal'

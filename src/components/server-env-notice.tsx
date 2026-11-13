@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/server-env-notice.tsx — the header's reading of a pending
 // environment change (#370). Desktop: the switch in progress, or what is left
 // for the user to press. Web: this page cannot control the server, so all it
@@ -12,12 +13,12 @@ import * as styles from './hud-header.css';
 
 export function ServerEnvNotice({ notice, onOpen }: { notice: Notice; onOpen: () => void }) {
     return (
-        <button type='button' className={styles.serverEnvNotice} role='status' onClick={onOpen}>
+        <Button size="compact" variant="ghost" type='button' className={styles.serverEnvNotice} role='status' onClick={onOpen}>
             {notice.tone === 'progress'
                 ? <Orb size={12} variant='ring' />
                 : <CircleAlert size={13} aria-hidden />}
             {notice.text}
-        </button>
+        </Button>
     );
 }
 

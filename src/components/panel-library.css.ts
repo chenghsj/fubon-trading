@@ -13,7 +13,6 @@ export const shell = style({
     top: '10vh',
     left: '50%',
     transform: 'translateX(-50%)',
-    zIndex: 201,
     width: 'min(760px, calc(100vw - 32px))',
 });
 

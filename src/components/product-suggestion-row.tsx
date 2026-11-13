@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/product-suggestion-row.tsx：搜尋結果的 option 列（命令面板與自選共用）
 
 import type { MouseEvent, ReactNode, Ref } from 'react';
@@ -32,7 +33,7 @@ export function SearchOption({ id, active, className, disabled, rowRef, onSelect
     children: ReactNode;
 }) {
     return (
-        <button
+        <Button size="compact" variant="ghost"
             ref={rowRef}
             id={id}
             role='option'
@@ -45,7 +46,7 @@ export function SearchOption({ id, active, className, disabled, rowRef, onSelect
             onClick={() => onSelect()}
         >
             <span className={styles.optionText} title={title}>{children}</span>
-        </button>
+        </Button>
     );
 }
 

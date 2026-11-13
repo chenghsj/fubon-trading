@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/chain-rank-card.tsx：detail card beside the 金流 view for
 // the selected group: rotation state, change, turnover, net inflow over the
 // ranking window (rolling digits), the cumulative net-inflow line since the
@@ -140,9 +141,9 @@ export function FlowRankCard({
                     </span>
                 )}
                 {onClose && (
-                    <button type='button' className={s.cardClose} onClick={onClose} aria-label='關閉明細' title='關閉明細'>
+                    <Button size="compact" variant="ghost" type='button' className={s.cardClose} onClick={onClose} aria-label='關閉明細' title='關閉明細'>
                         <X size={13} aria-hidden='true' />
-                    </button>
+                    </Button>
                 )}
             </div>
             <div className={s.cardStats}>

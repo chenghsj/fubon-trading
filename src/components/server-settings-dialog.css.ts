@@ -17,7 +17,7 @@ const focusRing = { outline: `2px solid ${vars.color.accent}`, outlineOffset: 2 
 
 export const backdrop = style({ position: 'fixed', inset: 0, zIndex: 209, background: 'rgba(0,0,0,.45)' });
 export const dialog = style({
-    position: 'fixed', inset: '5vh auto auto 50%', transform: 'translateX(-50%)', zIndex: 210,
+    position: 'fixed', inset: '5vh auto auto 50%', transform: 'translateX(-50%)',
     width: 'min(44rem, calc(100vw - 24px))', maxHeight: '90dvh', display: 'flex', flexDirection: 'column',
     color: vars.color.foreground, background: vars.color.panelRaised, border: `1px solid ${vars.color.borderBright}`,
     borderRadius: vars.radius.md, boxShadow: '0 18px 48px rgba(0,0,0,.4)', fontSize: '1rem',

@@ -1,3 +1,38 @@
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 // src/components/conditional-form.test.tsx — 新增條件單 (#226): the trigger
 // and 二擇一 forms build exactly the request the engine gets.
 
@@ -104,7 +139,7 @@ describe('NewConditionalDialog', () => {
         await type(r, '第 2 層停利檔數', '80');
         await click(r, '加一層');
         await type(r, '第 3 層數量', '1');
-        await act(async () => { r.root.findAll(n => n.type === 'input' && n.props.type === 'checkbox')[2]!.props.onChange({ target: { checked: true } }); });
+        await act(async () => { r.root.findAll(n => n.type === 'button' && n.props.role === 'checkbox')[2]!.props.onCheckedChange(true); });
         expect(text(r.root)).toContain('移動停損的啟動、距離與移動檔數要填正整數'); // never pre-filled
         await type(r, '移動停損啟動檔數', '20');
         await type(r, '移動停損距離檔數', '15');
@@ -260,9 +295,10 @@ describe('NewConditionalDialog', () => {
             const r = render(FOREIGN);
             await type(r, '觸發價', '3.5');
             expect(button(r, '建立').props.disabled).toBeFalsy();
-            // the disabled button's own handler (as if it were reached anyway)
-            const mkt = r.root.findAll(n => n.type === 'button' && text(n) === '市價')[0]!;
-            await act(async () => { mkt.props.onClick(); });
+            // Inject an impossible stale selection through the control contract;
+            // validation must still block market orders even beyond the disabled UI.
+            const send = r.root.find(n => typeof n.type !== 'string' && n.props['aria-label'] === '觸發後' && typeof n.props.onValueChange === 'function');
+            await act(async () => { send.props.onValueChange('MKT'); });
             expect(button(r, '建立').props.disabled).toBe(true);
             expect(text(r.root)).toContain(WARRANT_FLASH_TEXT.foreignTrigger);
         });

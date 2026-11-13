@@ -1,3 +1,6 @@
+import { Field } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 // src/components/conditional-dialogs.tsx — 條件單設定 and 全平並取消 (#226,
 // design v4). 全平並取消 shows its scope and what it will do, then needs a
 // second, deliberate click; it never opens a position.
@@ -29,7 +32,7 @@ import * as styles from './conditional-panel.css';
 
 function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
     return (
-        <button type='button' role='switch' aria-checked={on} aria-label={label} disabled={disabled}
+        <Button size="compact" variant="ghost" type='button' role='switch' aria-checked={on} aria-label={label} disabled={disabled}
             className={on ? styles.switchOn : styles.switchOff} onClick={() => onChange(!on)} />
     );
 }
@@ -82,7 +85,7 @@ export function ConditionalSettingsDialog({ onClose }: { onClose: () => void }) 
                         options={[{ id: 'trigger', label: '觸發就刪除' }, { id: 'fill', label: '成交後刪對應口數' }]} />
                 </Row>
                 <Row name='快速口數' hint='新增條件單時的數量按鈕（以逗號分隔，最多 6 個）'>
-                    <input className={styles.input} value={qty} aria-label='快速口數' onChange={e => setQty(e.target.value)} onBlur={saveQty}
+                    <Input className={styles.input} value={qty} aria-label='快速口數' onChange={e => setQty(e.target.value)} onBlur={saveQty}
                         onKeyDown={e => { if (e.key === 'Enter') saveQty(); }} />
                 </Row>
                 <Row name='下單確認（含平倉）' hint='手動下單與平倉前先跳委託確認；條件成立後的自動送單不再詢問'>
@@ -211,26 +214,26 @@ export function FlattenDialog({ contract: given, rows, onClose }: { contract: Co
                 <>
                     <span className={styles.grow} />
                     {result.remaining.length > 0 && (
-                        <button type='button' className={styles.button.dangerSolid} disabled={busy} onClick={retryRemaining}
+                        <Button size="compact" variant="destructive" type='button' className={styles.button.dangerSolid} disabled={busy} onClick={retryRemaining}
                             title='重新查詢委託與持倉後，平倉剩餘部位'>
                             {busy ? '處理中…' : '再平倉剩餘部位'}
-                        </button>
+                        </Button>
                     )}
-                    <button type='button' className={styles.button.plain} onClick={onClose}>關閉</button>
+                    <Button size="compact" variant="outline" type='button' className={styles.button.plain} onClick={onClose}>關閉</Button>
                 </>
             ) : (
                 <>
                     <span className={styles.grow} />
-                    <button type='button' className={styles.button.plain} onClick={onClose}>取消</button>
-                    <button type='button' className={styles.button.dangerSolid} disabled={busy || !scope || loading} onClick={go}>
+                    <Button size="compact" variant="outline" type='button' className={styles.button.plain} onClick={onClose}>取消</Button>
+                    <Button size="compact" variant="destructive" type='button' className={styles.button.dangerSolid} disabled={busy || !scope || loading} onClick={go}>
                         {busy ? '處理中…' : armed ? '再按一次：確認全平' : '確認全平'}
-                    </button>
+                    </Button>
                 </>
             )}>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>範圍</span>
                 <Seg label='範圍' value={kind} onChange={setKind} options={scopeOptions} />
-            </div>
+            </Field>
             {result ? (
                 <div className={styles.summary} role='status'>
                     <Info size={13} aria-hidden style={{ flex: 'none', marginTop: 4 }} />
@@ -256,10 +259,10 @@ export function FlattenDialog({ contract: given, rows, onClose }: { contract: Co
                     </span>
                 </div>
             )}
-            <div className={`${styles.formRow} ${styles.muted}`}>
+            <Field orientation="horizontal" className={`${styles.formRow} ${styles.muted}`}>
                 <Info size={13} aria-hidden style={{ flex: 'none' }} />
                 <span className={styles.grow}>漲跌停或無對手單時可能無法成交，剩餘部位會留在面板與持倉提醒；送出前會重新查詢委託與持倉</span>
-            </div>
+            </Field>
             {error && <div className={styles.message.err} role='alert'>{error}</div>}
         </Dialog>
     );
