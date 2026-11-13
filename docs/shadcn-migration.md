@@ -27,7 +27,7 @@
 元件遷移，不改成範例 dashboard 的布局；交易介面繼續使用 compact 尺寸。
 交易面板的 CardHeader 明確使用 panel 布局，避免預設直排／大內距與原樣式
 競爭；登入卡片仍沿用預設直排。樣式載入順序改變時，面板標題列也維持橫向。
-設定與版面庫的 Dialog 明確由原有 CSS 控制幾何，避免熱更新後被共用彈窗的
+設定、版面庫與新增面板的 Dialog 明確由原有 CSS 控制幾何，避免熱更新後被共用彈窗的
 全寬、置中與零內距覆蓋。帳號名稱／狀態分行，預設版面說明在各自卡片內
 換行並保留兩行摘要，不改動版面庫欄數及卡片寬度。
 
@@ -85,6 +85,9 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 - 帳號與版面庫的長文字，在深淺色、標準／大字級、720／390px 正式 bundle
   實測不越界；晚載入 Tailwind 後，設定視窗仍維持 38rem 上限、7vh 頂距與
   原內距，版面庫維持 680px 上限。獨立 QA 另驗 1440px 與 180px 窄帳號按鈕。
+- 新增面板視窗維持 760px 上限、10vh 頂距，1440／640／390px 時分別為
+  三／二／一欄。尾載 Tailwind 後卡片仍為靠左 grid，圖示、文字與「前往」
+  各居其欄；搜尋、分類收合、方向鍵與新增／前往操作通過正式 bundle 及獨立 QA。
 - AI review 與 QA 找出的快捷鍵、分頁高度、選單外框、選取／危險狀態及語意色
   問題已修復並重驗；最終沒有未處理的 confirmed findings。
 
@@ -103,6 +106,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 ![帳號名稱與狀態分行](images/shadcn-accounts-light.png)
 
 ![版面庫卡片說明換行](images/shadcn-layouts-light.png)
+
+![新增面板的三欄排列](images/shadcn-panel-picker-light.png)
 
 ![深色交易介面（原有布局）](images/shadcn-terminal-dark.png)
 

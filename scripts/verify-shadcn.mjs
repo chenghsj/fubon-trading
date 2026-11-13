@@ -151,6 +151,41 @@ async function textBounds(locator, { clamp = false } = {}) {
         return true;
     }, clamp);
 }
+async function panelPickerLayout(page, artifacts) {
+    for (const [width, columns] of [[1440, 3], [640, 2], [390, 1]]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.getByRole('button', { name: /新增面板/ }).first().click();
+        const picker = page.getByRole('dialog', { name: '新增面板', exact: true });
+        const frame = await picker.boundingBox();
+        expect(frame.width).toBeCloseTo(Math.min(760, width - 32), 0);
+        expect(frame.y).toBeCloseTo(100, 0);
+        const cards = picker.locator('button[data-idx]');
+        const count = await cards.count();
+        expect(count).toBeGreaterThan(20);
+        expect(await cards.first().evaluate(el => getComputedStyle(el.parentElement).gridTemplateColumns.split(' ').length)).toBe(columns);
+        for (const card of await cards.all()) {
+            await expect(card).toHaveCSS('display', 'grid');
+            await expect(card).toHaveCSS('text-align', 'left');
+            expect(await card.evaluate(el => {
+                const bounds = el.getBoundingClientRect();
+                const [icon, text, go] = [...el.children].map(child => child.getBoundingClientRect());
+                return icon.left >= bounds.left && icon.right <= text.left && text.right <= bounds.right && (!go || text.right <= go.left);
+            })).toBe(true);
+        }
+        if (width === 1440) await picker.screenshot({ path: path.join(artifacts, 'panel-picker-light.png') });
+        const category = picker.locator('button[aria-expanded]').first();
+        await category.click();
+        await expect(category).toHaveAttribute('aria-expanded', 'false');
+        expect(await cards.count()).toBeLessThan(count);
+        await category.click();
+        await expect(cards).toHaveCount(count);
+        await picker.getByPlaceholder('搜尋面板（名稱或用途）').fill('K 線圖');
+        await expect(cards).toHaveCount(1);
+        await page.keyboard.press('ArrowDown');
+        await page.keyboard.press('Escape');
+        await expect(picker).toBeHidden();
+    }
+}
 async function multilineButtons(page, artifacts) {
     // Exercise the same long unsigned-account copy as the reported screenshot.
     // The account response belongs only to this temporary browser context.
@@ -268,7 +303,7 @@ try {
         const lateRules = new Set();
         const visit = rules => {
             for (const rule of rules) {
-                if (['.flex-col', '.p-6', '.p-0', '.w-full', '.items-center', '.justify-center', '.whitespace-nowrap', '.h-9'].includes(rule.selectorText) || rule.selectorText?.startsWith('.top-')) lateRules.add(rule.cssText);
+                if (['.flex-col', '.inline-flex', '.p-6', '.p-0', '.w-full', '.items-center', '.justify-center', '.whitespace-nowrap', '.h-9'].includes(rule.selectorText) || rule.selectorText?.startsWith('.top-')) lateRules.add(rule.cssText);
                 if (rule.cssRules) visit(rule.cssRules);
             }
         };
@@ -414,6 +449,7 @@ try {
     await expect(page.getByRole('button', { name: /委託 Orders \[0\/0\]/ })).toBeVisible();
 
     await multilineButtons(page, artifacts);
+    await panelPickerLayout(page, artifacts);
     await page.setViewportSize({ width: 390, height: 844 });
     await settingsButton.click(); await expect(settings).toBeVisible();
     const mobileFrame = await settings.boundingBox();

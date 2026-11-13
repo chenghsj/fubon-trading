@@ -1,5 +1,6 @@
 import { TerminalDialog } from './terminal-dialog';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 // src/components/panel-library.tsx — searchable panel picker dialog
 //
@@ -296,9 +297,10 @@ export function PanelLibrary({
             <Button size="compact" variant="ghost"
                 key={`${idx}-${item.type}`}
                 data-idx={idx}
-                className={
-                    styles.card[idx === activeIndex ? 'active' : 'normal']
-                }
+                className={cn(
+                    styles.card[idx === activeIndex ? 'active' : 'normal'],
+                    'grid min-w-0 justify-start text-left',
+                )}
                 onMouseEnter={() => setActiveIndex(idx)}
                 onClick={(event) => activate(item, event.shiftKey)}
             >
@@ -323,7 +325,7 @@ export function PanelLibrary({
     const activeItem = flatItems[activeIndex];
 
     return (
-        <TerminalDialog title="新增面板" onClose={onClose}
+        <TerminalDialog title="新增面板" onClose={onClose} layout="custom"
                 className={styles.shell}
                 onKeyDown={onKeyDown}
             >
@@ -371,7 +373,7 @@ export function PanelLibrary({
                                 return (
                                     <div key={group.key}>
                                         <Button size="compact" variant="ghost"
-                                            className={styles.sectionHeader}
+                                            className={cn(styles.sectionHeader, 'justify-start')}
                                             aria-expanded={!isCollapsed}
                                             onClick={() => {
                                                 setCollapsed((current) =>
