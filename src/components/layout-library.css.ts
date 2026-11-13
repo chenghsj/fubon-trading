@@ -70,6 +70,7 @@ export const cardGrid = style({
 
 const cardBase = style({
     position: 'relative',
+    minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
     gap: '5px',
@@ -130,6 +131,8 @@ export const cardDesc = style({
     color: vars.color.mutedForeground,
     fontSize: '0.62rem',
     lineHeight: 1.4,
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
     display: '-webkit-box',
     WebkitLineClamp: 2,
     WebkitBoxOrient: 'vertical',

@@ -5,6 +5,7 @@ import { TerminalDialog } from './terminal-dialog';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { canTrade } from '../lib/account-tradable';
 // src/components/settings-dialog.tsx — 統一設定面板：外觀／音效與隱私／
 // 帳號／風控／版面 五分類。原本散在 header 的主題/帳號/版面 popover 全數
@@ -331,11 +332,13 @@ export function AccountsSection() {
                             return (
                                 <Button aria-pressed={g.selected === key} size="compact" variant={g.selected === key ? 'secondary' : 'outline'}
                                     key={key}
-                                    className={`${
+                                    className={cn(
                                         hud.opt[
                                             g.selected === key ? 'on' : 'off'
-                                        ]
-                                    } ${canTrade(a) ? '' : styles.acctUnsigned}`}
+                                        ],
+                                        !canTrade(a) && styles.acctUnsigned,
+                                        'w-full min-w-0 flex-col items-start justify-start whitespace-normal text-left',
+                                    )}
                                     style={{ width: '100%', marginTop: 4 }}
                                     disabled={!canTrade(a)}
                                     title={
@@ -345,9 +348,11 @@ export function AccountsSection() {
                                     }
                                     onClick={() => selectAccount(a)}
                                 >
-                                    {a.broker_id}-
-                                    {maskAccountId(a.account_id, priv)}（
-                                    {maskName(a.username, priv)}）
+                                    <span className="max-w-full [overflow-wrap:anywhere]">
+                                        {a.broker_id}-
+                                        {maskAccountId(a.account_id, priv)}（
+                                        {maskName(a.username, priv)}）
+                                    </span>
                                     {!a.signed && (
                                         <span className={styles.unsignedTag}>
                                             {unsignedAccountLabel(simulation)}
@@ -676,7 +681,7 @@ export function SettingsDialog({
     if (!open) return null;
 
     return (
-        <TerminalDialog title="設定" onClose={onClose} className={styles.dialog}>
+        <TerminalDialog title="設定" onClose={onClose} layout="custom" className={styles.dialog}>
                 <div className={hud.srvDialogTitle}>
                     設定
                     <Button size="compact" variant="ghost"
@@ -688,7 +693,7 @@ export function SettingsDialog({
                     </Button>
                 </div>
                 <Tabs value={tab} onValueChange={value => setTab(value as SettingsTab)} className={styles.body} orientation="vertical">
-                    <TabsList className={styles.nav} aria-label="設定分類">
+                    <TabsList className={cn(styles.nav, 'h-auto items-stretch justify-start')} aria-label="設定分類">
                         {TABS.map(t => <TabsTrigger key={t.key} value={t.key}>{t.icon}{t.label}</TabsTrigger>)}
                     </TabsList>
                     <TabsContent value={tab} className={styles.content}>

@@ -136,6 +136,83 @@ async function resizeCorners(page, artifacts, theme) {
     await expect(item).not.toHaveClass(/\bresizing\b/);
     await expect(page.locator('.react-grid-placeholder')).toHaveCount(0);
 }
+async function textBounds(locator, { clamp = false } = {}) {
+    return locator.evaluate((el, clamp) => {
+        const bounds = el.getBoundingClientRect();
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let node; (node = walker.nextNode());) {
+            if (!node.textContent.trim()) continue;
+            const range = document.createRange(); range.selectNodeContents(node);
+            for (const line of range.getClientRects()) {
+                if (line.left < bounds.left - 1 || line.right > bounds.right + 1 ||
+                    (!clamp && (line.top < bounds.top - 1 || line.bottom > bounds.bottom + 1))) return false;
+            }
+        }
+        return true;
+    }, clamp);
+}
+async function multilineButtons(page, artifacts) {
+    // Exercise the same long unsigned-account copy as the reported screenshot.
+    // The account response belongs only to this temporary browser context.
+    await page.route('**/api/v1/auth/accounts', async route => {
+        const response = await route.fetch();
+        const accounts = (await response.json()).map(account => ({ ...account, signed: false, username: '富邦行情／本機模擬帳戶' }));
+        await route.fulfill({ response, json: accounts });
+    });
+    const settingsButton = page.getByRole('button', { name: '設定', exact: true });
+    const settings = page.getByRole('dialog', { name: '設定', exact: true });
+    await settingsButton.click();
+    await settings.getByRole('tab', { name: '音效與隱私' }).click();
+    const privacy = settings.getByRole('switch', { name: '帳號遮蔽' });
+    if (await privacy.getAttribute('aria-checked') === 'true') await privacy.click();
+    for (const theme of ['深色', '淺色']) {
+        for (const scale of ['標準', '大']) {
+            for (const width of [720, 390]) {
+                await page.setViewportSize({ width, height: 1000 });
+                await settings.getByRole('tab', { name: '外觀' }).focus();
+                await page.keyboard.press('Home');
+                await settings.getByRole('tab', { name: '外觀' }).click();
+                await settings.getByText(theme, { exact: true }).click();
+                await settings.getByRole('radio', { name: scale, exact: true }).first().click();
+                await settings.getByRole('tab', { name: '帳號', exact: true }).click();
+                const dialogLayout = await settings.evaluate(el => {
+                    const bounds = el.getBoundingClientRect();
+                    const rootSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
+                    return { width: bounds.width, expected: Math.min(38 * rootSize, innerWidth - 32), top: bounds.top, padding: parseFloat(getComputedStyle(el).paddingTop) };
+                });
+                expect(dialogLayout.width).toBeCloseTo(dialogLayout.expected, 0);
+                expect(dialogLayout.top).toBeCloseTo(70, 0);
+                expect(dialogLayout.padding).toBeGreaterThan(0);
+                await settings.getByRole('button', { name: '重新整理帳號', exact: true }).click();
+                const accounts = settings.locator('button[aria-pressed]');
+                await expect(accounts).toHaveCount(2);
+                for (const account of await accounts.all()) {
+                    await expect(account.locator(':scope > span')).toHaveCount(2);
+                    await expect.poll(() => textBounds(account)).toBe(true);
+                }
+                if (theme === '淺色' && scale === '大' && width === 720) await settings.screenshot({ path: path.join(artifacts, 'accounts-light.png') });
+                await page.keyboard.press('Escape');
+                await expect(settings).toBeHidden();
+                await page.getByRole('button', { name: '版面', exact: true }).click();
+                const library = page.getByRole('dialog', { name: '版面庫', exact: true });
+                expect((await library.boundingBox()).width).toBeCloseTo(Math.min(680, width - 32), 0);
+                const cards = library.locator('button[title^="套用預設版面"]');
+                expect(await cards.count()).toBeGreaterThan(10);
+                for (const card of await cards.all()) {
+                    await expect(card).toHaveCSS('flex-direction', 'column');
+                    await expect.poll(() => textBounds(card, { clamp: true })).toBe(true);
+                    await expect(card.locator(':scope > span').last()).toHaveCSS('white-space', 'normal');
+                }
+                if (theme === '淺色' && scale === '大' && width === 720) await library.screenshot({ path: path.join(artifacts, 'layouts-light.png') });
+                await page.keyboard.press('Escape');
+                await expect(library).toBeHidden();
+                await settingsButton.click();
+            }
+        }
+    }
+    await page.keyboard.press('Escape');
+    await page.unroute('**/api/v1/auth/accounts');
+}
 let cleanupPromise;
 function cleanup() {
     return cleanupPromise ??= (async () => {
@@ -191,7 +268,7 @@ try {
         const lateRules = new Set();
         const visit = rules => {
             for (const rule of rules) {
-                if (['.flex-col', '.p-6'].includes(rule.selectorText)) lateRules.add(rule.cssText);
+                if (['.flex-col', '.p-6', '.p-0', '.w-full', '.items-center', '.justify-center', '.whitespace-nowrap', '.h-9'].includes(rule.selectorText) || rule.selectorText?.startsWith('.top-')) lateRules.add(rule.cssText);
                 if (rule.cssRules) visit(rule.cssRules);
             }
         };
@@ -336,6 +413,7 @@ try {
     // The verification opens and cancels a confirmation; it never confirms an order.
     await expect(page.getByRole('button', { name: /委託 Orders \[0\/0\]/ })).toBeVisible();
 
+    await multilineButtons(page, artifacts);
     await page.setViewportSize({ width: 390, height: 844 });
     await settingsButton.click(); await expect(settings).toBeVisible();
     const mobileFrame = await settings.boundingBox();

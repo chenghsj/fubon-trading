@@ -104,7 +104,8 @@ export const acctUnsigned = style({
 });
 
 export const unsignedTag = style({
-    marginLeft: '6px',
+    maxWidth: '100%',
+    overflowWrap: 'anywhere',
     fontSize: '0.6rem',
     color: vars.color.amber,
 });

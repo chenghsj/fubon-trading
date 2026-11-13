@@ -1,5 +1,6 @@
 import { TerminalDialog } from './terminal-dialog';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 // src/components/layout-library.tsx — 版面庫 dialog：預設版面＋我的版面，
 // 卡片縮圖（SVG：分類色塊反映真實 grid 幾何）＋ hover flyout 放大預覽＋
@@ -238,7 +239,7 @@ export function LayoutLibrary({
         })();
 
     return (
-        <TerminalDialog title="版面庫" onClose={onClose}
+        <TerminalDialog title="版面庫" onClose={onClose} layout="custom"
                 className={styles.shell}
             >
                 <div className={styles.dialog}>
@@ -259,14 +260,15 @@ export function LayoutLibrary({
                                 <Button size="compact" variant="ghost"
                                     key={p.name}
                                     title={`套用預設版面「${p.name}」`}
-                                    className={
+                                    className={cn(
                                         styles.card[
                                             hovered?.kind === 'preset' &&
                                             hovered.name === p.name
                                                 ? 'active'
                                                 : 'normal'
-                                        ]
-                                    }
+                                        ],
+                                        'min-w-0 flex-col items-stretch justify-start whitespace-normal text-left',
+                                    )}
                                     onMouseEnter={() =>
                                         setHovered({
                                             kind: 'preset',
