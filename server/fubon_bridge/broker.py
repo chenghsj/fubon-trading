@@ -42,7 +42,7 @@ class Broker:
             return
         cfg = self.config
         if not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
-            self.error = "尚未設定富邦登入資料；請填寫專案 .env 後重啟服務"
+            self.error = "尚未設定富邦登入資料；請執行 pnpm credentials set 儲存至 Keychain 後重啟服務"
             return
         try:
             if self.sdk_factory:

@@ -5,6 +5,7 @@
 import { getApiBase, getStreamBase } from './runtime';
 import { serverUrlBlocked } from './server-read-gate';
 import { apiPost } from './api';
+import { openFubonEventSource } from './fubon-session';
 import type { SseBidAsk, SseIndexQuote, SseTick } from './types/market';
 import { rememberIndexClose } from './index-close-quote';
 import {
@@ -722,7 +723,7 @@ function connect() {
         return;
     }
     // region filters contract_event only; other families are unfiltered
-    es = new EventSource(`${getStreamBase()}/api/v1/stream/data?region=TW`);
+    es = openFubonEventSource(`${getStreamBase()}/api/v1/stream/data?region=TW`);
     attachedNamed.clear();
 
     es.onopen = () => {

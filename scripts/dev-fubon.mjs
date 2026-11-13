@@ -36,11 +36,22 @@ try {
     // Keep one known isolated endpoint for REST and SSE. Refuse conflicts.
     await requireFreePort(21323);
     await requireFreePort(5179);
-    run('uv', ['run', '--directory', 'server', 'fubon-bridge'], { FUBON_PORT: '21323' });
     run('pnpm', ['exec', 'vite', '--host', '127.0.0.1', '--port', '5179', '--strictPort'], {
         VITE_API_TARGET: 'http://127.0.0.1:21323', VITE_API_BASE: '', VITE_STREAM_BASE: '',
     });
-    console.log('\nFubon Trading: http://127.0.0.1:5179\n');
+    // Wait for this launch's UI before the backend opens its single-use URL.
+    let ready = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+        if (stopping) break;
+        try {
+            const response = await fetch('http://127.0.0.1:5179', { signal: AbortSignal.timeout(1000) });
+            if (response.ok) { ready = true; break; }
+        } catch { /* UI is still starting. */ }
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (!ready) throw new Error('前端啟動逾時');
+    run('uv', ['run', '--directory', 'server', 'fubon-bridge', '--ui-url', 'http://127.0.0.1:5179'], { FUBON_PORT: '21323' });
+    console.log('\nFubon Trading 將自動開啟授權視窗；請使用該視窗操作。\n');
 } catch (error) {
     console.error(`無法啟動：${error.message}。保留現有程序，請先確認 21323 / 5179 埠。`);
     stop(1);

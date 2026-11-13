@@ -4,6 +4,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from .keychain import Keychain, KeychainError, validate_credentials
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -32,12 +34,18 @@ class Config:
     @classmethod
     def from_env(cls):
         load_dotenv(ROOT / ".env")
+        mode = os.getenv("FUBON_MODE", "demo")
+        credentials = {}
+        if mode != "demo":
+            legacy = ("FUBON_PERSONAL_ID", "FUBON_API_KEY", "FUBON_CERT_PATH", "FUBON_CERT_PASSWORD")
+            if any(os.getenv(key, "").strip() for key in legacy):
+                raise KeychainError("明文登入設定已停用；請清除 .env 的登入欄位並執行 pnpm credentials set")
+            stored = Keychain().read()
+            if stored is not None:
+                credentials = validate_credentials(stored)
         return cls(
-            mode=os.getenv("FUBON_MODE", "demo"),
-            personal_id=os.getenv("FUBON_PERSONAL_ID", ""),
-            api_key=os.getenv("FUBON_API_KEY", ""),
-            cert_path=os.getenv("FUBON_CERT_PATH", ""),
-            cert_password=os.getenv("FUBON_CERT_PASSWORD", ""),
+            **credentials,
+            mode=mode,
             live_enabled=os.getenv("FUBON_ENABLE_LIVE_TRADING", "false").lower() == "true",
             session=os.getenv("FUBON_SESSION", "regular"),
             max_quantity=int(os.getenv("FUBON_MAX_ORDER_QUANTITY", "10")),
