@@ -83,6 +83,19 @@ async function panelGeometry(page) {
         return [x, y, width, height].map(Math.round);
     }));
 }
+async function panelHeaders(page) {
+    const headers = await page.locator('[data-slot="card-header"][data-layout="panel"]').all();
+    expect(headers.length).toBeGreaterThanOrEqual(6);
+    for (const header of headers) {
+        const layout = await header.evaluate(el => {
+            const style = getComputedStyle(el);
+            return { direction: style.flexDirection, padding: parseFloat(style.paddingTop), height: el.getBoundingClientRect().height };
+        });
+        expect(layout.direction).toBe('row');
+        expect(layout.padding).toBe(7);
+        expect(layout.height).toBeLessThan(52);
+    }
+}
 async function switchGeometry(settings) {
     for (const control of await settings.getByRole('switch').all()) {
         await expect.poll(() => control.evaluate(el => {
@@ -133,12 +146,33 @@ try {
     await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
     await page.goto(`${origin}/#fubon-launch=${token}`);
     await expect(page.getByRole('button', { name: '建立 Passkey 並解鎖' })).toBeVisible();
+    expect(await page.locator('[data-slot="card-header"][data-layout="default"]').evaluate(el => getComputedStyle(el).flexDirection)).toBe('column');
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'passkey.png') });
     await page.getByRole('button', { name: '建立 Passkey 並解鎖' }).click();
     await expect(page.getByRole('status').filter({ hasText: '展示模式' })).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('LIVE', { exact: true })).toBeVisible();
     // Guard the visible shadcn treatment, rather than only checking imports.
     expect(await page.locator('[data-slot="card"]').count()).toBeGreaterThanOrEqual(6);
+    // Reproduce HMR loading utility CSS after the panel's vanilla-extract CSS.
+    // Real utility rules are replayed so default CardHeader layout cannot win
+    // merely because a stylesheet was loaded last.
+    await page.evaluate(() => {
+        const lateRules = new Set();
+        const visit = rules => {
+            for (const rule of rules) {
+                if (['.flex-col', '.p-6'].includes(rule.selectorText)) lateRules.add(rule.cssText);
+                if (rule.cssRules) visit(rule.cssRules);
+            }
+        };
+        for (const sheet of document.styleSheets) {
+            try { visit(sheet.cssRules); } catch { /* External font sheet. */ }
+        }
+        if (lateRules.size < 2) throw new Error('Missing utility CSS for load-order regression check.');
+        const style = document.createElement('style');
+        style.textContent = [...lateRules].join('\n');
+        document.head.append(style);
+    });
+    await panelHeaders(page);
     const addButton = page.getByRole('button', { name: /新增面板/ }).first();
     await expect(addButton).toHaveAttribute('data-variant', 'default');
     // Preserve the existing dense desktop toolbar instead of enlarging it.
@@ -219,6 +253,9 @@ try {
     await tradeContrast(ticket);
     expect(await panelGeometry(page)).toEqual(geometry);
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'terminal-light.png') });
+    await panelHeaders(page);
+    const chartHeader = page.locator('[data-slot="card-header"][data-layout="panel"]').filter({ hasText: 'K 線圖' }).first();
+    await chartHeader.screenshot({ animations: 'disabled', path: path.join(artifacts, 'panel-header.png') });
     await settingsButton.click();
     await settings.getByText('自訂', { exact: true }).click();
     const accent = settings.getByLabel('強調色顏色');

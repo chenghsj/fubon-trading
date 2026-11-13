@@ -25,6 +25,8 @@
 保留原本的 grid、面板位置與比例、工具列行數、控制項尺寸與資訊密度，包括
 頂欄控制項高度、設定視窗的 38rem／30rem 尺寸及原有響應式門檻。這是外觀與共用
 元件遷移，不改成範例 dashboard 的布局；交易介面繼續使用 compact 尺寸。
+交易面板的 CardHeader 明確使用 panel 布局，避免預設直排／大內距與原樣式
+競爭；登入卡片仍沿用預設直排。樣式載入順序改變時，面板標題列也維持橫向。
 
 深色使用不同明度的背景、面板與浮層，提亮次要文字、輸入邊界、圖表刻度及
 紅綠價格；Canvas 與熱力圖同步套色。白字標籤使用較深的 Solid 語意色，與
@@ -73,6 +75,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
   標籤的透明度合成，最低文字對比 4.63:1。
 - Switch 明確清除瀏覽器預設 padding，三種字級的開／關圓點皆留在軌道內；
   右下縮放把手的弧線配合 Card 圓角，拖曳熱區仍為 20×20px。
+- 正式 bundle 重播最後載入的 Tailwind 布局規則，深淺色六個面板仍為橫向、
+  緊湊標題列；登入 CardHeader 保留直排。
 - AI review 與 QA 找出的快捷鍵、分頁高度、選單外框、選取／危險狀態及語意色
   問題已修復並重驗；最終沒有未處理的 confirmed findings。
 
@@ -83,6 +87,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 ## 畫面（展示資料）
 
 ![Passkey 登入](images/shadcn-passkey.png)
+
+![面板橫向標題列](images/shadcn-panel-header.png)
 
 ![深色交易介面（原有布局）](images/shadcn-terminal-dark.png)
 

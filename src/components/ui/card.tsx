@@ -18,14 +18,16 @@ const Card = React.forwardRef<
 ))
 Card.displayName = "Card"
 
+// Panel geometry belongs to PanelChrome; don't mix its CSS with default layout utilities.
 const CardHeader = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { layout?: "default" | "panel" }
+>(({ className, layout = "default", ...props }, ref) => (
   <div
     data-slot="card-header"
+    data-layout={layout}
     ref={ref}
-    className={cn("flex flex-col gap-1.5 p-6", className)}
+    className={cn("flex", layout === "default" && "flex-col gap-1.5 p-6", className)}
     {...props}
   />
 ))

@@ -71,6 +71,7 @@ export function PanelChrome({
 
     return (
         <CardHeader
+            layout="panel"
             className={`${panel.panelTitle} ${styles.titleBar} drag-handle`}
             data-controls={
                 !pinnable || !onPinChange ? 'none' : pinned || group ? 'pinned' : 'linked'
