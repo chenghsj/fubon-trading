@@ -65,11 +65,13 @@ globalStyle('.react-grid-item > .react-resizable-handle::after', {
     borderBottom: `2px solid ${vars.color.mutedForeground}`,
 });
 
-// Follow the Card's 0.75rem corner, inset by 0.25rem; keep the 20px hit area.
+// A small concentric arc inside the Card's 0.75rem corner; keep the 20px hit area.
 globalStyle('.react-grid-item > .react-resizable-handle-se::after', {
-    width: '0.75rem',
-    height: '0.75rem',
-    right: '0.25rem',
-    bottom: '0.25rem',
-    borderBottomRightRadius: '0.5rem',
+    width: '0.5rem',
+    height: '0.5rem',
+    right: '0.375rem',
+    bottom: '0.375rem',
+    borderBottomRightRadius: '0.375rem',
+    borderRightWidth: '1.5px',
+    borderBottomWidth: '1.5px',
 });
