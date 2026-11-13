@@ -130,8 +130,8 @@ const lockBase = style({
 });
 
 export const lockPrice = styleVariants({
-    up: [lockBase, { background: vars.color.up }],
-    down: [lockBase, { background: vars.color.down }],
+    up: [lockBase, { background: vars.color.upSolid }],
+    down: [lockBase, { background: vars.color.downSolid }],
 });
 
 export const kv = style({

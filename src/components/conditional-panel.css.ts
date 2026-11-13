@@ -78,7 +78,7 @@ export const button = styleVariants({
     primary: [buttonBase, {
         background: vars.color.accent,
         borderColor: vars.color.accent,
-        color: '#fff',
+        color: 'var(--primary-foreground)',
         fontWeight: 600,
         selectors: { '&:hover:not(:disabled)': { background: vars.color.accent, borderColor: vars.color.accent, filter: 'brightness(1.08)' } },
     }],
@@ -295,9 +295,9 @@ const segBase = style({
 
 export const segItem = styleVariants({
     off: [segBase],
-    on: [segBase, { background: vars.color.accent, color: '#fff', fontWeight: 600 }],
-    buy: [segBase, { background: vars.color.up, color: '#fff', fontWeight: 600 }],
-    sell: [segBase, { background: vars.color.down, color: '#fff', fontWeight: 600 }],
+    on: [segBase, { background: vars.color.accent, color: 'var(--primary-foreground)', fontWeight: 600 }],
+    buy: [segBase, { background: vars.color.upSolid, color: '#fff', fontWeight: 600 }],
+    sell: [segBase, { background: vars.color.downSolid, color: '#fff', fontWeight: 600 }],
 });
 
 export const summary = style({
@@ -557,7 +557,7 @@ const opButtonBase = style({
 });
 export const opButton = styleVariants({
     plain: [opButtonBase, { selectors: { '&:hover:not(:disabled)': { background: vars.color.muted } } }],
-    primary: [opButtonBase, { background: vars.color.accent, borderColor: vars.color.accent, color: '#fff', fontWeight: 600 }],
+    primary: [opButtonBase, { background: vars.color.accent, borderColor: vars.color.accent, color: 'var(--primary-foreground)', fontWeight: 600 }],
     danger: [opButtonBase, { borderColor: vars.color.danger, color: vars.color.danger, fontWeight: 600 }],
 });
 const opsNoteBase = style({ fontSize: '0.64rem', maxWidth: '212px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });

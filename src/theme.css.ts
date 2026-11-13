@@ -37,32 +37,32 @@ interface Palette {
     wickShare: string;
 }
 
-// Neutral shadcn chrome; market up/down and status colors remain semantic.
+// Layered neutral surfaces keep dense controls and small labels readable.
 const dark: Palette = {
-    background: '#0a0a0a',
-    panel: '#0a0a0a',
-    panelRaised: '#171717',
-    inset: '#0a0a0a',
-    foreground: '#fafafa',
-    muted: '#262626',
-    mutedForeground: '#a1a1a1',
-    border: '#262626',
-    borderBright: '#404040',
-    accent: '#fafafa',
-    accentDim: 'rgba(250, 250, 250, 0.1)',
+    background: '#111113',
+    panel: '#1b1b1f',
+    panelRaised: '#26262b',
+    inset: '#141417',
+    foreground: '#f4f4f5',
+    muted: '#303036',
+    mutedForeground: '#c4c4cc',
+    border: '#4b4b55',
+    borderBright: '#7e7e8c',
+    accent: '#f4f4f5',
+    accentDim: 'rgba(244, 244, 245, 0.1)',
     amber: '#e0a43c',
-    red: '#f23645',
-    redDim: 'rgba(242, 54, 69, 0.13)',
-    redFlash: 'rgba(242, 54, 69, 0.2)',
-    green: '#16b389',
-    greenDim: 'rgba(22, 179, 137, 0.13)',
-    greenFlash: 'rgba(22, 179, 137, 0.18)',
-    // 對 panel 6.92:1；白字對 dangerSolid 4.87:1
+    red: '#ff8a96',
+    redDim: 'rgba(255, 138, 150, 0.13)',
+    redFlash: 'rgba(255, 138, 150, 0.2)',
+    green: '#35d9a7',
+    greenDim: 'rgba(53, 217, 167, 0.13)',
+    greenFlash: 'rgba(53, 217, 167, 0.18)',
+    // Bright error text and a separate solid fill for white-label buttons.
     danger: '#ff6a4d',
     dangerDim: 'rgba(255, 106, 77, 0.13)',
-    dangerSolid: '#d03a24',
-    // 往灰色混：紅 #b85e6e 4.53:1、綠 #4a9d90 6.07:1（對 panel）
-    wickBase: '#7e8798',
+    dangerSolid: '#b83220',
+    // Wick colors remain quieter than candle bodies, above the grid.
+    wickBase: '#c4c4cc',
     wickShare: '50%',
 };
 
@@ -121,6 +121,9 @@ function makeTokens(p: Palette, convention: 'tw' | 'intl') {
             upDim,
             upFlash,
             down,
+            // White labels need a darker fill than small price text in dark mode.
+            upSolid: p === dark ? (convention === 'tw' ? '#b93347' : '#087a5b') : up,
+            downSolid: p === dark ? (convention === 'tw' ? '#087a5b' : '#b93347') : down,
             // Small colored control labels need stronger contrast on a light tint.
             upControl: p === light ? (convention === 'tw' ? '#be123c' : '#047857') : up,
             downControl: p === light ? (convention === 'tw' ? '#047857' : '#be123c') : down,
@@ -133,6 +136,7 @@ function makeTokens(p: Palette, convention: 'tw' | 'intl') {
             // 錯誤用朱紅 danger，不沿用漲跌紅，避免台股配色下錯誤和「漲」同色。
             // 價格、買賣方向才用 up／down
             success: p.green,
+            successSolid: p === dark ? '#087a5b' : p.green,
             successDim: p.greenDim,
             danger: p.danger,
             dangerDim: p.dangerDim,
@@ -226,7 +230,8 @@ globalStyle(':root', {
         '--muted-foreground': vars.color.mutedForeground,
         '--accent': vars.color.muted,
         '--accent-foreground': vars.color.foreground,
-        '--destructive': vars.color.dangerSolid,
+        '--destructive': vars.color.danger,
+        '--destructive-solid': vars.color.dangerSolid,
         '--destructive-foreground': '#ffffff',
         '--border': vars.color.border,
         '--input': vars.color.borderBright,
@@ -234,7 +239,9 @@ globalStyle(':root', {
         '--radius': vars.radius.lg,
         '--trade-up': vars.color.upControl,
         '--trade-up-dim': vars.color.upDim,
+        '--trade-up-solid': vars.color.upSolid,
         '--trade-down': vars.color.downControl,
         '--trade-down-dim': vars.color.downDim,
+        '--trade-down-solid': vars.color.downSolid,
     },
 });

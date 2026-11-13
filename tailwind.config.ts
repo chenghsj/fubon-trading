@@ -7,7 +7,7 @@ export default {
     corePlugins: { preflight: false },
     theme: {
         extend: {
-            colors: { 'primary-soft': 'var(--primary-soft)', ...Object.fromEntries([
+            colors: { 'primary-soft': 'var(--primary-soft)', 'destructive-solid': 'var(--destructive-solid)', ...Object.fromEntries([
                 'background', 'foreground', 'border', 'input', 'ring',
                 'primary', 'secondary', 'muted', 'accent', 'destructive', 'popover', 'card',
             ].map(name => [name, ['primary', 'secondary', 'muted', 'accent', 'destructive', 'popover', 'card'].includes(name)

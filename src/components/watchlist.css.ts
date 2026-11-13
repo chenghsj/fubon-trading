@@ -347,8 +347,8 @@ const limitBlockBase = style({
     borderRadius: vars.radius.md,
 });
 export const limitBlock = styleVariants({
-    up: [limitBlockBase, { background: solidFill(limitTone.up, 82) }],
-    down: [limitBlockBase, { background: solidFill(limitTone.down, 82) }],
+    up: [limitBlockBase, { background: solidFill(vars.color.upSolid, 82) }],
+    down: [limitBlockBase, { background: solidFill(vars.color.downSolid, 82) }],
 });
 globalStyle(`${limitBlockBase} span`, { color: '#fff' });
 // 排序模式左右各讓出把手與上移／下移鈕的空間 — 色塊不外推、內距收窄，
@@ -398,15 +398,15 @@ export const limitSolid = styleVariants({
     up: [
         limitSolidBase,
         {
-            background: solidFill(limitTone.up, 78),
-            ':hover': { background: solidFill(limitTone.up, 70) },
+            background: solidFill(vars.color.upSolid, 78),
+            ':hover': { background: solidFill(vars.color.upSolid, 70) },
         },
     ],
     down: [
         limitSolidBase,
         {
-            background: solidFill(limitTone.down, 78),
-            ':hover': { background: solidFill(limitTone.down, 70) },
+            background: solidFill(vars.color.downSolid, 78),
+            ':hover': { background: solidFill(vars.color.downSolid, 70) },
         },
     ],
 });

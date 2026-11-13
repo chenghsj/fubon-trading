@@ -162,11 +162,11 @@ const CHROME: Record<
     Pick<ChartColors, 'text' | 'grid' | 'crosshair' | 'border' | 'labelBg'>
 > = {
     dark: {
-        text: '#7e8798',
-        grid: 'rgba(26, 31, 41, 0.7)',
-        crosshair: '#3d8bff',
-        border: '#1a1f29',
-        labelBg: '#10131a',
+        text: '#c4c4cc',
+        grid: 'rgba(75, 75, 85, 0.55)',
+        crosshair: '#e4e4e7',
+        border: '#4b4b55',
+        labelBg: '#26262b',
     },
     light: {
         text: '#5f6b80',
@@ -179,10 +179,10 @@ const CHROME: Record<
 
 const RG: Record<'dark' | 'light', { red: string; green: string; redVol: string; greenVol: string }> = {
     dark: {
-        red: '#f23645',
-        green: '#16b389',
-        redVol: 'rgba(242, 54, 69, 0.45)',
-        greenVol: 'rgba(22, 179, 137, 0.4)',
+        red: '#ff8a96',
+        green: '#35d9a7',
+        redVol: 'rgba(255, 138, 150, 0.45)',
+        greenVol: 'rgba(53, 217, 167, 0.4)',
     },
     light: {
         red: '#d6213a',

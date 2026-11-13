@@ -81,7 +81,7 @@ describe('custom theme', () => {
             const k = customTokens(t, 'tw');
             expect(k.danger).not.toBe(k.up);
             expect(k.danger).toBe(base === 'dark' ? '#ff6a4d' : '#c5341a');
-            expect(k.dangerSolid).toBe(base === 'dark' ? '#d03a24' : '#c5341a');
+            expect(k.dangerSolid).toBe(base === 'dark' ? '#b83220' : '#c5341a');
         }
     });
 });

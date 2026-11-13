@@ -43,11 +43,17 @@ async function ready(url) {
     }
     throw new Error(`Test server did not start: ${url}`);
 }
-async function textContrast(locator) {
-    return locator.evaluate(el => {
+async function textContrast(locator, { property = 'color', behindBar = false } = {}) {
+    return locator.evaluate((el, { property, behindBar }) => {
         const rgba = value => value.match(/[\d.]+/g).map(Number);
         const layers = [];
-        for (let node = el; node; node = node.parentElement) layers.unshift(getComputedStyle(node).backgroundColor);
+        let opacity = 1;
+        for (let node = el; node; node = node.parentElement) {
+            layers.unshift(getComputedStyle(node).backgroundColor);
+            opacity *= Number(getComputedStyle(node).opacity);
+        }
+        // The depth bar is an absolutely positioned sibling behind its price.
+        if (behindBar) layers.push(getComputedStyle(el.previousElementSibling).backgroundColor);
         let background = [255, 255, 255];
         for (const layer of layers) {
             const [r, g, b, alpha = 1] = rgba(layer);
@@ -56,10 +62,12 @@ async function textContrast(locator) {
         const luminance = channels => channels.slice(0, 3).map(v => v / 255)
             .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
             .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
-        const a = luminance(rgba(getComputedStyle(el).color));
-        const b = luminance(background);
-        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
-    });
+        const [r, g, b, alpha = 1] = rgba(getComputedStyle(el)[property]);
+        const foreground = [r, g, b].map((v, i) => v * alpha * opacity + background[i] * (1 - alpha * opacity));
+        const foregroundLuminance = luminance(foreground);
+        const backgroundLuminance = luminance(background);
+        return (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) / (Math.min(foregroundLuminance, backgroundLuminance) + 0.05);
+    }, { property, behindBar });
 }
 async function tradeContrast(ticket) {
     for (const [name, variant] of [['賣出 Sell', 'sell'], ['買進 Buy', 'buy']]) {
@@ -134,6 +142,9 @@ try {
     await expect(priceInput).toHaveValue(/\d/);
     const geometry = await panelGeometry(page);
     const watch = page.locator('[data-slot="card"]').filter({ hasText: '自選清單' }).first();
+    const deleteList = watch.locator('button[data-variant="destructive"]:visible').first();
+    expect(await deleteList.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
+    expect(await textContrast(deleteList)).toBeGreaterThanOrEqual(4.5);
     await watch.getByTitle('調整順序（拖曳或上下移，存回伺服器）').click();
     const row = watch.locator('[data-code]').first();
     const rowFrame = await row.boundingBox();
@@ -144,6 +155,17 @@ try {
         expect(frame.y + frame.height).toBeLessThanOrEqual(rowFrame.y + rowFrame.height);
     }
     await watch.getByTitle('完成調整').click();
+    // Dense dark labels, control boundaries and prices must remain readable in
+    // their real composited states, including the depth bar behind each price.
+    await expect.poll(() => textContrast(ticket.getByText('價格', { exact: true }))).toBeGreaterThanOrEqual(7);
+    expect(await textContrast(priceInput, { property: 'borderTopColor' })).toBeGreaterThanOrEqual(3);
+    const depth = page.locator('[data-slot="card"]').filter({ hasText: '五檔' }).first();
+    const depthRow = depth.getByText('BID', { exact: true }).locator('..').locator('xpath=following-sibling::div[1]');
+    await depthRow.hover();
+    for (const price of await depthRow.locator(':scope > div > span').all()) {
+        await expect.poll(() => textContrast(price, { behindBar: true })).toBeGreaterThanOrEqual(4.5);
+    }
+    await addButton.hover();
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'terminal-dark.png') });
 
     const settingsButton = page.getByRole('button', { name: '設定', exact: true });
@@ -153,8 +175,13 @@ try {
     const tab = await settings.getByRole('tab', { name: '外觀' }).boundingBox();
     expect(tab.y).toBeGreaterThanOrEqual(frame.y);
     expect(tab.y + tab.height).toBeLessThanOrEqual(frame.y + frame.height);
-    await settings.getByRole('tab', { name: '外觀' }).focus(); await page.keyboard.press('ArrowDown');
+    await expect(settings.getByRole('tab', { name: '外觀' })).toHaveAttribute('aria-selected', 'true');
+    expect(await settings.getByRole('tab', { name: '外觀' }).evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
+    await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-dark.png') });
+    await settings.getByRole('tab', { name: '外觀' }).focus();
+    await page.keyboard.press('ArrowDown');
     await expect(settings.getByRole('tab', { name: '音效與隱私' })).toHaveAttribute('aria-selected', 'true');
+    await expect.poll(() => settings.getByRole('tab', { name: '音效與隱私' }).evaluate(el => getComputedStyle(el).boxShadow)).toContain('rgb(244, 244, 245)');
     await settings.getByRole('switch', { name: '帳號遮蔽' }).click();
     await expect(settings.getByRole('switch', { name: '帳號遮蔽' })).toHaveAttribute('aria-checked', 'true');
     await settings.getByRole('tab', { name: '風控' }).click();

@@ -199,8 +199,8 @@ const cellLockBase = style({
 });
 
 export const cellLock = styleVariants({
-    up: [cellLockBase, { background: vars.color.up }],
-    down: [cellLockBase, { background: vars.color.down }],
+    up: [cellLockBase, { background: vars.color.upSolid }],
+    down: [cellLockBase, { background: vars.color.downSolid }],
 });
 
 // 顯示設定 popover 的類別分頁籤 — 整排、active 底色＋下劃線，

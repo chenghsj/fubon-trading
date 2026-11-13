@@ -172,7 +172,7 @@ const goBase = style({
 });
 
 export const goBtn = styleVariants({
-    on: [goBase, { color: '#fff', background: vars.color.success, ':hover': { filter: 'brightness(1.08)' } }],
+    on: [goBase, { color: '#fff', background: vars.color.successSolid, ':hover': { filter: 'brightness(1.08)' } }],
     off: [goBase, { color: vars.color.mutedForeground, background: vars.color.muted, cursor: 'not-allowed' }],
 });
 

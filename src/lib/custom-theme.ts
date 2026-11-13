@@ -31,12 +31,12 @@ export const CUSTOM_COLOR_FIELDS: { key: CustomColorKey; label: string }[] = [
 export const CUSTOM_BASES: Record<CustomBase, CustomTheme> = {
     dark: {
         base: 'dark',
-        background: '#0a0a0a',
-        panel: '#0a0a0a',
-        foreground: '#fafafa',
-        accent: '#fafafa',
-        red: '#f23645',
-        green: '#16b389',
+        background: '#111113',
+        panel: '#1b1b1f',
+        foreground: '#f4f4f5',
+        accent: '#f4f4f5',
+        red: '#ff8a96',
+        green: '#35d9a7',
     },
     light: {
         base: 'light',
@@ -58,7 +58,7 @@ export const CUSTOM_PRESETS: { name: string; theme: CustomTheme }[] = [
 
 // 狀態錯誤色（朱紅）：不跟使用者挑的漲跌紅，固定依底色，與 theme.css.ts 一致
 export const CUSTOM_DANGER: Record<CustomBase, { danger: string; dangerSolid: string }> = {
-    dark: { danger: '#ff6a4d', dangerSolid: '#d03a24' },
+    dark: { danger: '#ff6a4d', dangerSolid: '#b83220' },
     light: { danger: '#c5341a', dangerSolid: '#c5341a' },
 };
 
@@ -115,10 +115,12 @@ export function customTokens(t: CustomTheme, convention: Convention): Record<str
         accentDim: alpha(t.accent, dark ? 0.12 : 0.1),
         magenta: mutedFg,
         up,
+        upSolid: dark ? mix(up, '#000000', 0.45) : up,
         upControl: dark ? up : mix(up, '#000000', 0.2),
         upDim: alpha(up, dim),
         upFlash: alpha(up, flash),
         down,
+        downSolid: dark ? mix(down, '#000000', 0.45) : down,
         downControl: dark ? down : mix(down, '#000000', 0.2),
         downDim: alpha(down, dim),
         downFlash: alpha(down, flash),
@@ -127,6 +129,7 @@ export function customTokens(t: CustomTheme, convention: Convention): Record<str
         wickDown: dark ? mix(down, mutedFg, 0.5) : mix(down, t.panel, 0.2),
         flat: mutedFg,
         success: t.green,
+        successSolid: dark ? mix(t.green, '#000000', 0.45) : t.green,
         successDim: alpha(t.green, dim),
         danger: CUSTOM_DANGER[t.base].danger,
         dangerDim: alpha(CUSTOM_DANGER[t.base].danger, dim),
