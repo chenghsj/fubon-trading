@@ -1,4 +1,4 @@
-/** Only a single-use launch capability can create this process's API session.
+/** WebAuthn grants trading sessions; the launch capability only authorizes first enrollment.
  * Session authority stays in this tab's sessionStorage; never cookies, URLs,
  * localStorage, analytics, or the Vite build environment. */
 const STORAGE_KEY = 'fubon-trading-session';
@@ -11,53 +11,79 @@ export function isLocalApi(input: RequestInfo | URL, origin: string): boolean {
     return url.origin === origin && url.pathname.startsWith('/api/');
 }
 
+let enrollmentToken = '';
+let nativeFetch: typeof fetch | undefined;
+const transport = () => nativeFetch ??= globalThis.fetch.bind(globalThis);
+
+export async function sessionRequest(path: string, body?: unknown, enrollment = false): Promise<Record<string, unknown>> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (enrollment && enrollmentToken) headers.Authorization = `Bearer ${enrollmentToken}`;
+    const response = await transport()(path, {
+        method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body),
+        credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(30_000),
+    });
+    if (!response.ok) throw new Error(response.status === 401 ? '授權已失效，請重新啟動後重試。' : '驗證未完成，請重試；若服務未啟動，請執行 pnpm start。');
+    return response.json() as Promise<Record<string, unknown>>;
+}
+
+export async function activateSession(value: unknown): Promise<boolean> {
+    if (typeof value !== 'string' || !TOKEN.test(value)) return false;
+    accessToken = value;
+    const response = await transport()('/api/v1/info', {
+        headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) { accessToken = ''; return false; }
+    try { sessionStorage.setItem(STORAGE_KEY, value); } catch { /* Memory-only session. */ }
+    if (!installed) {
+        globalThis.fetch = (input, init) => {
+            if (!isLocalApi(input, location.origin)) return transport()(input, init);
+            const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+            headers.set('Authorization', `Bearer ${accessToken}`);
+            return transport()(input, { ...init, headers, credentials: 'omit', redirect: 'error' });
+        };
+        installed = true;
+    }
+    return true;
+}
+
+export function canEnrollPasskey() { return !!enrollmentToken; }
+
 export async function prepareFubonSession(): Promise<boolean> {
-    const originalFetch = globalThis.fetch.bind(globalThis);
+    transport();
     const fragment = new URLSearchParams(location.hash.slice(1));
     let launch = fragment.get('fubon-launch');
-    if (launch !== null) {
-        // Remove the capability before loading any application/analytics modules.
-        history.replaceState(null, '', location.pathname + location.search);
-    }
+    if (launch !== null) history.replaceState(null, '', location.pathname + location.search);
     try {
         if (launch !== null) {
             if (!TOKEN.test(launch)) throw new Error('Invalid launch capability');
-            const response = await originalFetch('/api/v1/session', {
+            const response = await transport()('/api/v1/session', {
                 method: 'POST', headers: { Authorization: `Bearer ${launch}`, 'Content-Type': 'application/json' },
                 body: '{}', credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(10_000),
             });
             launch = null;
             if (!response.ok) throw new Error('Launch denied');
-            const result: unknown = await response.json();
-            const value = (result as { access_token?: unknown })?.access_token;
-            if (typeof value !== 'string' || !TOKEN.test(value)) throw new Error('Invalid session');
-            accessToken = value;
-            try { sessionStorage.setItem(STORAGE_KEY, value); } catch { /* Memory-only session still works. */ }
-        } else {
-            try { accessToken = sessionStorage.getItem(STORAGE_KEY) ?? ''; } catch { /* storage unavailable */ }
+            const result = await response.json() as { enrollment_token?: unknown };
+            if (typeof result.enrollment_token === 'string' && TOKEN.test(result.enrollment_token)) enrollmentToken = result.enrollment_token;
+            // A launch URL never grants trading authority, even after enrollment.
         }
-        if (!TOKEN.test(accessToken)) throw new Error('Session missing');
-        const response = await originalFetch('/api/v1/info', {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(10_000),
-        });
-        if (!response.ok) throw new Error('Session expired');
-        if (!installed) {
-            globalThis.fetch = (input, init) => {
-                if (!isLocalApi(input, location.origin)) return originalFetch(input, init);
-                const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-                headers.set('Authorization', `Bearer ${accessToken}`);
-                // Never forward authority through a redirect to another origin.
-                return originalFetch(input, { ...init, headers, credentials: 'omit', redirect: 'error' });
-            };
-            installed = true;
-        }
-        return true;
-    } catch {
-        launch = null;
+        let saved = '';
+        try { saved = sessionStorage.getItem(STORAGE_KEY) ?? ''; } catch { /* unavailable */ }
+        if (await activateSession(saved)) return true;
+    } catch { /* Show the unlock screen; never fall back to an unprotected API. */ }
+    launch = null;
+    accessToken = '';
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* unavailable */ }
+    return false;
+}
+
+export async function logoutFubonSession() {
+    // Revoke this token on the server; an offline failure still clears this tab.
+    try { await fetch('/api/v1/session/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}', redirect: 'error', signal: AbortSignal.timeout(3000) }); }
+    catch { /* Local lock must work even if the bridge is unavailable. */ }
+    finally {
         accessToken = '';
-        try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* storage unavailable */ }
-        return false;
+        try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* unavailable */ }
+        location.reload();
     }
 }
 

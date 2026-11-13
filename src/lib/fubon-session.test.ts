@@ -17,15 +17,25 @@ function browser(hash: string, saved?: string) {
 }
 
 describe('Fubon session boundary', () => {
-    it('strips the launch fragment, exchanges it once, and scopes authority to same-origin API', async () => {
+    it('strips the launch fragment and grants enrollment only, never trading authority', async () => {
         const storage = browser(`#fubon-launch=${launch}`);
-        const native = vi.fn().mockResolvedValueOnce(Response.json({ access_token: token })).mockResolvedValue(Response.json({}));
+        const native = vi.fn().mockResolvedValueOnce(Response.json({ enrollment_token: token }));
+        vi.stubGlobal('fetch', native);
+        const { prepareFubonSession, canEnrollPasskey } = await import('./fubon-session');
+        expect(await prepareFubonSession()).toBe(false);
+        expect(history.replaceState).toHaveBeenCalledWith(null, '', '/');
+        expect(canEnrollPasskey()).toBe(true);
+        expect(storage.size).toBe(0);
+        expect(native.mock.calls[0]?.[1].headers.Authorization).toBe(`Bearer ${launch}`);
+        expect(globalThis.fetch).toBe(native);
+    });
+
+    it('uses only a verified session for same-origin API authority and blocks redirect forwarding', async () => {
+        browser('', token);
+        const native = vi.fn().mockResolvedValue(Response.json({}));
         vi.stubGlobal('fetch', native);
         const { prepareFubonSession } = await import('./fubon-session');
         expect(await prepareFubonSession()).toBe(true);
-        expect(history.replaceState).toHaveBeenCalledWith(null, '', '/');
-        expect(storage.get('fubon-trading-session')).toBe(token);
-        expect(native.mock.calls[0]?.[1].headers.Authorization).toBe(`Bearer ${launch}`);
         await fetch('/api/v1/watchlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
         const request = native.mock.calls.at(-1)?.[1];
         expect(request.headers.get('Authorization')).toBe(`Bearer ${token}`);
@@ -85,4 +95,18 @@ it('parses SSE split CRLF, multiple data lines, unicode, and named events', () =
     const parser = new SseParser((name, data) => events.push([name, data]));
     for (const piece of [':comment\r', '\nevent: tick\r\ndata: 台', '指\r', '\ndata: 2\r\n\r', '\ndata: next\n\n']) parser.push(piece);
     expect(events).toEqual([['tick', '台指\n2'], ['message', 'next']]);
+});
+
+
+it('locks locally when logout is unavailable and bounds the request timeout', async () => {
+    const storage = browser('', token);
+    vi.stubGlobal('location', { hash: '', origin: 'http://127.0.0.1:5179', pathname: '/', search: '', reload: vi.fn() });
+    const native = vi.fn().mockResolvedValueOnce(Response.json({})).mockRejectedValueOnce(new Error('offline'));
+    vi.stubGlobal('fetch', native);
+    const { prepareFubonSession, logoutFubonSession } = await import('./fubon-session');
+    expect(await prepareFubonSession()).toBe(true);
+    await logoutFubonSession();
+    expect(storage.size).toBe(0);
+    expect(location.reload).toHaveBeenCalledOnce();
+    expect(native.mock.calls.at(-1)?.[1].signal).toBeInstanceOf(AbortSignal);
 });

@@ -18,9 +18,9 @@ def main():
         config = Config.from_env()
     except (ValueError, KeychainError):
         parser.exit(1, "啟動失敗：請檢查模式設定與 Keychain；明文登入欄位已停用，請執行 pnpm credentials set\n")
-    target = args.ui_url or f"http://127.0.0.1:{config.port}"
+    target = args.ui_url or f"http://localhost:{config.port}"
     parsed = urlparse(target)
-    if parsed.scheme != "http" or parsed.hostname != "127.0.0.1" or parsed.port not in {config.port, 5179} or parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username:
+    if parsed.scheme != "http" or parsed.hostname != "localhost" or parsed.port not in {config.port, 5179} or parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username:
         parser.error("只允許預設本機介面網址")
     launch_token = secrets.token_urlsafe(32)
 
@@ -32,7 +32,7 @@ def main():
             print("未能開啟瀏覽器；請確認預設瀏覽器後重啟服務")
 
     uvicorn.run(create_app(config, launch_token=launch_token,
-                          on_ready=None if args.no_browser else open_terminal),
+                          on_ready=None if args.no_browser else open_terminal, public_origin=target.rstrip("/")),
                 host="127.0.0.1", port=config.port, access_log=False)
 
 

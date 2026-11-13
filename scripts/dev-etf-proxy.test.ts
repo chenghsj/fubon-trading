@@ -337,6 +337,10 @@ describe('本機開發與 preview 的六條固定名稱 metadata 代理', () => 
         const configFile = path.resolve(__dirname, '../vite.config.ts');
         const dev = await resolveConfig({ configFile, logLevel: 'silent' }, 'serve', 'development');
         const previewConfig = await resolveConfig({ configFile, logLevel: 'silent' }, 'serve', 'production', 'production', true);
+        expect(dev.server.host).toBe('127.0.0.1');
+        expect(previewConfig.preview.host).toBe('127.0.0.1');
+        expect(dev.server.headers?.['X-Frame-Options']).toBe('DENY');
+        expect(previewConfig.preview.headers?.['Content-Security-Policy']).toBe("frame-ancestors 'none'");
         const use = vi.fn();
         if (typeof plugin.configureServer !== 'function' || typeof plugin.configurePreviewServer !== 'function') throw new Error('hooks missing');
         plugin.configureServer.call({} as never, { config: dev, middlewares: { use } } as unknown as ViteDevServer);
@@ -354,7 +358,6 @@ describe('本機開發與 preview 的六條固定名稱 metadata 代理', () => 
         expect(use).not.toHaveBeenCalled();
         configure.call({} as never, { config: { preview: { host: '127.0.0.1' } }, middlewares: { use } } as unknown as PreviewServer);
         expect(use).toHaveBeenCalledOnce();
-        expect(configSource).toMatch(/preview:\s*\{\s*host:\s*'127\.0\.0\.1'\s*\}/);
     });
 
     it('真實 Vite preview 會載入 apply:serve plugin 並代理固定 metadata，而非 SPA fallback', async () => {

@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import os
 from pathlib import Path
 
@@ -35,19 +35,20 @@ class Config:
     def from_env(cls):
         load_dotenv(ROOT / ".env")
         mode = os.getenv("FUBON_MODE", "demo")
-        credentials = {}
         if mode != "demo":
             legacy = ("FUBON_PERSONAL_ID", "FUBON_API_KEY", "FUBON_CERT_PATH", "FUBON_CERT_PASSWORD")
             if any(os.getenv(key, "").strip() for key in legacy):
                 raise KeychainError("明文登入設定已停用；請清除 .env 的登入欄位並執行 pnpm credentials set")
-            stored = Keychain().read()
-            if stored is not None:
-                credentials = validate_credentials(stored)
         return cls(
-            **credentials,
             mode=mode,
             live_enabled=os.getenv("FUBON_ENABLE_LIVE_TRADING", "false").lower() == "true",
             session=os.getenv("FUBON_SESSION", "regular"),
             max_quantity=int(os.getenv("FUBON_MAX_ORDER_QUANTITY", "10")),
             port=int(os.getenv("FUBON_PORT", "21323")),
         )
+
+    def with_credentials(self):
+        if self.mode == "demo" or all((self.personal_id, self.api_key, self.cert_path, self.cert_password)):
+            return self
+        stored = Keychain().read()
+        return replace(self, **validate_credentials(stored)) if stored is not None else self

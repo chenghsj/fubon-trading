@@ -13,11 +13,16 @@ React → 同來源 /api proxy → 127.0.0.1:21323
 
 - `pnpm credentials set/status/delete` 透過 Python 直接呼叫 macOS Security / CoreFoundation；不將秘密送入 shell、命令列參數或標準輸出。
 - Keychain generic password 項目：service `tw.fubon-trading.credentials`、account `default`。登入 ID、API Key、憑證路徑與憑證密碼以同一項目保存；Keychain 不可用時拒絕登入，沒有明文 fallback。
-- demo 不讀 Keychain；paper/live 才載入。已填入的舊版 `.env` 登入欄位會使 paper/live 拒絕啟動，避免誤用明文備援。
-- 每個服務程序產生獨立 256-bit 啟動碼與工作階段 token。啟動碼兩分鐘有效，`POST /api/v1/session` 只能交換一次；token 不存在 `.env`、建置常數或標準輸出。
-- 啟動碼透過瀏覽器 URL fragment 交付，前端先移除 fragment、換取 session，再載入交易介面和分析模組。
-- 工作階段 token 只存在分頁的 sessionStorage 與記憶體；重啟服務會失效。REST 與 fetch SSE 皆透過同源 Authorization 標頭驗證，拒絕 HTTP redirect，禁止用 Cookie／URL query 授權。
-- 未授權的本機呼叫會回 401；既有 Host、Origin 與 JSON Content-Type 檢查仍適用。授權不替代 paper/live 下單開關、單筆數量上限或券商金鑰權限。
+- demo 不讀 Keychain；paper/live 僅在 Passkey 註冊或登入驗證成功後，才載入 Keychain 並呼叫 SDK。啟動服務與取得註冊能力不會讀取券商秘密。已填入的舊版 `.env` 登入欄位會使 paper/live 拒絕啟動。
+- RP ID 固定 `localhost`，正規前端 origin 為 `http://localhost:5179`，獨立 bridge 則是 `http://localhost:<port>`。伺服器只驗證該次設定的精確 Origin，不接受其他 localhost 埠或 127.0.0.1 assertion。
+- 使用 py_webauthn 驗證註冊與登入回應；兩種 ceremony 都要求 UV。resident key 為 required；伺服器核對 challenge、RP ID、Origin、簽章、已登錄 credential ID、userHandle（若有）與 sign counter；同步型 Passkey 的零計數器合法。
+- 每個 challenge 兩分鐘內有效、驗證時即消耗；失敗也不能重放。未完成 challenge 上限 64 個，過期即清理。
+- 首次啟動碼 256-bit、兩分鐘有效，只能交換一次十分鐘的註冊能力；該能力不能讀取交易 API。啟動碼經 URL fragment 交付，先清除網址再載入介面；Passkey 已存在時，啟動碼不會發出註冊或交易權限。
+- WebAuthn 成功後才產生獨立交易 token，雜湊保存在程序記憶體、最多 32 個工作階段。瀏覽器存於分頁 sessionStorage，不進入 localStorage、Cookie、Git、建置常數或標準輸出。REST / SSE 僅同源 Authorization，禁止 redirect 轉送。
+- logout 撤銷該 token，SSE 在送出前再次檢查；重啟失效全部工作階段。鎖定介面不取消或平倉既有委託。
+- 公開 credential 資料持久保存在使用者 app-data 的 SQLite；單一 owner／credential，註冊 insert 唯一限制與計數器 compare-and-update 避免競態。資料庫和父目錄以 600／700 建立。
+- `pnpm passkeys reset` 是本機互動式復原，需先停止服務並輸入確認文字；沒有 HTTP reset 或免驗證入口。Keychain 與裝置私鑰不在重設範圍。
+- 未授權交易／行情／帳務／SSE 回 401；既有 Host、Origin 與 JSON Content-Type 檢查仍適用。授權不替代 paper/live 雙開關、單筆數量上限或券商金鑰權限。
 - 保護範圍不包含已被惡意程式控制的作業系統使用者或瀏覽器；不把同一 OS 帳號視為可隔離的安全主體。
 
 ## 語意與邊界
@@ -40,6 +45,12 @@ React → 同來源 /api proxy → 127.0.0.1:21323
 ## 尚未啟用的自動交易
 
 富邦主動回報與 Shioaji 的成交明細、取消增量語意不同。目前僅用回報觸發帳務重讀，未產生經驗證的 Shioaji DealReport，因此停用括號停損停利、觸價、定時平倉與兩腳價差自動引擎。主要入口會拒絕建立，畫面停用保護按鈕。手動下單、改刪與平倉仍可用。
+
+## Passkey 規格來源
+
+- [py_webauthn registration](https://duo-labs.github.io/py_webauthn/registration.html)
+- [py_webauthn authentication](https://duo-labs.github.io/py_webauthn/authentication.html)
+- [WebAuthn](https://www.w3.org/TR/webauthn-3/)
 
 ## 官方規格（2026-11-13 核對）
 

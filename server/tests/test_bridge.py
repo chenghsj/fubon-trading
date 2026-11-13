@@ -8,14 +8,15 @@ from fastapi.testclient import TestClient
 from fubon_bridge.app import create_app
 from fubon_bridge.broker import Broker
 from fubon_bridge.config import Config
+from fubon_bridge.passkeys import PasskeyStore
 from fubon_bridge.mapping import contract_from_ticker, market_events, normalize_trade, now, snapshot
 
 
 @pytest.fixture
-def client():
-    with TestClient(create_app(Config(), launch_token="test-launch")) as client:
-        response = client.post("/api/v1/session", json={}, headers={"Authorization": "Bearer test-launch"})
-        client.headers["Authorization"] = "Bearer " + response.json()["access_token"]
+def client(tmp_path):
+    app = create_app(Config(), passkey_store=PasskeyStore(tmp_path / "passkeys.db"))
+    with TestClient(app) as client:
+        client.headers["Authorization"] = "Bearer " + app.state.session.issue()
         yield client
 
 
@@ -114,10 +115,10 @@ def test_foreign_origin_and_form_posts_are_rejected(client):
     assert client.get("/api/v1/info", headers={"Host": "evil.example"}).status_code == 403
 
 
-def test_missing_credentials_do_not_fall_back_to_synthetic_data():
-    with TestClient(create_app(Config(mode="paper"), launch_token="test-launch")) as client:
-        response = client.post("/api/v1/session", json={}, headers={"Authorization": "Bearer test-launch"})
-        client.headers["Authorization"] = "Bearer " + response.json()["access_token"]
+def test_missing_credentials_do_not_fall_back_to_synthetic_data(tmp_path):
+    app = create_app(Config(mode="paper"), passkey_store=PasskeyStore(tmp_path / "passkeys.db"))
+    with TestClient(app) as client:
+        client.headers["Authorization"] = "Bearer " + app.state.session.issue()
         assert not client.get("/api/v1/info").json()["connected"]
         assert not account(client)["signed"]
         assert client.get("/api/v1/data/contracts/TXFR1/info?security_type=FUT").status_code == 400
