@@ -7,14 +7,16 @@ from fubon_bridge.app import create_app
 from fubon_bridge.config import Config
 from fubon_bridge.keychain import KeychainError, validate_credentials
 from fubon_bridge.session import Session
+from fubon_bridge.passkeys import PasskeyStore
 
 
 def exchange(client, launch="launch"):
     return client.post("/api/v1/session", json={}, headers={"Authorization": "Bearer " + launch})
 
 
-def test_untrusted_local_client_cannot_read_trade_or_stream():
-    with TestClient(create_app(Config(), launch_token="launch")) as client:
+def test_untrusted_local_client_cannot_read_trade_or_stream(tmp_path):
+    app = create_app(Config(), launch_token="launch", passkey_store=PasskeyStore(tmp_path / "passkeys.db"))
+    with TestClient(app) as client:
         for path in ("/api/v1/info", "/api/v1/auth/accounts", "/api/v1/stream/data"):
             assert client.get(path).status_code == 401
         assert client.post("/api/v1/order/place_order", json={}).status_code == 401
@@ -26,7 +28,10 @@ def test_untrusted_local_client_cannot_read_trade_or_stream():
         assert session.status_code == 200
         assert "set-cookie" not in session.headers
         assert session.headers["cache-control"] == "no-store"
-        token = session.json()["access_token"]
+        enrollment = session.json()["enrollment_token"]
+        assert "access_token" not in session.json()
+        assert client.get("/api/v1/info", headers={"Authorization": "Bearer " + enrollment}).status_code == 401
+        token = app.state.session.issue()
         assert token != "launch" and len(token) == 43
         assert exchange(client).status_code == 401
         assert client.get("/api/v1/info", headers={"Authorization": "Bearer launch"}).status_code == 401
@@ -34,7 +39,7 @@ def test_untrusted_local_client_cannot_read_trade_or_stream():
         assert client.get("/api/v1/info", headers=authorized).status_code == 200
         assert client.get("/api/v1/info", headers=authorized | {"Origin": "http://127.0.0.1:9999"}).status_code == 403
         assert token not in client.get("/api/v1/info", headers=authorized).text
-        with TestClient(create_app(Config(), launch_token="launch-2")) as restarted:
+        with TestClient(create_app(Config(), launch_token="launch-2", passkey_store=PasskeyStore(tmp_path / "passkeys.db"))) as restarted:
             assert restarted.get("/api/v1/info", headers=authorized).status_code == 401
 
 
@@ -42,7 +47,7 @@ def test_expired_launch_never_creates_session():
     session = Session("launch")
     session.deadline = 0
     assert session.exchange("Bearer launch") is None
-    assert not session.authorize("Bearer " + session.access_token)
+    assert not session.authorize("Bearer launch")
 
 
 def test_keychain_only_non_demo_loading(monkeypatch, tmp_path):
@@ -58,7 +63,9 @@ def test_keychain_only_non_demo_loading(monkeypatch, tmp_path):
     assert Config.from_env().mode == "demo"
     factory.assert_not_called()
     monkeypatch.setenv("FUBON_MODE", "paper")
-    loaded = Config.from_env()
+    deferred = Config.from_env()
+    factory.assert_not_called()
+    loaded = deferred.with_credentials()
     assert loaded.api_key == credentials["api_key"]
     assert "dummy" not in repr(loaded)
     monkeypatch.setenv("FUBON_API_KEY", "legacy-secret")
@@ -68,7 +75,7 @@ def test_keychain_only_non_demo_loading(monkeypatch, tmp_path):
     monkeypatch.delenv("FUBON_API_KEY")
     store.read.side_effect = KeychainError("locked")
     with pytest.raises(KeychainError):
-        Config.from_env()
+        Config.from_env().with_credentials()
 
 
 @pytest.mark.parametrize("value", [None, {}, {"api_key": "secret"}, {"personal_id": "a", "api_key": "b", "cert_path": "c", "cert_password": ""}])

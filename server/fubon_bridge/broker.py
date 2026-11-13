@@ -40,11 +40,12 @@ class Broker:
     def connect(self):
         if self.config.mode == "demo":
             return
-        cfg = self.config
-        if not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
-            self.error = "尚未設定富邦登入資料；請執行 pnpm credentials set 儲存至 Keychain 後重啟服務"
-            return
         try:
+            cfg = self.config.with_credentials()
+            self.config = cfg
+            if not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
+                self.error = "尚未設定富邦登入資料；請執行 pnpm credentials set 儲存至 Keychain 後重啟服務"
+                return
             if self.sdk_factory:
                 self.sdk = self.sdk_factory()
             else:

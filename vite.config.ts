@@ -135,6 +135,7 @@ export default defineConfig(({ mode, command }) => {
             // honor a harness-assigned port (preview tooling sets PORT);
             // default stays 5173 for tauri dev. Bind loopback only so Vite
             // is never exposed to the LAN.
+            headers: { 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' },
             host: '127.0.0.1',
             port: Number(process.env.PORT) || 5173,
             fs: {
@@ -147,6 +148,6 @@ export default defineConfig(({ mode, command }) => {
                 '/api': env.VITE_API_TARGET ?? isolatedApi ?? 'http://127.0.0.1:21323',
             },
         },
-        preview: { host: '127.0.0.1' },
+        preview: { host: '127.0.0.1', headers: { 'Content-Security-Policy': "frame-ancestors 'none'", 'X-Frame-Options': 'DENY' } },
     };
 });

@@ -50,7 +50,7 @@ try {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     if (!ready) throw new Error('前端啟動逾時');
-    run('uv', ['run', '--directory', 'server', 'fubon-bridge', '--ui-url', 'http://127.0.0.1:5179'], { FUBON_PORT: '21323' });
+    run('uv', ['run', '--directory', 'server', 'fubon-bridge', '--ui-url', 'http://localhost:5179'], { FUBON_PORT: '21323' });
     console.log('\nFubon Trading 將自動開啟授權視窗；請使用該視窗操作。\n');
 } catch (error) {
     console.error(`無法啟動：${error.message}。保留現有程序，請先確認 21323 / 5179 埠。`);

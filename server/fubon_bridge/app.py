@@ -14,11 +14,16 @@ from .config import Config, ROOT
 from .mapping import now
 from .models import ContractKey, Mutation, PlaceOrder
 from .session import Session
+from .passkeys import Passkeys, PasskeyStore
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None):
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
+    public_origin = public_origin or "http://localhost:5179"
+    passkeys = Passkeys(passkey_store if passkey_store is not None else PasskeyStore(), public_origin)
+    login_lock = asyncio.Lock()
+    login_attempted = False
     clients = set()
     loop = None
 
@@ -42,7 +47,6 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     async def lifespan(app):
         nonlocal loop
         loop = asyncio.get_running_loop()
-        await asyncio.to_thread(broker.connect)
 
         async def demo_clock():
             while True:
@@ -61,6 +65,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     app = FastAPI(title="Fubon Trading local bridge", lifespan=lifespan)
     app.state.broker = broker
+    app.state.session = session
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
@@ -75,7 +80,12 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                 return JSONResponse({"detail": "Local bridge: invalid Origin"}, status_code=403)
         if request.method in {"POST", "PUT", "DELETE"} and request.headers.get("content-type", "").split(";")[0] != "application/json":
             return JSONResponse({"detail": "application/json required"}, status_code=415)
-        if request.url.path.startswith("/api/") and request.url.path != "/api/v1/session":
+        if request.url.path.startswith("/api/v1/passkeys/") and request.method == "POST":
+            if origin != public_origin:
+                return JSONResponse({"detail": "Passkey Origin 不符，請使用 localhost 啟動視窗"}, status_code=403)
+        public_paths = {"/api/v1/session", "/api/v1/passkeys/status", "/api/v1/passkeys/register/options",
+                        "/api/v1/passkeys/register/verify", "/api/v1/passkeys/authenticate/options", "/api/v1/passkeys/authenticate/verify"}
+        if request.url.path.startswith("/api/") and request.url.path not in public_paths:
             if not session.authorize(request.headers.get("authorization", "")):
                 return JSONResponse({"detail": "本機工作階段未授權，請使用啟動時開啟的視窗"}, status_code=401,
                                     headers={"Cache-Control": "no-store"})
@@ -83,15 +93,62 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+        response.headers["X-Frame-Options"] = "DENY"
         return response
+
+    async def unlock():
+        nonlocal login_attempted
+        async with login_lock:
+            if not login_attempted:
+                login_attempted = True
+                await asyncio.to_thread(broker.connect)
+        return {"access_token": session.issue()}
 
     @app.post("/api/v1/session")
     async def exchange_session(request: Request):
-        # No await between validation and consumption: a launch URL unlocks once.
         token = session.exchange(request.headers.get("authorization", ""))
         if token is None:
             raise HTTPException(401, "啟動授權已失效，請重啟 Fubon Trading")
-        return {"access_token": token}
+        if passkeys.enrolled():
+            session.enrollment_token = ""
+            return {"passkey_required": True}
+        return {"enrollment_token": token}
+
+    @app.get("/api/v1/passkeys/status")
+    def passkey_status():
+        return {"enrolled": passkeys.enrolled(), "origin": public_origin}
+
+    def require_enrollment(request):
+        header = request.headers.get("authorization", "")
+        if not session.can_enroll(header):
+            raise HTTPException(401, "首次註冊需要有效的啟動授權，請重啟服務")
+        return header
+
+    @app.post("/api/v1/passkeys/register/options")
+    async def register_options(request: Request):
+        return passkeys.registration_options(require_enrollment(request))
+
+    @app.post("/api/v1/passkeys/register/verify")
+    async def register_verify(request: Request, body: dict = Body(...)):
+        header = require_enrollment(request)
+        passkeys.register(body.get("request_id", ""), body.get("credential", {}), header)
+        session.enrollment_token = ""
+        return await unlock()
+
+    @app.post("/api/v1/passkeys/authenticate/options")
+    async def authenticate_options():
+        return passkeys.authentication_options()
+
+    @app.post("/api/v1/passkeys/authenticate/verify")
+    async def authenticate_verify(body: dict = Body(...)):
+        passkeys.authenticate(body.get("request_id", ""), body.get("credential", {}))
+        return await unlock()
+
+    @app.post("/api/v1/session/logout")
+    async def logout(request: Request):
+        session.revoke(request.headers.get("authorization", ""))
+        return {"success": True}
 
     @app.exception_handler(ValueError)
     async def invalid(_, error):
@@ -200,7 +257,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         async def events():
             try:
                 yield 'retry: 2000\n\n'
-                while not await request.is_disconnected():
+                while session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
                     needed = {sub["kind"] for sub in list(broker.subscriptions.values())}
                     if cfg.mode != "demo" and needed and not needed.issubset(broker.connected_sockets):
                         yield 'event: fubon_connection_status\ndata: {"market_connected":false}\n\n'
@@ -217,6 +274,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                         feed_down = cfg.mode != "demo" and (broker.error or not needed.issubset(broker.connected_sockets))
                         event = "fubon_connection_status" if feed_down else "heartbeat"
                         data = {"time": now().isoformat(), "market_connected": not feed_down}
+                    if not session.authorize(request.headers.get("authorization", "")):
+                        break
                     yield f'event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n'
             finally:
                 clients.discard(queue)

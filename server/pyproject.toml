@@ -3,7 +3,12 @@ name = "fubon-trading-bridge"
 version = "0.1.0"
 description = "Local Fubon Neo adapter for the forked Shioaji Pro web terminal"
 requires-python = ">=3.12,<3.14"
-dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.30,<1", "python-dotenv>=1,<2"]
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.30,<1",
+    "python-dotenv>=1,<2",
+    "webauthn>=2.7,<3",
+]
 
 [project.optional-dependencies]
 fubon = ["fubon-neo==2.5.0"]
@@ -12,6 +17,7 @@ test = ["pytest>=8,<10", "httpx>=0.27,<1"]
 [project.scripts]
 fubon-bridge = "fubon_bridge.__main__:main"
 fubon-credentials = "fubon_bridge.credentials:main"
+fubon-passkeys = "fubon_bridge.passkey_cli:main"
 
 [build-system]
 requires = ["hatchling"]
