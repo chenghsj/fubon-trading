@@ -89,6 +89,10 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
   三／二／一欄。尾載 Tailwind 後卡片仍為靠左 grid，圖示、文字與「前往」
   各居其欄；搜尋、分類收合、方向鍵與新增／前往操作通過正式 bundle 及獨立 QA。
   480px 以下隱藏快捷鍵提示，避免擠壓搜尋框；390px 搜尋輸入寬度仍大於 200px。
+- 設定六分頁的內容右留白由 2px 增為 1rem；繪圖色盤右留白由 6px 增為
+  0.5rem。顯示實際捲軸後驗證控制與右側捲軸間距，並檢查版面庫、面板庫、
+  指標／繪圖設定、報價欄、條件單及伺服器設定；其他區域原有內距足夠。
+  正式 bundle 另驗六分頁在桌面及窄版均至少保留 8px、無水平溢出，外框尺寸不變。
 - AI review 與 QA 找出的快捷鍵、分頁高度、選單外框、選取／危險狀態及語意色
   問題已修復並重驗；最終沒有未處理的 confirmed findings。
 
@@ -109,6 +113,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 ![版面庫卡片說明換行](images/shadcn-layouts-light.png)
 
 ![新增面板的三欄排列](images/shadcn-panel-picker-light.png)
+
+![設定風控內容與捲軸留白](images/shadcn-settings-risk-spacing.png)
 
 ![深色交易介面（原有布局）](images/shadcn-terminal-dark.png)
 

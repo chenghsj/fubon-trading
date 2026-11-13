@@ -188,6 +188,32 @@ async function panelPickerLayout(page, artifacts) {
         await expect(picker).toBeHidden();
     }
 }
+async function settingsScrollbarSpacing(page, artifacts) {
+    for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.getByRole('button', { name: '設定', exact: true }).click();
+        const settings = page.getByRole('dialog', { name: '設定', exact: true });
+        for (const name of ['外觀', '音效與隱私', '帳號', '風控', 'Agent', '版面']) {
+            const tab = settings.getByRole('tab', { name, exact: true });
+            await tab.focus(); await tab.click();
+            const spacing = await settings.getByRole('tabpanel').evaluate(el => {
+                const rect = el.getBoundingClientRect();
+                const style = getComputedStyle(el);
+                const gutter = el.offsetWidth - el.clientWidth - parseFloat(style.borderLeftWidth) - parseFloat(style.borderRightWidth);
+                const scrollbar = parseFloat(getComputedStyle(el, '::-webkit-scrollbar').width) || 0;
+                const overlay = el.scrollHeight > el.clientHeight ? Math.max(0, scrollbar - gutter) : 0;
+                const edges = [...el.children].map(child => child.getBoundingClientRect()).filter(r => r.width > 0);
+                const right = Math.max(...edges.map(r => r.right));
+                return { gap: rect.left + el.clientLeft + el.clientWidth - overlay - right, horizontalOverflow: el.scrollWidth - el.clientWidth };
+            });
+            expect(spacing.gap).toBeGreaterThanOrEqual(8);
+            expect(spacing.horizontalOverflow).toBeLessThanOrEqual(1);
+            if (name === '風控' && width === 1440) await settings.screenshot({ path: path.join(artifacts, 'settings-risk-spacing.png') });
+        }
+        await page.keyboard.press('Escape');
+        await expect(settings).toBeHidden();
+    }
+}
 async function multilineButtons(page, artifacts) {
     // Exercise the same long unsigned-account copy as the reported screenshot.
     // The account response belongs only to this temporary browser context.
@@ -282,7 +308,8 @@ try {
         VITE_DEV_SERVER_PORT: '',
     });
     await ready(`http://127.0.0.1:${apiPort}/api/v1/passkeys/status`); await ready(origin);
-    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
+    // Keep scrollbars visible so spacing and screenshots include their real gutter.
+    browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', headless: true, ignoreDefaultArgs: ['--hide-scrollbars'] });
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
@@ -451,6 +478,7 @@ try {
     await expect(page.getByRole('button', { name: /委託 Orders \[0\/0\]/ })).toBeVisible();
 
     await multilineButtons(page, artifacts);
+    await settingsScrollbarSpacing(page, artifacts);
     await panelPickerLayout(page, artifacts);
     await page.setViewportSize({ width: 390, height: 844 });
     await settingsButton.click(); await expect(settings).toBeVisible();

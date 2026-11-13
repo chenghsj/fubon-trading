@@ -94,7 +94,8 @@ export const content = style({
     display: 'flex',
     flexDirection: 'column',
     gap: vars.space.sm,
-    paddingRight: '2px',
+    // Keep controls and their focus ring clear of the vertical scrollbar.
+    paddingRight: vars.space.md,
 });
 
 // unsigned account row (issue #16): visible but never selectable

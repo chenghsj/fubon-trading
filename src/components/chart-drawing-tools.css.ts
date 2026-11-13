@@ -126,6 +126,7 @@ export const pop = style({
     flexDirection: 'column',
     gap: '2px',
     padding: '6px',
+    paddingRight: vars.space.sm,
     overflowY: 'auto',
     background: vars.color.panelRaised,
     border: `1px solid ${vars.color.borderBright}`,
