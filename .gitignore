@@ -25,3 +25,13 @@ __pycache__/
 src-tauri/target/
 src-tauri/binaries/
 src-tauri/gen/schemas/
+
+# Fubon local credentials and Python runtime
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.pem
+server/.venv/
+__pycache__/
+.pytest_cache/

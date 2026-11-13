@@ -1,3 +1,4 @@
+import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from './fubon-support';
 // src/lib/odd-spread-service.ts — 整零價差兩腳送單的主視窗服務。
 //
 // 執行狀態不放在面板元件裡：面板移除、切換商品都不會中斷追蹤（同觸價單
@@ -169,6 +170,7 @@ export const ENV_PAUSED_TEXT = '環境已切換，執行暫停';
 
 /** 兩腳送單在此視窗不可用的原因；可用時回 null */
 export function oddSpreadExecUnavailable(): string | null {
+    if (isFubonBroker()) return FUBON_AUTOMATION_UNAVAILABLE;
     if (!isMainWindow()) return '兩腳價差單只能在主視窗執行（彈出視窗關閉後無法繼續追蹤第二腳）';
     if (!isExecutor()) return '另一個主視窗正在執行交易服務，請在該視窗送出價差單';
     return null;

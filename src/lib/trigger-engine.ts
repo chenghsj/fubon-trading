@@ -1,3 +1,4 @@
+import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from './fubon-support';
 import { canTrade } from './account-tradable';
 import { reconcileAfterUnknownOutcome } from './order-outcome';
 import { createAccountQuery } from './account-query';
@@ -910,6 +911,7 @@ function withContext(t: NewTrigger, contract?: ContractBase, account?: Account):
 /** Add a trigger from any window. Stop/take bind the currently selected
  * account for the contract's market; the main window executes it. */
 export async function addTrigger(t: NewTrigger, contract?: ContractBase, opts?: { account?: Account }): Promise<TriggerOrder | null> {
+    if (isFubonBroker()) throw new Error(FUBON_AUTOMATION_UNAVAILABLE);
     const prepared = withContext(t, contract, opts?.account);
     if (typeof prepared === 'string') {
         notify({ kind: 'err', title: '觸價單未建立', body: prepared });
@@ -938,6 +940,7 @@ export async function addTrigger(t: NewTrigger, contract?: ContractBase, opts?: 
 /** #226 二擇一: both legs (same `group`) are created together in this
  * window's engine, or neither. */
 export async function addTriggerGroup(legs: NewTrigger[], contract: ContractBase, opts?: { account?: Account }): Promise<TriggerOrder[] | null> {
+    if (isFubonBroker()) throw new Error(FUBON_AUTOMATION_UNAVAILABLE);
     const prepared: NewTrigger[] = [];
     for (const leg of legs) {
         const p = withContext(leg, contract, opts?.account);

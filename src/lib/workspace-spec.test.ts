@@ -75,7 +75,7 @@ describe('workspaceToSpec', () => {
             x: 0,
             y: 0,
             w: 4,
-            h: 14,
+            h: 25,
             pin: null,
         });
     });

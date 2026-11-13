@@ -213,8 +213,9 @@ export function useServerInfo() {
 // unit. Empty until Sinotrade/Shioaji#233 is fixed and re-verified read-only.
 const YD_QUANTITY_UNIT_FIXED = new Set<string>();
 
-export function yesterdayQuantityNotice(info: Pick<ServerInfo, 'version' | 'simulation'> | undefined): string | undefined {
+export function yesterdayQuantityNotice(info: Pick<ServerInfo, 'version' | 'simulation' | 'broker'> | undefined): string | undefined {
     if (!info) return '尚未取得伺服器資訊；昨餘單位待確認。';
+    if (info.broker === 'fubon') return undefined;
     // Sinotrade/Shioaji#233 (app #107): simulation yd_quantity does not follow
     // the Common/Share unit (read-only reproduced on 1.7.5 and 1.7.6). Warn in
     // simulation unless the version is known fixed; never assume a bump fixed it.
