@@ -83,6 +83,15 @@ async function panelGeometry(page) {
         return [x, y, width, height].map(Math.round);
     }));
 }
+async function switchGeometry(settings) {
+    for (const control of await settings.getByRole('switch').all()) {
+        await expect.poll(() => control.evaluate(el => {
+            const track = el.getBoundingClientRect();
+            const thumb = el.querySelector('span').getBoundingClientRect();
+            return thumb.left >= track.left && thumb.right <= track.right && thumb.top >= track.top && thumb.bottom <= track.bottom;
+        })).toBe(true);
+    }
+}
 let cleanupPromise;
 function cleanup() {
     return cleanupPromise ??= (async () => {
@@ -141,6 +150,14 @@ try {
     await tradeContrast(ticket);
     await expect(priceInput).toHaveValue(/\d/);
     const geometry = await panelGeometry(page);
+    const resize = page.locator('.react-resizable-handle-se').first();
+    expect(await resize.boundingBox()).toMatchObject({ width: 20, height: 20 });
+    const corner = await resize.evaluate(el => {
+        const handle = getComputedStyle(el, '::after');
+        const panel = getComputedStyle(el.parentElement.querySelector('[data-slot="card"]'));
+        return { inset: parseFloat(handle.right), radius: parseFloat(handle.borderBottomRightRadius), panelRadius: parseFloat(panel.borderBottomRightRadius) };
+    });
+    expect(corner.inset + corner.radius).toBeCloseTo(corner.panelRadius, 1);
     const watch = page.locator('[data-slot="card"]').filter({ hasText: '自選清單' }).first();
     const deleteList = watch.locator('button[data-variant="destructive"]:visible').first();
     expect(await deleteList.evaluate(el => getComputedStyle(el).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)');
@@ -178,12 +195,17 @@ try {
     await expect(settings.getByRole('tab', { name: '外觀' })).toHaveAttribute('aria-selected', 'true');
     expect(await settings.getByRole('tab', { name: '外觀' }).evaluate(el => getComputedStyle(el).boxShadow)).not.toBe('none');
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-dark.png') });
+    for (const label of ['小', '大', '標準']) {
+        await settings.getByRole('radio', { name: label, exact: true }).first().click();
+        await switchGeometry(settings);
+    }
     await settings.getByRole('tab', { name: '外觀' }).focus();
     await page.keyboard.press('ArrowDown');
     await expect(settings.getByRole('tab', { name: '音效與隱私' })).toHaveAttribute('aria-selected', 'true');
     await expect.poll(() => settings.getByRole('tab', { name: '音效與隱私' }).evaluate(el => getComputedStyle(el).boxShadow)).toContain('rgb(244, 244, 245)');
     await settings.getByRole('switch', { name: '帳號遮蔽' }).click();
     await expect(settings.getByRole('switch', { name: '帳號遮蔽' })).toHaveAttribute('aria-checked', 'true');
+    await switchGeometry(settings);
     await settings.getByRole('tab', { name: '風控' }).click();
     const confirm = settings.getByRole('switch', { name: '手動下單確認' });
     if (await confirm.getAttribute('aria-checked') !== 'true') await confirm.click();

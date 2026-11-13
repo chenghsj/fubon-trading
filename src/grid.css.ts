@@ -64,3 +64,12 @@ globalStyle('.react-grid-item > .react-resizable-handle::after', {
     borderRight: `2px solid ${vars.color.mutedForeground}`,
     borderBottom: `2px solid ${vars.color.mutedForeground}`,
 });
+
+// Follow the Card's 0.75rem corner, inset by 0.25rem; keep the 20px hit area.
+globalStyle('.react-grid-item > .react-resizable-handle-se::after', {
+    width: '0.75rem',
+    height: '0.75rem',
+    right: '0.25rem',
+    bottom: '0.25rem',
+    borderBottomRightRadius: '0.5rem',
+});
