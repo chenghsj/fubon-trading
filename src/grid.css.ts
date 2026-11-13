@@ -3,6 +3,9 @@
 import { globalStyle, style } from '@vanilla-extract/css';
 import { vars } from './theme.css';
 
+// Match shadcn Card's rounded-xl, including the wrapper that casts the lift shadow.
+const panelRadius = '0.75rem';
+
 export const gridWrap = style({
     flex: 1,
     minHeight: 0,
@@ -15,6 +18,7 @@ export const cell = style({
     display: 'flex',
     flexDirection: 'column',
     minHeight: 0,
+    borderRadius: panelRadius,
 });
 
 globalStyle(`${cell} > *`, {
@@ -36,15 +40,15 @@ globalStyle('.react-grid-item.react-draggable-dragging .drag-handle', {
 });
 
 // drop-target ghost
-globalStyle('.react-grid-item.react-grid-placeholder', {
+globalStyle(`${gridWrap} .react-grid-item.react-grid-placeholder`, {
     background: vars.color.accentDim,
     border: `1px dashed ${vars.color.accent}`,
-    borderRadius: vars.radius.md,
+    borderRadius: panelRadius,
     opacity: 1,
 });
 
 // while dragging / resizing, lift the panel
-globalStyle('.react-grid-item.react-draggable-dragging, .react-grid-item.resizing', {
+globalStyle(`${gridWrap} .react-grid-item.react-draggable-dragging, ${gridWrap} .react-grid-item.resizing`, {
     zIndex: 30,
     opacity: 0.92,
     boxShadow: '0 12px 32px rgba(0, 0, 0, 0.55)',

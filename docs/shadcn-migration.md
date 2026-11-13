@@ -75,6 +75,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
   標籤的透明度合成，最低文字對比 4.63:1。
 - Switch 明確清除瀏覽器預設 padding，三種字級的開／關圓點皆留在軌道內；
   右下縮放把手的弧線配合 Card 圓角，拖曳熱區仍為 20×20px。
+- 拖曳／縮放時，外層陰影與佔位虛線框使用和 Card 相同的圓角；深淺色皆以
+  實際按住把手縮放驗證，復原後面板位置與尺寸一致。
 - 正式 bundle 重播最後載入的 Tailwind 布局規則，深淺色六個面板仍為橫向、
   緊湊標題列；登入 CardHeader 保留直排。
 - AI review 與 QA 找出的快捷鍵、分頁高度、選單外框、選取／危險狀態及語意色
@@ -89,6 +91,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 ![Passkey 登入](images/shadcn-passkey.png)
 
 ![面板橫向標題列](images/shadcn-panel-header.png)
+
+![按住縮放時的面板與虛線框圓角](images/shadcn-resize-light.png)
 
 ![深色交易介面（原有布局）](images/shadcn-terminal-dark.png)
 

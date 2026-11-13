@@ -105,6 +105,37 @@ async function switchGeometry(settings) {
         })).toBe(true);
     }
 }
+async function resizeCorners(page, artifacts, theme) {
+    const item = page.locator('.react-grid-item').filter({ has: page.locator('[data-slot="card-header"][data-layout="panel"]').filter({ hasText: 'K 線圖' }) }).first();
+    const handle = item.locator('.react-resizable-handle-se');
+    await handle.scrollIntoViewIfNeeded();
+    const frame = await handle.boundingBox();
+    const pointer = { x: frame.x + frame.width / 2, y: frame.y + frame.height / 2 };
+    await page.mouse.move(pointer.x, pointer.y);
+    await page.mouse.down();
+    try {
+        // Shrink within its cell so collision compaction does not move neighbours.
+        await page.mouse.move(pointer.x - 40, pointer.y - 32, { steps: 5 });
+        await expect(item).toHaveClass(/\bresizing\b/);
+        const placeholder = page.locator('.react-grid-placeholder');
+        await expect(placeholder).toBeVisible();
+        const radius = await item.locator('[data-slot="card"]').evaluate(el => getComputedStyle(el).borderRadius);
+        expect(parseFloat(radius)).toBeGreaterThan(0);
+        await expect(item).toHaveCSS('border-radius', radius);
+        await expect(placeholder).toHaveCSS('border-radius', radius);
+        await expect(item).not.toHaveCSS('box-shadow', 'none');
+        const active = await item.boundingBox();
+        await page.screenshot({ animations: 'disabled', path: path.join(artifacts, `resize-${theme}.png`), clip: {
+            x: active.x + active.width - 100, y: active.y + active.height - 80, width: 130, height: 110,
+        } });
+    } finally {
+        // Restore the fixture's size so the theme/layout comparisons stay meaningful.
+        await page.mouse.move(pointer.x, pointer.y, { steps: 5 });
+        await page.mouse.up();
+    }
+    await expect(item).not.toHaveClass(/\bresizing\b/);
+    await expect(page.locator('.react-grid-placeholder')).toHaveCount(0);
+}
 let cleanupPromise;
 function cleanup() {
     return cleanupPromise ??= (async () => {
@@ -184,6 +215,8 @@ try {
     await tradeContrast(ticket);
     await expect(priceInput).toHaveValue(/\d/);
     const geometry = await panelGeometry(page);
+    await resizeCorners(page, artifacts, 'dark');
+    await expect.poll(() => panelGeometry(page)).toEqual(geometry);
     const resize = page.locator('.react-resizable-handle-se').first();
     expect(await resize.boundingBox()).toMatchObject({ width: 20, height: 20 });
     const corner = await resize.evaluate(el => {
@@ -251,11 +284,13 @@ try {
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-light.png') });
     await page.keyboard.press('Escape'); await expect(settings).toBeHidden();
     await tradeContrast(ticket);
-    expect(await panelGeometry(page)).toEqual(geometry);
+    await expect.poll(() => panelGeometry(page)).toEqual(geometry);
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'terminal-light.png') });
     await panelHeaders(page);
     const chartHeader = page.locator('[data-slot="card-header"][data-layout="panel"]').filter({ hasText: 'K 線圖' }).first();
     await chartHeader.screenshot({ animations: 'disabled', path: path.join(artifacts, 'panel-header.png') });
+    await resizeCorners(page, artifacts, 'light');
+    await expect.poll(() => panelGeometry(page)).toEqual(geometry);
     await settingsButton.click();
     await settings.getByText('自訂', { exact: true }).click();
     const accent = settings.getByLabel('強調色顏色');
