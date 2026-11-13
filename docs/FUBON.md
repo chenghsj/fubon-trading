@@ -9,6 +9,17 @@ React → 同來源 /api proxy → 127.0.0.1:21323
                            └─ live: Fubon 行情／交易／帳務
 ```
 
+## 本機登入與存取權限
+
+- `pnpm credentials set/status/delete` 透過 Python 直接呼叫 macOS Security / CoreFoundation；不將秘密送入 shell、命令列參數或標準輸出。
+- Keychain generic password 項目：service `tw.fubon-trading.credentials`、account `default`。登入 ID、API Key、憑證路徑與憑證密碼以同一項目保存；Keychain 不可用時拒絕登入，沒有明文 fallback。
+- demo 不讀 Keychain；paper/live 才載入。已填入的舊版 `.env` 登入欄位會使 paper/live 拒絕啟動，避免誤用明文備援。
+- 每個服務程序產生獨立 256-bit 啟動碼與工作階段 token。啟動碼兩分鐘有效，`POST /api/v1/session` 只能交換一次；token 不存在 `.env`、建置常數或標準輸出。
+- 啟動碼透過瀏覽器 URL fragment 交付，前端先移除 fragment、換取 session，再載入交易介面和分析模組。
+- 工作階段 token 只存在分頁的 sessionStorage 與記憶體；重啟服務會失效。REST 與 fetch SSE 皆透過同源 Authorization 標頭驗證，拒絕 HTTP redirect，禁止用 Cookie／URL query 授權。
+- 未授權的本機呼叫會回 401；既有 Host、Origin 與 JSON Content-Type 檢查仍適用。授權不替代 paper/live 下單開關、單筆數量上限或券商金鑰權限。
+- 保護範圍不包含已被惡意程式控制的作業系統使用者或瀏覽器；不把同一 OS 帳號視為可隔離的安全主體。
+
 ## 語意與邊界
 
 - 倉別：New → New、Cover → Close、Auto → Auto、DayTrade → FdayTrade。

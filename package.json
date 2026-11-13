@@ -12,6 +12,7 @@
         "test": "vitest run",
         "preview": "vite preview",
         "start": "node scripts/dev-fubon.mjs",
+        "credentials": "uv run --directory server fubon-credentials",
         "server": "uv run --directory server fubon-bridge",
         "test:server": "uv run --directory server --extra test pytest"
     },

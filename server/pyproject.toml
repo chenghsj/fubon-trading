@@ -11,6 +11,7 @@ test = ["pytest>=8,<10", "httpx>=0.27,<1"]
 
 [project.scripts]
 fubon-bridge = "fubon_bridge.__main__:main"
+fubon-credentials = "fubon_bridge.credentials:main"
 
 [build-system]
 requires = ["hatchling"]

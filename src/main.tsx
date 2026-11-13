@@ -1,51 +1,24 @@
-// src/main.tsx
-
-// polyfills MUST stay the first import — patches globals (structuredClone,
-// AbortSignal.timeout, …) before any dependency module evaluates
 import './lib/polyfills';
-import { StrictMode } from 'react';
-import { createRoot, type Root } from 'react-dom/client';
-import { AppGate } from './app-gate';
-import { AppErrorBoundary } from './components/app-error-boundary';
-import './index.css';
-import { startAnalytics } from './lib/analytics';
-import { bootstrap } from './lib/boot';
-import { initTheme } from './lib/theme-store';
-import { startBackgroundExecution } from './lib/execution/background';
+import { prepareFubonSession } from './lib/fubon-session';
 
-initTheme();
-startAnalytics();
-// Fubon fork: keep automatic entry/exit runtimes disabled until broker fill
-// and deal-history conformance is verified. Manual trading remains available.
-startBackgroundExecution(); // native-only; a no-op in this public Web build
-bootstrap();
-// #201 ③ dev only: `?mockPendingConfirm` shows fake 委託待確認 cards until the
-// background engine implements the contract. Never part of a release build.
-if (import.meta.env.DEV && new URLSearchParams(location.search).has('mockPendingConfirm')) {
-    void import('./lib/execution/pending-confirm-dev').then(m => m.installMockPendingConfirm());
-}
-
-// #226 dev only: `?condDemo` fills the 條件單管理面板 with sample rows (no
-// trigger, order or server state behind them). Never part of a release build.
-if (import.meta.env.DEV && new URLSearchParams(location.search).has('condDemo')) {
-    void import('./lib/conditional/demo-install').then(m => m.installConditionalDemo());
-}
-
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-    throw new Error('Root element #root not found');
-}
-
-// Vite can re-evaluate this entry module during HMR. Keep the Root on the DOM
-// node so a hot update renders into the existing tree instead of calling
-// createRoot twice (which also duplicated background bootstrap side effects).
-const rootHost = rootElement as HTMLElement & { __shioajiRoot?: Root };
-const root = rootHost.__shioajiRoot ?? createRoot(rootHost);
-rootHost.__shioajiRoot = root;
-root.render(
-    <StrictMode>
-        <AppErrorBoundary>
-            <AppGate />
-        </AppErrorBoundary>
-    </StrictMode>,
-);
+void prepareFubonSession().then(async authorized => {
+    if (authorized) {
+        await import('./terminal');
+        return;
+    }
+    const root = document.getElementById('root');
+    if (!root) return;
+    const panel = document.createElement('main');
+    panel.style.cssText = 'max-width:520px;margin:15vh auto;padding:32px;font:16px/1.8 system-ui;color:#e6e9ec;background:#171d24;border:1px solid #334155;border-radius:12px';
+    document.body.style.cssText = 'margin:0;background:#101418';
+    const title = document.createElement('h1');
+    title.textContent = '請從啟動視窗進入';
+    title.style.fontSize = '24px';
+    const detail = document.createElement('p');
+    detail.textContent = '此視窗尚未授權，或交易服務已重新啟動。請在終端機重新執行 pnpm start，並使用自動開啟的視窗。';
+    const hint = document.createElement('p');
+    hint.textContent = '授權完成後可重新整理頁面；關閉分頁或重啟服務後需要重新授權。';
+    hint.style.color = '#94a3b8';
+    panel.append(title, detail, hint);
+    root.replaceChildren(panel);
+});

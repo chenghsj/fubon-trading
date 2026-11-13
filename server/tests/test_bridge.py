@@ -13,7 +13,9 @@ from fubon_bridge.mapping import contract_from_ticker, market_events, normalize_
 
 @pytest.fixture
 def client():
-    with TestClient(create_app(Config())) as client:
+    with TestClient(create_app(Config(), launch_token="test-launch")) as client:
+        response = client.post("/api/v1/session", json={}, headers={"Authorization": "Bearer test-launch"})
+        client.headers["Authorization"] = "Bearer " + response.json()["access_token"]
         yield client
 
 
@@ -113,7 +115,9 @@ def test_foreign_origin_and_form_posts_are_rejected(client):
 
 
 def test_missing_credentials_do_not_fall_back_to_synthetic_data():
-    with TestClient(create_app(Config(mode="paper"))) as client:
+    with TestClient(create_app(Config(mode="paper"), launch_token="test-launch")) as client:
+        response = client.post("/api/v1/session", json={}, headers={"Authorization": "Bearer test-launch"})
+        client.headers["Authorization"] = "Bearer " + response.json()["access_token"]
         assert not client.get("/api/v1/info").json()["connected"]
         assert not account(client)["signed"]
         assert client.get("/api/v1/data/contracts/TXFR1/info?security_type=FUT").status_code == 400

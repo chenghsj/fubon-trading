@@ -13,10 +13,12 @@ from .broker import Broker
 from .config import Config, ROOT
 from .mapping import now
 from .models import ContractKey, Mutation, PlaceOrder
+from .session import Session
 
 
-def create_app(config=None, sdk_factory=None):
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None):
     cfg = config or Config.from_env()
+    session = Session(launch_token)
     clients = set()
     loop = None
 
@@ -46,6 +48,8 @@ def create_app(config=None, sdk_factory=None):
             while True:
                 broker.demo_events()
                 await asyncio.sleep(1)
+        if on_ready:
+            loop.call_later(0.5, on_ready)
         task = asyncio.create_task(demo_clock())
         yield
         task.cancel()
@@ -71,9 +75,23 @@ def create_app(config=None, sdk_factory=None):
                 return JSONResponse({"detail": "Local bridge: invalid Origin"}, status_code=403)
         if request.method in {"POST", "PUT", "DELETE"} and request.headers.get("content-type", "").split(";")[0] != "application/json":
             return JSONResponse({"detail": "application/json required"}, status_code=415)
+        if request.url.path.startswith("/api/") and request.url.path != "/api/v1/session":
+            if not session.authorize(request.headers.get("authorization", "")):
+                return JSONResponse({"detail": "本機工作階段未授權，請使用啟動時開啟的視窗"}, status_code=401,
+                                    headers={"Cache-Control": "no-store"})
         response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Content-Type-Options"] = "nosniff"
         return response
+
+    @app.post("/api/v1/session")
+    async def exchange_session(request: Request):
+        # No await between validation and consumption: a launch URL unlocks once.
+        token = session.exchange(request.headers.get("authorization", ""))
+        if token is None:
+            raise HTTPException(401, "啟動授權已失效，請重啟 Fubon Trading")
+        return {"access_token": token}
 
     @app.exception_handler(ValueError)
     async def invalid(_, error):
