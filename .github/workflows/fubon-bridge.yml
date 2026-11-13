@@ -1,0 +1,12 @@
+name: Fubon bridge
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --directory server --extra test --extra fubon pytest

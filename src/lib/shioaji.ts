@@ -63,6 +63,12 @@ import { contractMarket } from './contract-market';
 import { todayStr } from './utils/date';
 
 export interface ServerInfo {
+    broker?: string;
+    mode?: 'demo' | 'paper' | 'live';
+    connected?: boolean;
+    market_connected?: boolean;
+    session?: string;
+    error?: string | null;
     name: string;
     version: string;
     description: string;

@@ -1,3 +1,4 @@
+import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from '../lib/fubon-support';
 import { canTrade } from '../lib/account-tradable';
 import { reportOrderError } from '../lib/order-outcome';
 import { RefreshButton } from './refresh-button';
@@ -172,6 +173,7 @@ import { orderStatusWithNumber } from '../lib/order-status-label';
 // to load on slow machines without looking dead
 const TIMEFRAMES: readonly { label: ChartInterval; minutes: number; days: number }[] = [
     { label: '1m', minutes: 1, days: 3 },
+    { label: '3m', minutes: 3, days: 7 },
     { label: '5m', minutes: 5, days: 10 },
     { label: '15m', minutes: 15, days: 20 },
     { label: '60m', minutes: 60, days: 60 },
@@ -2279,7 +2281,7 @@ export function CandleChart({
                     const blocked = m.key === 'buy' ? creditSides.buy
                         : m.key === 'sell' ? creditSides.sell
                             : m.key === 'stop' || m.key === 'take' ? exitBlocked : null;
-                    const ruleBlocked = (m.key === 'stop' || m.key === 'take') ? warrantExitBlock : null;
+                    const ruleBlocked = isFubonBroker() && ['stop', 'take', 'alert'].includes(m.key) ? FUBON_AUTOMATION_UNAVAILABLE : (m.key === 'stop' || m.key === 'take') ? warrantExitBlock : null;
                     const off = (!!blocked && creditApplies) || !!ruleBlocked;
                     return (
                     <button

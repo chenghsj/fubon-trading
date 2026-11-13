@@ -167,7 +167,7 @@ export function panelPref<T extends string>(value: unknown, allowed: readonly T[
 }
 
 // K 線圖可選週期（工具列順序）。版面只存標籤，分鐘數與載入天數在 candle-chart
-export const CHART_INTERVALS = ['1m', '5m', '15m', '60m', '1D'] as const;
+export const CHART_INTERVALS = ['1m', '3m', '5m', '15m', '60m', '1D'] as const;
 export type ChartInterval = (typeof CHART_INTERVALS)[number];
 export const DEFAULT_CHART_INTERVAL: ChartInterval = '5m';
 export function isChartInterval(v: unknown): v is ChartInterval {
@@ -621,7 +621,6 @@ export const BLOCK_META: Record<
 const RAW_DEFAULT_WORKSPACE: Workspace = {
     blocks: [
         { id: 'watchlist-0', type: 'watchlist', pin: null },
-        { id: 'movers-0', type: 'movers', pin: null },
         { id: 'chart-0', type: 'chart', pin: null },
         { id: 'dock-0', type: 'dock', pin: null },
         { id: 'depth-0', type: 'depth', pin: null },
@@ -629,8 +628,7 @@ const RAW_DEFAULT_WORKSPACE: Workspace = {
         { id: 'tape-0', type: 'tape', pin: null },
     ],
     layout: [
-        { i: 'watchlist-0', x: 0, y: 0, w: 4, h: 14, minW: 3, minH: 6 },
-        { i: 'movers-0', x: 0, y: 14, w: 4, h: 11, minW: 3, minH: 5 },
+        { i: 'watchlist-0', x: 0, y: 0, w: 4, h: 25, minW: 3, minH: 6 },
         { i: 'chart-0', x: 4, y: 0, w: 15, h: 16, minW: 6, minH: 7 },
         { i: 'dock-0', x: 4, y: 16, w: 15, h: 9, minW: 6, minH: 5 },
         { i: 'depth-0', x: 19, y: 0, w: 5, h: 8, minW: 4, minH: 7 },

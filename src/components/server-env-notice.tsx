@@ -29,7 +29,7 @@ export function WebServerHint({ status }: { status: StreamStatus }) {
     return (
         <span className={styles.webServerHint} role='status'>
             <CircleAlert size={13} aria-hidden />
-            伺服器未連線；切換模擬／正式環境後，請重新啟動 Shioaji server
+            伺服器未連線；切換模擬／正式環境後，請重新啟動本機富邦服務（pnpm start）
         </span>
     );
 }

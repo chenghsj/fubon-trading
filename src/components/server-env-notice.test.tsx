@@ -19,7 +19,7 @@ describe('server env notices', () => {
     });
     it('tells a Web user that the server has to be restarted by hand, only while LOST', async () => {
         await render(createElement(WebServerHint, { status: 'down' }));
-        expect(JSON.stringify(view.toJSON())).toContain('請重新啟動 Shioaji server');
+        expect(JSON.stringify(view.toJSON())).toContain('請重新啟動本機富邦服務（pnpm start）');
         for (const status of ['live', 'connecting', 'stale'] as const) {
             await act(async () => view.update(createElement(WebServerHint, { status })));
             expect(view.toJSON()).toBeNull();
@@ -31,7 +31,7 @@ describe('server env notices', () => {
         await act(async () => view.update(createElement(WebServerHint, { status: 'down' })));
         for (const status of ['connecting', 'down', 'stale', 'connecting'] as const) {
             await act(async () => view.update(createElement(WebServerHint, { status })));
-            expect(JSON.stringify(view.toJSON())).toContain('請重新啟動 Shioaji server');
+            expect(JSON.stringify(view.toJSON())).toContain('請重新啟動本機富邦服務（pnpm start）');
         }
         await act(async () => view.update(createElement(WebServerHint, { status: 'live' })));
         expect(view.toJSON()).toBeNull();

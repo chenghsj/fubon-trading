@@ -1,3 +1,4 @@
+import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from '../lib/fubon-support';
 import { canTrade } from '../lib/account-tradable';
 // src/components/order-ticket.tsx — buy/sell ticket with two-step EXECUTE.
 // Stock vs futures aware; price autofills from the live quote.
@@ -1177,9 +1178,9 @@ export function OrderTicket({
                             <button
                                 className={`${styles.seg[bracketOn ? 'on' : 'off']} ${warrantBracketBlock ? styles.segRuleLocked : ''}`}
                                 // 外國標的權證：關著就停用（附原因）；已開著仍可按掉
-                                disabled={!!warrantBracketBlock && !bracketOn}
+                                disabled={isFubonBroker() || (!!warrantBracketBlock && !bracketOn)}
                                 onClick={() => setBracketOn((b) => !b)}
-                                title={warrantBracketBlock ?? '進場成交後自動掛 OCO 停損/停利'}
+                                title={isFubonBroker() ? FUBON_AUTOMATION_UNAVAILABLE : warrantBracketBlock ?? '進場成交後自動掛 OCO 停損/停利'}
                                 data-testid='ticket-bracket-toggle'
                             >
                                 {warrantBracketBlock && <Lock size={9} aria-hidden className={styles.segLockIcon} />}

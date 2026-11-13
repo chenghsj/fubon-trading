@@ -13,6 +13,7 @@ jobs:
   # same tag and the assets split between them (v0.1.9 shipped without
   # Windows/mac-Intel until manually merged).
   create-release:
+    if: github.repository == 'Sinotrade/shioaji-pro-app'
     runs-on: ubuntu-latest
     permissions:
       contents: write

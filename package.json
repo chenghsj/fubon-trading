@@ -1,5 +1,5 @@
 {
-    "name": "shioaji-pro-app",
+    "name": "fubon-trading",
     "private": true,
     "version": "0.0.0",
     "license": "AGPL-3.0-only",
@@ -10,7 +10,10 @@
         "desktop:qa": "tauri build --debug --config src-tauri/tauri.dev.conf.json",
         "build": "tsc -b && vite build",
         "test": "vitest run",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "start": "node scripts/dev-fubon.mjs",
+        "server": "uv run --directory server fubon-bridge",
+        "test:server": "uv run --directory server --extra test pytest"
     },
     "dependencies": {
         "@statsig/js-client": "^3.33.2",

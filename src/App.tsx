@@ -1,3 +1,4 @@
+import { FubonStatus } from './components/fubon-status';
 // src/App.tsx — Shioaji Pro trading terminal
 // Dynamic panel blocks on a draggable grid, with named layout profiles.
 
@@ -956,6 +957,7 @@ function PopoutView({
 
     return (
         <div className={styles.shell}>
+            <FubonStatus />
             <EventToasts />
             <OrderConfirmHost />
             <PendingTriggers compact />
@@ -1718,6 +1720,7 @@ function MainApp() {
     return (
         <div className={styles.shell}>
             <IndicatorInstanceContext.Provider value={indicatorService}>
+            <FubonStatus />
             <HudHeader
                 accBalance={balanceState.data?.acc_balance}
                 onOpenPanelLibrary={() => setPanelLibraryOpen(true)}

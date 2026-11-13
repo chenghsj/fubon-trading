@@ -1,3 +1,4 @@
+import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from './fubon-support';
 // src/lib/bracket.ts — bracket orders (括號單): after an entry order fills,
 // an OCO stop-loss + take-profit trigger pair protects the FILLED quantity.
 //
@@ -120,6 +121,7 @@ export interface BracketRequest {
 }
 
 export function validateBracketRequest(r: BracketRequest): string | null {
+    if (isFubonBroker()) return FUBON_AUTOMATION_UNAVAILABLE;
     if (r.stopPrice === null && r.takePrice === null) return '括號單需要停損價或停利價';
     for (const p of [r.stopPrice, r.takePrice]) {
         if (p !== null && (!Number.isFinite(p) || p <= 0)) return '停損／停利價必須是正數';
@@ -654,6 +656,7 @@ function registerTriggeredEntry(t: TriggerOrder, trade: Trade) {
 
 /** Confirms the main window can track brackets BEFORE an entry is sent. */
 export async function ensureBracketHost(): Promise<void> {
+    if (isFubonBroker()) throw new Error(FUBON_AUTOMATION_UNAVAILABLE);
     await bus.send({ op: 'ping' });
 }
 
