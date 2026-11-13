@@ -1,3 +1,4 @@
+import { Card } from './components/ui/card';
 import { FubonStatus } from './components/fubon-status';
 // src/App.tsx — Shioaji Pro trading terminal
 // Dynamic panel blocks on a draggable grid, with named layout profiles.
@@ -702,7 +703,7 @@ function BlockView(props: BlockViewProps) {
             : '';
 
     return (
-        <section className={panel.panel}>
+        <Card className={panel.panel}>
             <PanelChrome
                 title={`${meta.label}${pulseMarket}${panoramaMarket}`}
                 symbolCode={symbol?.code}
@@ -753,7 +754,7 @@ function BlockView(props: BlockViewProps) {
             <PanelErrorBoundary label={meta.label}>
                 <BlockBody {...bodyProps} block={block} contract={contract} missingContractPhase={missingContractPhase} flashTargetRef={flashTargetRef} groupPending={groupPending} />
             </PanelErrorBoundary>
-        </section>
+        </Card>
     );
 }
 
@@ -962,7 +963,7 @@ function PopoutView({
             <OrderConfirmHost />
             <PendingTriggers compact />
             <PendingConfirmPanel compact />
-            <section className={panel.panel} style={{ flex: 1, margin: 6 }}>
+            <Card className={panel.panel} style={{ flex: 1, margin: 6 }}>
                 <PanelChrome
                     title={meta.label}
                     symbolCode={contract?.code}
@@ -971,7 +972,7 @@ function PopoutView({
                 <PanelErrorBoundary label={meta.label}>
                     {body}
                 </PanelErrorBoundary>
-            </section>
+            </Card>
         </div>
     );
 }

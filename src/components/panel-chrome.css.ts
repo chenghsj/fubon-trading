@@ -170,32 +170,14 @@ const pinBase = style({
     fontWeight: 600,
     padding: '1px 7px',
     cursor: 'pointer',
-    borderRadius: '999px',
-    border: '1px solid',
-    transition: 'all 0.12s',
     flexShrink: 0,
     textTransform: 'none',
     letterSpacing: 0,
 });
 
 export const pinBtn = styleVariants({
-    linked: [
-        pinBase,
-        {
-            color: vars.color.accent,
-            borderColor: 'transparent',
-            background: vars.color.accentDim,
-            ':hover': { borderColor: vars.color.accent },
-        },
-    ],
-    pinned: [
-        pinBase,
-        {
-            color: vars.color.amber,
-            borderColor: vars.color.amber,
-            background: 'transparent',
-        },
-    ],
+    linked: [pinBase],
+    pinned: [pinBase],
 });
 
 export const pinInput = style({
@@ -206,14 +188,8 @@ export const pinInput = style({
     fontFamily: vars.font.mono,
     fontSize: '0.66rem',
     fontWeight: 600,
-    color: vars.color.amber,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '1px 6px',
-    outline: 'none',
     textTransform: 'uppercase',
-    ':focus': { borderColor: vars.color.amber },
 });
 
 export const closeBtn = style({
@@ -224,15 +200,7 @@ export const closeBtn = style({
     width: '18px',
     height: '18px',
     cursor: 'pointer',
-    background: 'transparent',
-    border: 'none',
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
     flexShrink: 0,
-    ':hover': {
-        color: vars.color.danger,
-        background: vars.color.muted,
-    },
 });
 
 // ---- 連動群組（A 紫／B 粉／C 青）----
@@ -258,15 +226,9 @@ export const groupBar = styleVariants(GROUP_COLORS, (c) => ({
     pointerEvents: 'none',
 }));
 
-export const groupBtn = styleVariants(GROUP_COLORS, (c) => [
-    pinBase,
-    { color: c, borderColor: 'transparent', background: dim(c), ':hover': { borderColor: c } },
-]);
+export const groupBtn = styleVariants(GROUP_COLORS, () => [pinBase]);
 
-export const groupInput = styleVariants(GROUP_COLORS, (c) => [
-    pinInput,
-    { color: c, selectors: { '&:focus': { borderColor: c } } },
-]);
+export const groupInput = styleVariants(GROUP_COLORS, () => [pinInput]);
 
 export const groupDot = style({
     display: 'inline-block',

@@ -25,10 +25,6 @@ export const dialog = style({
     display: 'flex',
     flexDirection: 'column',
     gap: vars.space.sm,
-    border: `1px solid ${vars.color.borderBright}`,
-    borderRadius: vars.radius.md,
-    background: vars.color.panelRaised,
-    boxShadow: '0 18px 48px rgba(0, 0, 0, 0.45)',
     padding: vars.space.md,
 });
 
@@ -76,23 +72,15 @@ const navItemBase = style({
     textAlign: 'left',
     padding: '6px 9px',
     cursor: 'pointer',
-    background: 'transparent',
-    border: '1px solid transparent',
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
     whiteSpace: 'nowrap',
-    transition: 'all 0.12s',
     flexShrink: 0,
 });
 
 export const navItem = styleVariants({
-    off: [navItemBase, { ':hover': { color: vars.color.foreground, background: vars.color.muted } }],
+    off: [navItemBase],
     on: [
         navItemBase,
         {
-            color: vars.color.accent,
-            background: vars.color.accentDim,
-            borderColor: vars.color.accent,
             fontWeight: 600,
         },
     ],

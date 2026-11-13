@@ -176,16 +176,9 @@ export const moveBtn = style({
     justifyContent: 'center',
     width: '20px',
     height: '15px',
+    minHeight: 0,
     padding: 0,
     cursor: 'pointer',
-    background: vars.color.panelRaised,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
-    ':hover': {
-        color: vars.color.foreground,
-        borderColor: vars.color.borderBright,
-    },
     ':disabled': { opacity: 0.35, cursor: 'default' },
 });
 
@@ -226,13 +219,7 @@ export const listSelect = style({
     fontFamily: vars.font.body,
     fontSize: '0.72rem',
     fontWeight: 500,
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '3px 6px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
 });
 
 export const listBtn = style({
@@ -241,12 +228,7 @@ export const listBtn = style({
     width: '24px',
     height: '24px',
     cursor: 'pointer',
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
     flexShrink: 0,
-    ':hover': { color: vars.color.foreground, borderColor: vars.color.borderBright },
     ':disabled': { opacity: 0.45, cursor: 'not-allowed' },
 });
 
@@ -258,29 +240,14 @@ export const reloadBtn = style({
             width: '24px',
             height: '24px',
             marginLeft: 0,
-            background: vars.color.inset,
-            border: `1px solid ${vars.color.border}`,
-            borderRadius: vars.radius.sm,
-            color: vars.color.mutedForeground,
-        },
-        '&&:hover:not(:disabled)': {
-            color: vars.color.foreground,
-            borderColor: vars.color.borderBright,
-            background: vars.color.inset,
         },
     },
 });
 
 export const listBtnOn = style({
-    color: vars.color.accent,
-    borderColor: vars.color.accent,
-    background: vars.color.accentDim,
 });
 
 export const listBtnDanger = style({
-    color: '#fff',
-    background: vars.color.dangerSolid,
-    borderColor: vars.color.dangerSolid,
     fontSize: '0.6rem',
 });
 
@@ -353,28 +320,12 @@ export const addInput = style({
     minWidth: 0,
     fontFamily: vars.font.mono,
     fontSize: '0.76rem',
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '4px 8px',
-    outline: 'none',
-    ':focus': {
-        borderColor: vars.color.accent,
-    },
-    '::placeholder': {
-        color: vars.color.mutedForeground,
-    },
 });
 
 export const typeSelect = style({
     fontFamily: vars.font.body,
     fontSize: '0.72rem',
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    outline: 'none',
 });
 
 // ---- 漲跌停亮燈樣式 ----

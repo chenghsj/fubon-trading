@@ -18,6 +18,13 @@
   選單使用 DropdownMenu；條件單選項使用 ToggleGroup。
 - 通知改用 Sonner；通知內容持續訂閱隱私與大小設定，已出現的文字也會即時遮蔽。
 - 行情／交易專用浮層仍保留原有定位及狀態邏輯，其內部共用控制項使用 shadcn。
+- 主畫面面板使用 Card／CardHeader，深淺色改用 shadcn 中性色；移除共用控制項
+  原有的配色、邊框與焦點樣式覆蓋，由元件 variant 呈現選取、主要與危險動作。
+  買賣方向保留語意色，價格的紅綠配色不變。
+
+保留原本的 grid、面板位置與比例、工具列行數、控制項尺寸與資訊密度，包括
+25px 頂欄、設定視窗的 38rem／30rem 尺寸及原有響應式門檻。這是外觀與共用
+元件遷移，不改成範例 dashboard 的布局；交易介面繼續使用 compact 尺寸。
 
 shadcn 語意 CSS 變數接到既有 `theme.css.ts` palette，支援深色、淺色、
 自訂配色及台股／國際漲跌慣例。延續舊 WebView 的建置目標，使用 Tailwind 3
@@ -55,7 +62,10 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 - 正式 bundle 的 Chrome 驗收：Passkey 註冊／解鎖、展示行情 LIVE、深淺及自訂
   主題、焦點返回、分頁鍵盤、連動選單、報價欄設定、開啟並取消委託確認、390px
   窄視窗均通過。SIGTERM 中斷後兩個測試埠確實釋放。
-- AI review 找出的快捷鍵、分頁高度、選單外框與語意色問題已修復並重驗。
+- 外觀驗收另檢查主題切換前後面板位置與尺寸一致、排序按鈕不跨列、自訂白底
+  深字的輸入框可讀性，及深淺色買賣按鈕對比至少 4.5:1；hover 維持同一文字色。
+- AI review 與 QA 找出的快捷鍵、分頁高度、選單外框、選取／危險狀態及語意色
+  問題已修復並重驗；最終沒有未處理的 confirmed findings。
 
 此 fork 未含 `src-tauri/` 與私有原生 shell，因此上述是 Web／正式前端 bundle
 驗收；未宣稱原生 App、實機 Touch ID、舊 WebView 或真實券商交易已驗收。
@@ -64,6 +74,8 @@ Passkey 資料庫和虛擬驗證器；不讀 Keychain、不連富邦、不確認
 ## 畫面（展示資料）
 
 ![Passkey 登入](images/shadcn-passkey.png)
+
+![深色交易介面（原有布局）](images/shadcn-terminal-dark.png)
 
 ![淺色設定](images/shadcn-settings-light.png)
 

@@ -17,10 +17,6 @@ export const dialog = style({
     display: 'flex',
     flexDirection: 'column',
     width: 'min(21rem, 92vw)',
-    background: vars.color.panelRaised,
-    border: `1px solid ${vars.color.borderBright}`,
-    borderRadius: vars.radius.lg,
-    boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)',
     overflow: 'hidden',
 });
 
@@ -121,13 +117,8 @@ export const cancelBtn = style({
     fontFamily: vars.font.display,
     fontSize: '0.78rem',
     fontWeight: 600,
-    color: vars.color.foreground,
-    background: vars.color.muted,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '8px 0',
     cursor: 'pointer',
-    ':hover': { borderColor: vars.color.borderBright },
 });
 
 export const confirmBtn = styleVariants({
@@ -136,10 +127,6 @@ export const confirmBtn = styleVariants({
         fontFamily: vars.font.display,
         fontSize: '0.78rem',
         fontWeight: 700,
-        color: '#fff',
-        background: vars.color.up,
-        border: 'none',
-        borderRadius: vars.radius.sm,
         padding: '8px 0',
         cursor: 'pointer',
         ':hover': { filter: 'brightness(1.1)' },
@@ -149,10 +136,6 @@ export const confirmBtn = styleVariants({
         fontFamily: vars.font.display,
         fontSize: '0.78rem',
         fontWeight: 700,
-        color: '#fff',
-        background: vars.color.down,
-        border: 'none',
-        borderRadius: vars.radius.sm,
         padding: '8px 0',
         cursor: 'pointer',
         ':hover': { filter: 'brightness(1.1)' },

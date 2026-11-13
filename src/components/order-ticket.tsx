@@ -785,7 +785,7 @@ export function OrderTicket({
         <div className={styles.body}>
                 {activeAccount && (
                     <div className={styles.chipRow} ref={chipRef}>
-                        <Button size="compact" variant="destructive"
+                        <Button size="compact" variant={production ? 'destructive' : 'outline'}
                             className={
                                 styles.acctChip[
                                     production
@@ -819,7 +819,7 @@ export function OrderTicket({
                                     const on =
                                         acctKey(a) === acctKey(activeAccount);
                                     return (
-                                        <Button size="compact" variant="ghost"
+                                        <Button aria-pressed={on} size="compact" variant={on ? 'secondary' : 'ghost'}
                                             key={acctKey(a)}
                                             className={
                                                 styles.acctMenuItem[
@@ -852,7 +852,7 @@ export function OrderTicket({
                 )}
 
                 <div className={styles.sideTabs}>
-                    <Button size="compact" variant="ghost"
+                    <Button aria-pressed={action === 'Buy'} size="compact" variant={action === 'Buy' ? 'buy' : 'outline'}
                         className={styles.buyTab[action === 'Buy' ? 'on' : 'off']}
                         onClick={() => {
                             setAction('Buy');
@@ -861,7 +861,7 @@ export function OrderTicket({
                     >
                         買進 Buy
                     </Button>
-                    <Button size="compact" variant="ghost"
+                    <Button aria-pressed={action === 'Sell'} size="compact" variant={action === 'Sell' ? 'sell' : 'outline'}
                         className={
                             styles.sellTab[action === 'Sell' ? 'on' : 'off']
                         }
@@ -959,7 +959,7 @@ export function OrderTicket({
                     <span className={styles.fieldLabel}>價別</span>
                     <div className={styles.segGroup}>
                         {priceTypesFor(isFutures).map((pt) => (
-                            <Button size="compact" variant="ghost"
+                            <Button aria-pressed={priceType === pt} size="compact" variant={priceType === pt ? 'secondary' : 'outline'}
                                 key={pt}
                                 className={`${styles.seg[priceType === pt ? 'on' : 'off']} ${pt !== 'LMT' && warrantMarketBlock ? styles.segRuleLocked : ''}`}
                                 disabled={!!(priceTypeDisabledReason(pt, odd) ?? (pt !== 'LMT' ? warrantMarketBlock : null))}
@@ -987,7 +987,7 @@ export function OrderTicket({
                     <span className={styles.fieldLabel}>效期</span>
                     <div className={styles.segGroup}>
                         {ORDER_TYPES.map((ot) => (
-                            <Button size="compact" variant="ghost"
+                            <Button aria-pressed={orderType === ot} size="compact" variant={orderType === ot ? 'secondary' : 'outline'}
                                 key={ot}
                                 className={
                                     styles.seg[orderType === ot ? 'on' : 'off']
@@ -1010,7 +1010,7 @@ export function OrderTicket({
                         <span className={styles.fieldLabel}>倉別</span>
                         <div className={styles.segGroup}>
                             {FUTURES_OCTYPES.map(({ value: oc, label }) => (
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={octype === oc} size="compact" variant={octype === oc ? 'secondary' : 'outline'}
                                     key={oc}
                                     className={
                                         styles.seg[octype === oc ? 'on' : 'off']
@@ -1036,7 +1036,7 @@ export function OrderTicket({
                                     ['Odd', '盤後零股'],
                                 ] as const
                             ).filter(([lot]) => !warrant || lot === 'Common').map(([lot, label]) => (
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={orderLot === lot} size="compact" variant={orderLot === lot ? 'secondary' : 'outline'}
                                     key={lot}
                                     className={
                                         styles.seg[
@@ -1114,7 +1114,7 @@ export function OrderTicket({
                                         item.value === 'MarginTrading',
                                 )
                                 .map((item) => (
-                                    <Button size="compact" variant="ghost"
+                                    <Button aria-pressed={orderCond === item.value} size="compact" variant={orderCond === item.value ? 'secondary' : 'outline'}
                                         key={item.value}
                                         className={
                                             styles.seg[
@@ -1156,7 +1156,7 @@ export function OrderTicket({
                         <div className={styles.fieldRow}>
                             <span className={styles.fieldLabel}>沖賣</span>
                             <div className={styles.segGroup}>
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={daytradeShort} size="compact" variant={daytradeShort ? 'secondary' : 'outline'}
                                     className={
                                         styles.seg[daytradeShort ? 'on' : 'off']
                                     }
@@ -1178,7 +1178,7 @@ export function OrderTicket({
                     <div className={styles.fieldRow}>
                         <span className={styles.fieldLabel}>括號單</span>
                         <div className={styles.segGroup}>
-                            <Button size="compact" variant="ghost"
+                            <Button aria-pressed={bracketOn} size="compact" variant={bracketOn ? 'secondary' : 'outline'}
                                 className={`${styles.seg[bracketOn ? 'on' : 'off']} ${warrantBracketBlock ? styles.segRuleLocked : ''}`}
                                 // 外國標的權證：關著就停用（附原因）；已開著仍可按掉
                                 disabled={isFubonBroker() || (!!warrantBracketBlock && !bracketOn)}
@@ -1220,7 +1220,7 @@ export function OrderTicket({
                     <div className={styles.fieldRow}>
                         <span className={styles.fieldLabel}>分倉</span>
                         <div className={styles.segGroup}>
-                            <Button size="compact" variant="ghost"
+                            <Button aria-pressed={splitOpen} size="compact" variant={splitOpen ? 'secondary' : 'outline'}
                                 className={styles.seg[splitOpen ? 'on' : 'off']}
                                 onClick={openSplit}
                                 title='將同一筆單拆到多個帳戶送出'
@@ -1236,7 +1236,7 @@ export function OrderTicket({
                         <div className={styles.fieldRow}>
                             <span className={styles.fieldLabel}>模式</span>
                             <div className={styles.segGroup}>
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={splitMode === 'ratio'} size="compact" variant={splitMode === 'ratio' ? 'secondary' : 'outline'}
                                     className={
                                         styles.seg[
                                             splitMode === 'ratio'
@@ -1249,7 +1249,7 @@ export function OrderTicket({
                                 >
                                     比例
                                 </Button>
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={splitMode === 'fixed'} size="compact" variant={splitMode === 'fixed' ? 'secondary' : 'outline'}
                                     className={
                                         styles.seg[
                                             splitMode === 'fixed'
@@ -1465,7 +1465,7 @@ export function OrderTicket({
                 />
 
                 {splitOpen ? (
-                    <Button size="compact" variant="outline"
+                    <Button size="compact" variant={splitArmed ? 'secondary' : action === 'Buy' ? 'buy' : 'sell'}
                         className={
                             styles.execBtn[
                                 splitArmed
@@ -1487,7 +1487,7 @@ export function OrderTicket({
                                 : `分倉${action === 'Buy' ? '買進' : '賣出'}（${allocation.length} 戶）`}
                     </Button>
                 ) : (
-                    <Button size="compact" variant="outline"
+                    <Button size="compact" variant={armed ? 'secondary' : action === 'Buy' ? 'buy' : 'sell'}
                         className={
                             styles.execBtn[
                                 armed

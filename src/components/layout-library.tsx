@@ -244,7 +244,7 @@ export function LayoutLibrary({
                 <div className={styles.dialog}>
                     <div className={styles.titleRow}>
                         <LayoutGrid size={13} /> 版面庫
-                        <Button size="compact" variant="destructive"
+                        <Button size="compact" variant="ghost"
                             className={`${hud.profileDelete} ${styles.titleClose}`}
                             title='關閉（Esc）'
                             onClick={onClose}
@@ -503,7 +503,7 @@ export function LayoutLibrary({
                                         if (e.key === 'Enter') doSave();
                                     }}
                                 />
-                                <Button size="compact" variant="destructive"
+                                <Button size="compact" variant={overwriteArm ? 'destructive' : 'default'}
                                     className={
                                         overwriteArm
                                             ? styles.actionBtn.danger
@@ -535,7 +535,7 @@ export function LayoutLibrary({
                             <div className={styles.iconRow}>
                                 {Object.entries(PROFILE_ICONS).map(
                                     ([name, Icon]) => (
-                                        <Button size="compact" variant="ghost"
+                                        <Button aria-pressed={saveIcon === name} size="compact" variant={saveIcon === name ? 'secondary' : 'outline'}
                                             key={name}
                                             className={
                                                 styles.iconOpt[

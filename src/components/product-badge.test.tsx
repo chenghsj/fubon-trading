@@ -82,7 +82,7 @@ describe('純顯示商品標籤', () => {
     });
 
     it.each(themes.flatMap(theme => (['normal', 'selected', 'hover'] as const).map(state => ({ ...theme, state }))))(
-        '$name / $state：合成文字對比至少 4.5:1；色調僅驗數值相異，分類以文字為準', ({ palette, state }) => {
+        '$name / $state：合成文字對比至少 4.5:1；色調遵循主題，分類以文字為準', ({ palette, state }) => {
             const panel = rgb(palette.panelRaised!);
             const row = state === 'selected' ? over(palette[PRODUCT_SEARCH_ACTIVE.background]!, panel)
                 : state === 'hover' ? rgb(palette.muted!) : panel;
@@ -101,7 +101,10 @@ describe('純顯示商品標籤', () => {
                 const edge = composite(tint, fill, PRODUCT_BADGE_ALPHA.edge / 100);
                 expect(edge, `${type} 邊框僅驗數值不等於列底色`).not.toEqual(row);
             }
-            expect(tints.size, '六色調僅數值相異，不代表肉眼可分；分類以文字標籤為準').toBe(6);
+            // The neutral dark theme intentionally shares its accent and foreground:
+            // STK/FUT/OPT share paint while their complete text labels still identify them.
+            const neutral = palette.accent === palette.foreground;
+            expect(tints.size, '色調數值遵循主題；分類仍以完整文字標籤為準').toBe(neutral ? 4 : 6);
         },
     );
 

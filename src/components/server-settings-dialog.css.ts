@@ -33,34 +33,27 @@ export const heading = style({ margin: 0, fontSize: '1em', lineHeight: 1.4, font
 export const field = style({ display: 'flex', flexDirection: 'column', gap: '0.375em', minWidth: 0 });
 export const label = style({ fontSize: '0.875em', fontWeight: 600, lineHeight: 1.4 });
 export const input = style({
-    width: '100%', height: CONTROL, boxSizing: 'border-box', minWidth: 0, padding: '0 0.75em',
-    border: `1px solid ${vars.color.borderBright}`, borderRadius: vars.radius.sm,
-    background: vars.color.inset, color: vars.color.foreground, fontSize: '1em', fontFamily: 'inherit',
+    width: '100%', height: CONTROL, boxSizing: 'border-box', minWidth: 0, padding: '0 0.75em', fontSize: '1em', fontFamily: 'inherit',
     selectors: {
-        '&::placeholder': { color: vars.color.mutedForeground, opacity: 0.8 },
-        '&:focus': { outline: 'none' },
-        '&:focus-visible': { borderColor: vars.color.accent, boxShadow: `0 0 0 3px ${vars.color.accentDim}` },
+        '&::placeholder': { opacity: 0.8 },
         '&:disabled': { opacity: 0.55 },
     },
 });
 export const row = style({ display: 'flex', gap: '0.5em', alignItems: 'center', flexWrap: 'wrap' });
 export const button = style({
-    height: CONTROL, boxSizing: 'border-box', border: `1px solid ${vars.color.borderBright}`, borderRadius: vars.radius.sm,
-    padding: '0 0.875em', background: vars.color.panel, color: vars.color.foreground, cursor: 'pointer',
+    height: CONTROL, boxSizing: 'border-box',
+    padding: '0 0.875em', cursor: 'pointer',
     fontSize: '0.9375em', fontWeight: 500, lineHeight: 1, whiteSpace: 'nowrap',
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4em', flexShrink: 0,
     selectors: {
-        '&:hover:not(:disabled)': { borderColor: vars.color.mutedForeground },
         '&:disabled': { opacity: 0.45, cursor: 'default' },
         '&:focus-visible': focusRing,
     },
 });
-// 主要動作沿用全 App 的「淡底＋強調色字框」語彙
-export const primary = style([button, {
-    background: vars.color.accentDim, borderColor: vars.color.accent, color: vars.color.accent, fontWeight: 600,
-    selectors: { '&:hover:not(:disabled)': { borderColor: vars.color.accent, boxShadow: `inset 0 0 0 1px ${vars.color.accent}` } },
+// 主要動作的配色交由 Button variant；這裡保留原本密度。
+export const primary = style([button, { fontWeight: 600,
 }]);
-export const selected = style([button, { background: vars.color.accentDim, borderColor: vars.color.accent, color: vars.color.accent }]);
+export const selected = style([button]);
 export const iconButton = style([button, { width: CONTROL, padding: 0 }]);
 export const warning = style({ margin: 0, lineHeight: 1.6, color: vars.color.danger });
 export const notice = style({ padding: '0.625em 0.75em', border: `1px solid ${vars.color.borderBright}`, borderRadius: vars.radius.sm, background: vars.color.panel, lineHeight: 1.6, overflowWrap: 'anywhere' });
@@ -154,13 +147,10 @@ export const confirmStrip = style({
 });
 export const confirmText = style({ flex: '1 1 16em', margin: 0, fontSize: '0.875em', lineHeight: 1.6, minWidth: 0 });
 export const confirmButtons = style({ display: 'flex', gap: '0.375em', marginLeft: 'auto' });
-export const confirmDanger = style([smallButton, {
-    background: vars.color.dangerSolid, borderColor: vars.color.dangerSolid, color: '#fff', fontWeight: 600,
-    selectors: { '&:hover:not(:disabled)': { borderColor: vars.color.dangerSolid, filter: 'brightness(1.08)' } },
+export const confirmDanger = style([smallButton, { fontWeight: 600,
+    selectors: { '&:hover:not(:disabled)': { filter: 'brightness(1.08)' } },
 }]);
-export const confirmPrimary = style([smallButton, {
-    background: vars.color.accentDim, borderColor: vars.color.accent, color: vars.color.accent, fontWeight: 600,
-    selectors: { '&:hover:not(:disabled)': { borderColor: vars.color.accent, boxShadow: `inset 0 0 0 1px ${vars.color.accent}` } },
+export const confirmPrimary = style([smallButton, { fontWeight: 600,
 }]);
 export const inlineBadge = style({ display: 'inline-flex', verticalAlign: '-0.1em', margin: '0 0.25em' });
 
@@ -211,18 +201,14 @@ export const segmented = style({
     display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, padding: 3, height: CONTROL, boxSizing: 'border-box',
     border: `1px solid ${vars.color.borderBright}`, borderRadius: vars.radius.sm, background: vars.color.inset, width: '100%', maxWidth: '22em',
 });
-export const segment = style({
-    border: '1px solid transparent', borderRadius: `calc(${vars.radius.sm} - 1px)`, padding: '0 0.75em',
-    background: 'transparent', color: vars.color.mutedForeground, cursor: 'pointer', fontSize: '0.9375em', fontWeight: 500,
+export const segment = style({ padding: '0 0.75em', cursor: 'pointer', fontSize: '0.9375em', fontWeight: 500,
     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4em', whiteSpace: 'nowrap',
     selectors: {
-        '&:hover:not(:disabled)': { color: vars.color.foreground },
-        '&:focus-visible': { outline: `2px solid ${vars.color.accent}`, outlineOffset: 1 },
         '&:disabled': { cursor: 'default', opacity: 0.6 },
     },
 });
-export const segmentSim = style([segment, { color: vars.color.amber, ...mixed({ borderColor: ['rgba(224, 164, 60, 0.5)', tint(vars.color.amber, 55)], background: ['rgba(224, 164, 60, 0.1)', tint(vars.color.amber, 12)] }), fontWeight: 650, selectors: { '&:hover:not(:disabled)': { color: vars.color.amber } } }]);
-export const segmentProd = style([segment, { color: '#fff', background: vars.color.dangerSolid, borderColor: vars.color.dangerSolid, fontWeight: 650, selectors: { '&:hover:not(:disabled)': { color: '#fff' } } }]);
+export const segmentSim = style([segment, { fontWeight: 650, }]);
+export const segmentProd = style([segment, { fontWeight: 650, }]);
 export const fieldNote = style({ margin: 0, fontSize: '0.8125em', lineHeight: 1.5, color: vars.color.mutedForeground });
 export const fieldNoteDanger = style([fieldNote, { color: vars.color.danger, display: 'flex', alignItems: 'center', gap: '0.375em', fontWeight: 600 }]);
 export const importBox = style({
@@ -240,8 +226,7 @@ export const fileName = style({
 });
 export const fileNameSet = style([fileName, { borderStyle: 'solid', color: vars.color.foreground }]);
 export const fileNameText = style({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 });
-export const linkButton = style({
-    border: 0, padding: 0, background: 'transparent', color: vars.color.accent, cursor: 'pointer', fontSize: '1em',
+export const linkButton = style({ padding: 0, cursor: 'pointer', fontSize: '1em',
     display: 'inline-flex', alignItems: 'center', gap: '0.25em',
     selectors: { '&:disabled': { opacity: .5, cursor: 'default' }, '&:focus-visible': focusRing },
 });

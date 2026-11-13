@@ -43,6 +43,38 @@ async function ready(url) {
     }
     throw new Error(`Test server did not start: ${url}`);
 }
+async function textContrast(locator) {
+    return locator.evaluate(el => {
+        const rgba = value => value.match(/[\d.]+/g).map(Number);
+        const layers = [];
+        for (let node = el; node; node = node.parentElement) layers.unshift(getComputedStyle(node).backgroundColor);
+        let background = [255, 255, 255];
+        for (const layer of layers) {
+            const [r, g, b, alpha = 1] = rgba(layer);
+            background = [r, g, b].map((v, i) => v * alpha + background[i] * (1 - alpha));
+        }
+        const luminance = channels => channels.slice(0, 3).map(v => v / 255)
+            .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+            .reduce((sum, v, i) => sum + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const a = luminance(rgba(getComputedStyle(el).color));
+        const b = luminance(background);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    });
+}
+async function tradeContrast(ticket) {
+    for (const [name, variant] of [['賣出 Sell', 'sell'], ['買進 Buy', 'buy']]) {
+        const control = ticket.getByRole('button', { name, exact: true });
+        await control.click();
+        await expect(control).toHaveAttribute('data-variant', variant);
+        await expect.poll(() => textContrast(control)).toBeGreaterThanOrEqual(4.5);
+    }
+}
+async function panelGeometry(page) {
+    return page.locator('[data-slot="card"]').evaluateAll(cards => cards.map(card => {
+        const { x, y, width, height } = card.getBoundingClientRect();
+        return [x, y, width, height].map(Math.round);
+    }));
+}
 let cleanupPromise;
 function cleanup() {
     return cleanupPromise ??= (async () => {
@@ -88,6 +120,30 @@ try {
     await page.getByRole('button', { name: '建立 Passkey 並解鎖' }).click();
     await expect(page.getByRole('status').filter({ hasText: '展示模式' })).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('LIVE', { exact: true })).toBeVisible();
+    // Guard the visible shadcn treatment, rather than only checking imports.
+    expect(await page.locator('[data-slot="card"]').count()).toBeGreaterThanOrEqual(6);
+    const addButton = page.getByRole('button', { name: /新增面板/ }).first();
+    await expect(addButton).toHaveAttribute('data-variant', 'default');
+    // Preserve the existing dense desktop toolbar instead of enlarging it.
+    expect((await addButton.boundingBox()).height).toBeLessThan(30);
+    const ticket = page.locator('[data-slot="card"]').filter({ hasText: '下單面板' }).first();
+    const priceInput = ticket.locator('[data-slot="input"]').first();
+
+    await expect(ticket.getByRole('button', { name: '買進 Buy', exact: true })).toHaveAttribute('data-variant', 'buy');
+    await tradeContrast(ticket);
+    await expect(priceInput).toHaveValue(/\d/);
+    const geometry = await panelGeometry(page);
+    const watch = page.locator('[data-slot="card"]').filter({ hasText: '自選清單' }).first();
+    await watch.getByTitle('調整順序（拖曳或上下移，存回伺服器）').click();
+    const row = watch.locator('[data-code]').first();
+    const rowFrame = await row.boundingBox();
+    for (const name of ['上移', '下移']) {
+        const frame = await row.getByTitle(name, { exact: true }).boundingBox();
+        expect(frame.height).toBe(15);
+        expect(frame.y).toBeGreaterThanOrEqual(rowFrame.y);
+        expect(frame.y + frame.height).toBeLessThanOrEqual(rowFrame.y + rowFrame.height);
+    }
+    await watch.getByTitle('完成調整').click();
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'terminal-dark.png') });
 
     const settingsButton = page.getByRole('button', { name: '設定', exact: true });
@@ -107,17 +163,37 @@ try {
     await settings.getByRole('tab', { name: '外觀' }).click();
     await settings.getByText('淺色', { exact: true }).click();
     await expect(settings.getByText('淺色', { exact: true })).toHaveAttribute('data-state', 'on');
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toBe('#eef0f3');
-    await expect.poll(() => settings.getByText('淺色', { exact: true }).evaluate(el => getComputedStyle(el).color)).toBe('rgb(28, 36, 51)');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toMatch(/^#(?:fff|ffffff)$/);
+    await expect.poll(() => settings.getByText('淺色', { exact: true }).evaluate(el => getComputedStyle(el).color)).toBe('rgb(10, 10, 10)');
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-light.png') });
+    await page.keyboard.press('Escape'); await expect(settings).toBeHidden();
+    await tradeContrast(ticket);
+    expect(await panelGeometry(page)).toEqual(geometry);
+    await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'terminal-light.png') });
+    await settingsButton.click();
     await settings.getByText('自訂', { exact: true }).click();
     const accent = settings.getByLabel('強調色顏色');
     await accent.fill('#c080ff');
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).toBe('#c080ff');
+    // Native form controls must follow the chosen text color even if the custom
+    // base remains dark and the user chooses a white panel.
+    await settings.getByLabel('背景顏色').fill('#ffffff');
+    await settings.getByLabel('面板顏色').fill('#ffffff');
+    await settings.getByLabel('文字顏色').fill('#171717');
+    await expect.poll(() => priceInput.evaluate(el => getComputedStyle(el).color)).toBe('rgb(23, 23, 23)');
     await settings.getByText('深色', { exact: true }).click();
     await expect(settings.getByText('深色', { exact: true })).toHaveAttribute('data-state', 'on');
     await page.keyboard.press('Escape'); await expect(settings).toBeHidden();
     await expect(settingsButton).toBeFocused();
+
+    const expandQuote = page.getByRole('button', { name: '報價統計', exact: true }).first();
+    if (await expandQuote.getAttribute('aria-expanded') !== 'true') await expandQuote.click();
+    await page.getByRole('button', { name: '自訂報價欄位' }).first().click();
+    const quote = page.getByRole('dialog', { name: '報價欄位設定' });
+    await expect(quote).toBeVisible();
+    await quote.getByRole('tab', { name: '指數' }).click();
+    await expect(quote.getByRole('tab', { name: '指數' })).toHaveAttribute('aria-selected', 'true');
+    await page.keyboard.press('Escape'); await expect(quote).toBeHidden();
 
     await page.getByRole('button', { name: /新增面板/ }).first().click();
     const library = page.getByRole('dialog', { name: '新增面板', exact: true });
@@ -129,13 +205,6 @@ try {
     await expect(linkMenu).toBeVisible();
     await linkMenu.getByRole('menuitemradio', { name: /群組 A/ }).click();
     await expect(linkMenu).toBeHidden();
-
-    await page.getByRole('button', { name: '自訂報價欄位' }).first().click();
-    const quote = page.getByRole('dialog', { name: '報價欄位設定' });
-    await expect(quote).toBeVisible();
-    await quote.getByRole('tab', { name: '指數' }).click();
-    await expect(quote.getByRole('tab', { name: '指數' })).toHaveAttribute('aria-selected', 'true');
-    await page.keyboard.press('Escape'); await expect(quote).toBeHidden();
 
     await page.getByRole('button', { name: '買進下單', exact: true }).click();
     await page.getByRole('button', { name: /^確認買進 / }).click();

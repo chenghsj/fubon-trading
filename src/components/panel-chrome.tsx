@@ -1,3 +1,4 @@
+import { CardHeader } from './ui/card';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuLabel } from './ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -69,7 +70,7 @@ export function PanelChrome({
     useEffect(() => setEditCode(pin ?? ''), [pin]);
 
     return (
-        <div
+        <CardHeader
             className={`${panel.panelTitle} ${styles.titleBar} drag-handle`}
             data-controls={
                 !pinnable || !onPinChange ? 'none' : pinned || group ? 'pinned' : 'linked'
@@ -133,7 +134,7 @@ export function PanelChrome({
                             }}
                         />
                     )}
-                    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}><DropdownMenuTrigger asChild><Button size="compact" variant="ghost"
+                    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}><DropdownMenuTrigger asChild><Button size="compact" variant="outline"
                         className={group ? styles.groupBtn[group] : pinned ? styles.pinBtn.pinned : styles.pinBtn.linked}
                         aria-haspopup='menu'
                         aria-expanded={menuOpen}
@@ -164,7 +165,7 @@ export function PanelChrome({
                 onPinChange &&
                 !link &&
                 (pin === null || pin === undefined ? (
-                    <Button size="compact" variant="ghost"
+                    <Button size="compact" variant="outline"
                         className={styles.pinBtn.linked}
                         title='跟隨自選清單選擇；點擊鎖定目前商品'
                         onClick={() =>
@@ -190,7 +191,7 @@ export function PanelChrome({
                                 }
                             }}
                         />
-                        <Button size="compact" variant="ghost"
+                        <Button size="compact" variant="outline"
                             className={styles.pinBtn.pinned}
                             title='已鎖定；點擊恢復連動'
                             onClick={() => onPinChange(null)}
@@ -218,7 +219,7 @@ export function PanelChrome({
                     <X size={11} />
                 </Button>
             )}
-        </div>
+        </CardHeader>
     );
 }
 

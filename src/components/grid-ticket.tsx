@@ -579,7 +579,7 @@ export function GridTicket({
     return (
         <div className={styles.body}>
             <div className={styles.sideTabs}>
-                <Button size="compact" variant="ghost"
+                <Button aria-pressed={side === 'Buy'} size="compact" variant={side === 'Buy' ? 'buy' : 'outline'}
                     className={styles.buyTab[side === 'Buy' ? 'on' : 'off']}
                     onClick={() => {
                         setSide('Buy');
@@ -588,7 +588,7 @@ export function GridTicket({
                 >
                     買進鋪單
                 </Button>
-                <Button size="compact" variant="ghost"
+                <Button aria-pressed={side === 'Sell'} size="compact" variant={side === 'Sell' ? 'sell' : 'outline'}
                     className={styles.sellTab[side === 'Sell' ? 'on' : 'off']}
                     onClick={() => {
                         setSide('Sell');
@@ -610,7 +610,7 @@ export function GridTicket({
                             ['Common', '整股'],
                             ['IntradayOdd', '盤中零股'],
                         ] as const).map(([value, label]) => (
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact" variant={lot === value ? 'secondary' : 'outline'}
                                 key={value}
                                 className={styles.seg[lot === value ? 'on' : 'off']}
                                 role="radio"
@@ -659,7 +659,7 @@ export function GridTicket({
             </Button>
 
             <div className={styles.fieldRow}>
-                <Button size="compact" variant="outline"
+                <Button size="compact" variant={side === 'Buy' ? 'buy' : 'sell'}
                     className={
                         styles.execBtn[side === 'Buy' ? 'buy' : 'sell']
                     }

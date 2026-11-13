@@ -7,6 +7,7 @@ const Card = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-slot="card"
     ref={ref}
     className={cn(
       "rounded-xl border bg-card text-card-foreground shadow",
@@ -22,6 +23,7 @@ const CardHeader = React.forwardRef<
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
   <div
+    data-slot="card-header"
     ref={ref}
     className={cn("flex flex-col gap-1.5 p-6", className)}
     {...props}

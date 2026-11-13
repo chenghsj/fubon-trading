@@ -96,7 +96,7 @@ function ConfirmModal({ request }: { request: OrderConfirmRequest }) {
                     >
                         取消
                     </Button>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact" variant={dir === 'up' ? 'buy' : 'sell'}
                         className={styles.confirmBtn[dir]}
                         disabled={(!!request.livePriceCode && livePrice === undefined) || !!request.awaitingMode || request.simulation === null || !!request.serverChanged}
                         title={request.awaitingMode ? '正在確認伺服器模式（模擬／正式），請稍候' : undefined}

@@ -84,7 +84,7 @@ const cardBase = style({
 });
 
 export const card = styleVariants({
-    normal: [cardBase, {}],
+    normal: [cardBase],
     active: [
         cardBase,
         {
@@ -158,31 +158,16 @@ const actionBase = style({
     height: '20px',
     padding: 0,
     cursor: 'pointer',
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    background: vars.color.panelRaised,
-    color: vars.color.mutedForeground,
 });
 
 export const actionBtn = styleVariants({
-    normal: [
-        actionBase,
-        {
-            ':hover': {
-                color: vars.color.foreground,
-                borderColor: vars.color.borderBright,
-            },
-        },
-    ],
+    normal: [actionBase],
     // second stage of delete: widened, red, explicit
     danger: [
         actionBase,
         {
             width: 'auto',
             padding: '0 6px',
-            color: '#fff',
-            background: vars.color.dangerSolid,
-            borderColor: vars.color.dangerSolid,
             fontSize: '0.6rem',
             fontWeight: 600,
             whiteSpace: 'nowrap',
@@ -196,12 +181,7 @@ export const renameInput = style({
     fontFamily: vars.font.body,
     fontSize: '0.72rem',
     fontWeight: 600,
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.accent}`,
-    borderRadius: vars.radius.sm,
     padding: '2px 6px',
-    outline: 'none',
 });
 
 export const empty = style({
@@ -331,29 +311,9 @@ const iconOptBase = style({
     height: '24px',
     padding: 0,
     cursor: 'pointer',
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    background: 'transparent',
-    color: vars.color.mutedForeground,
-    transition: 'all 0.12s',
 });
 
 export const iconOpt = styleVariants({
-    off: [
-        iconOptBase,
-        {
-            ':hover': {
-                color: vars.color.foreground,
-                borderColor: vars.color.borderBright,
-            },
-        },
-    ],
-    on: [
-        iconOptBase,
-        {
-            color: vars.color.accent,
-            borderColor: vars.color.accent,
-            background: vars.color.accentDim,
-        },
-    ],
+    off: [iconOptBase],
+    on: [iconOptBase],
 });

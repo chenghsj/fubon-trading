@@ -329,7 +329,7 @@ export function AccountsSection() {
                         {list.map((a) => {
                             const key = `${a.broker_id}-${a.account_id}`;
                             return (
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={g.selected === key} size="compact" variant={g.selected === key ? 'secondary' : 'outline'}
                                     key={key}
                                     className={`${
                                         hud.opt[
@@ -679,7 +679,7 @@ export function SettingsDialog({
         <TerminalDialog title="設定" onClose={onClose} className={styles.dialog}>
                 <div className={hud.srvDialogTitle}>
                     設定
-                    <Button size="compact" variant="destructive"
+                    <Button size="compact" variant="ghost"
                         className={hud.profileDelete}
                         title='關閉（Esc）'
                         onClick={onClose}

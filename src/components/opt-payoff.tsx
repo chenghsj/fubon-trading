@@ -333,7 +333,7 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
             <div className={styles.simRow}>
                 <div className={ticket.segGroup} style={{ flex: '0 0 auto' }}>
                     {(['Buy', 'Sell'] as const).map((s) => (
-                        <Button size="compact" variant="ghost"
+                        <Button aria-pressed={simSide === s} size="compact" variant={simSide === s ? 'secondary' : 'outline'}
                             key={s}
                             className={ticket.seg[simSide === s ? 'on' : 'off']}
                             onClick={() => setSimSide(s)}

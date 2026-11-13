@@ -33,7 +33,7 @@ export function CustomThemeEditor() {
             <span className={hud.settingLabel}>起始底色</span>
             <div className={hud.settingGroup}>
                 {BASE_OPTIONS.map((b) => (
-                    <Button size="compact" variant="ghost"
+                    <Button size="compact" variant={custom.base === b.key ? 'secondary' : 'outline'}
                         key={b.key}
                         className={hud.opt[custom.base === b.key ? 'on' : 'off']}
                         aria-pressed={custom.base === b.key}

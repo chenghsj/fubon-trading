@@ -9,6 +9,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        buy: "border border-[var(--trade-up)] bg-[var(--trade-up-dim)] text-[var(--trade-up)] hover:ring-1 hover:ring-[var(--trade-up)]",
+        sell: "border border-[var(--trade-down)] bg-[var(--trade-down-dim)] text-[var(--trade-down)] hover:ring-1 hover:ring-[var(--trade-down)]",
         default:
           "bg-primary text-primary-foreground shadow hover:brightness-110",
         destructive:
@@ -47,6 +49,8 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <Comp
         data-slot="button"
+        data-variant={variant ?? "default"}
+        data-size={size ?? "default"}
         type={type}
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}

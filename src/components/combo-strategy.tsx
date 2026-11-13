@@ -304,7 +304,7 @@ export function OptionStrategyBuilder({
                 <span className={styles.fieldLabel}>策略</span>
                 <div className={styles.segGroup}>
                     {(Object.keys(STRATEGY_LABEL) as Strategy[]).map((s) => (
-                        <Button size="compact" variant="ghost"
+                        <Button aria-pressed={strategy === s} size="compact" variant={strategy === s ? 'secondary' : 'outline'}
                             key={s}
                             className={styles.seg[strategy === s ? 'on' : 'off']}
                             title={
@@ -329,7 +329,7 @@ export function OptionStrategyBuilder({
                 {needRight && (
                     <div className={styles.segGroup} style={{ flex: '0 0 auto' }}>
                         {(['C', 'P'] as const).map((r) => (
-                            <Button size="compact" variant="ghost"
+                            <Button aria-pressed={right === r} size="compact" variant={right === r ? 'secondary' : 'outline'}
                                 key={r}
                                 className={styles.seg[right === r ? 'on' : 'off']}
                                 onClick={() => setRight(r)}

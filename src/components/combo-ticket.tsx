@@ -661,7 +661,7 @@ export function ComboTicket() {
                 <RefreshButton label="更新組合委託" loading={tradesQuery.loading} onClick={() => void tradesQuery.refresh()} />
             </div>
             <div className={styles.fieldRow}>
-                <Button size="compact" variant="ghost"
+                <Button aria-pressed={sbOpen} size="compact" variant={sbOpen ? 'secondary' : 'outline'}
                     className={styles.iconToggle[sbOpen ? 'on' : 'off']}
                     title='選擇權策略快建：選策略與履約價，兩腳自動帶入'
                     onClick={() => setSbOpen((v) => !v)}
@@ -669,7 +669,7 @@ export function ComboTicket() {
                 >
                     <Zap size={11} /> 策略快建
                 </Button>
-                <Button size="compact" variant="ghost"
+                <Button aria-pressed={linkChain} size="compact" variant={linkChain ? 'secondary' : 'outline'}
                     className={styles.iconToggle[linkChain ? 'on' : 'off']}
                     title='連動選擇權 T 字：點 T 字報價自動填入未鎖定的腳'
                     onClick={() => setLinkChain((v) => !v)}
@@ -736,7 +736,7 @@ export function ComboTicket() {
                                 onBlur={() => resolveLeg(i)}
                             />
                             {linkChain && (
-                                <Button size="compact" variant="ghost"
+                                <Button aria-pressed={leg.locked} size="compact" variant={leg.locked ? 'secondary' : 'outline'}
                                     className={styles.iconToggle[leg.locked ? 'on' : 'off']}
                                     title={leg.locked ? '已鎖定（T 字點擊不覆寫）' : '鎖定此腳'}
                                     onClick={() => setLeg(i, { locked: !leg.locked })}
@@ -767,7 +767,7 @@ export function ComboTicket() {
                     <span className={styles.fieldLabel}>型別</span>
                     <div className={styles.segGroup}>
                         {resolution.ambiguous.map((t) => (
-                            <Button size="compact" variant="ghost"
+                            <Button aria-pressed={pickType === t} size="compact" variant={pickType === t ? 'secondary' : 'outline'}
                                 key={t}
                                 className={styles.seg[pickType === t ? 'on' : 'off']}
                                 onClick={() => {
@@ -826,7 +826,7 @@ export function ComboTicket() {
                 <span className={styles.fieldLabel}>組合</span>
                 <div className={styles.segGroup}>
                     {(['Buy', 'Sell'] as const).map((a) => (
-                        <Button size="compact" variant="ghost"
+                        <Button aria-pressed={action === a} size="compact" variant={action === a ? 'secondary' : 'outline'}
                             key={a}
                             className={styles.seg[action === a ? 'on' : 'off']}
                             onClick={() => {
@@ -887,7 +887,7 @@ export function ComboTicket() {
                 <span className={styles.fieldLabel}>條件</span>
                 <div className={styles.segGroup}>
                     {orderTypes.map((ot) => (
-                        <Button size="compact" variant="ghost"
+                        <Button aria-pressed={orderType === ot} size="compact" variant={orderType === ot ? 'secondary' : 'outline'}
                             key={ot}
                             className={styles.seg[orderType === ot ? 'on' : 'off']}
                             onClick={() => {
@@ -908,7 +908,7 @@ export function ComboTicket() {
                 </div>
             </div>
 
-            <Button size="compact" variant="outline"
+            <Button size="compact" variant={armed ? 'secondary' : action === 'Buy' ? 'buy' : 'sell'}
                 className={styles.execBtn[armed ? 'armed' : action === 'Buy' ? 'buy' : 'sell']}
                 disabled={busy || !ready || !live}
                 onClick={execute}
@@ -936,7 +936,7 @@ export function ComboTicket() {
                     disabled={watchOn}
                     onChange={(e) => setWatchPrice(e.target.value)}
                 />
-                <Button size="compact" variant="ghost"
+                <Button aria-pressed={watchOn} size="compact" variant={watchOn ? 'secondary' : 'outline'}
                     className={styles.seg[watchOn ? 'on' : 'off']}
                     disabled={!ready || !watchPrice}
                     title={`組合${action === 'Buy' ? '賣價跌至' : '買價漲至'}目標時自動送 IOC（最多 ${MAX_ATTEMPTS} 次，間隔 ${COOLDOWN_MS / 1000}s）`}

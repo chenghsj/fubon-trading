@@ -318,7 +318,7 @@ export function HudHeader({
                 onToggle={setServerMgrOpen}
             />
             <KillSwitchButton />
-            <Button size="compact" variant="outline"
+            <Button size="compact" variant="default"
                 className={styles.resetBtn}
                 onClick={onOpenPanelLibrary}
             >

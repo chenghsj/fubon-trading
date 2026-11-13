@@ -30,35 +30,16 @@ const sideBase = style({
     letterSpacing: '0.04em',
     padding: '7px 0',
     cursor: 'pointer',
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
-    transition: 'all 0.12s',
 });
 
 export const buyTab = styleVariants({
-    off: [sideBase, { ':hover': { color: vars.color.up } }],
-    on: [
-        sideBase,
-        {
-            color: '#fff',
-            background: vars.color.up,
-            borderColor: vars.color.up,
-        },
-    ],
+    off: [sideBase],
+    on: [sideBase],
 });
 
 export const sellTab = styleVariants({
-    off: [sideBase, { ':hover': { color: vars.color.down } }],
-    on: [
-        sideBase,
-        {
-            color: '#fff',
-            background: vars.color.down,
-            borderColor: vars.color.down,
-        },
-    ],
+    off: [sideBase],
+    on: [sideBase],
 });
 
 export const fieldRow = style({
@@ -83,16 +64,8 @@ export const numInput = style({
     fontSize: '0.92rem',
     fontWeight: 600,
     textAlign: 'right',
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '5px 8px',
-    outline: 'none',
     fontVariantNumeric: 'tabular-nums',
-    ':focus': {
-        borderColor: vars.color.accent,
-    },
 });
 
 export const stepBtn = style({
@@ -102,14 +75,6 @@ export const stepBtn = style({
     width: '26px',
     height: '30px',
     cursor: 'pointer',
-    background: vars.color.muted,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.foreground,
-    ':hover': {
-        borderColor: vars.color.borderBright,
-        background: vars.color.panelRaised,
-    },
 });
 
 export const segGroup = style({
@@ -125,23 +90,15 @@ const segBase = style({
     fontWeight: 500,
     padding: '4px 0',
     cursor: 'pointer',
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
-    transition: 'all 0.12s',
     // 不支援的組合（例：零股的市價／IOC）顯示為停用，title 說明原因
     ':disabled': { opacity: 0.35, cursor: 'not-allowed' },
 });
 
 export const seg = styleVariants({
-    off: [segBase, { ':hover': { color: vars.color.foreground } }],
+    off: [segBase],
     on: [
         segBase,
         {
-            color: vars.color.accent,
-            borderColor: vars.color.accent,
-            background: vars.color.accentDim,
             fontWeight: 600,
         },
     ],
@@ -176,27 +133,12 @@ const iconToggleBase = style({
     width: '24px',
     height: '24px',
     flexShrink: 0,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    background: 'transparent',
-    color: vars.color.mutedForeground,
     cursor: 'pointer',
-    transition: 'all 0.12s',
 });
 
 export const iconToggle = styleVariants({
-    off: [
-        iconToggleBase,
-        { ':hover': { color: vars.color.foreground, borderColor: vars.color.borderBright } },
-    ],
-    on: [
-        iconToggleBase,
-        {
-            color: vars.color.accent,
-            borderColor: vars.color.accent,
-            background: vars.color.accentDim,
-        },
-    ],
+    off: [iconToggleBase],
+    on: [iconToggleBase],
 });
 
 const execBase = style({
@@ -207,37 +149,15 @@ const execBase = style({
     padding: '9px 0',
     marginTop: vars.space.xs,
     cursor: 'pointer',
-    border: '1px solid',
-    borderRadius: vars.radius.sm,
-    transition: 'all 0.12s',
     ':disabled': { opacity: 0.35, cursor: 'not-allowed' },
 });
 
 export const execBtn = styleVariants({
-    buy: [
-        execBase,
-        {
-            color: '#fff',
-            background: vars.color.up,
-            borderColor: vars.color.up,
-            ':hover': { filter: 'brightness(1.1)' },
-        },
-    ],
-    sell: [
-        execBase,
-        {
-            color: '#fff',
-            background: vars.color.down,
-            borderColor: vars.color.down,
-            ':hover': { filter: 'brightness(1.1)' },
-        },
-    ],
+    buy: [execBase],
+    sell: [execBase],
     armed: [
         execBase,
         {
-            color: '#1a1304',
-            background: vars.color.amber,
-            borderColor: vars.color.amber,
             animation: 'pulse-glow 0.9s infinite',
         },
     ],
@@ -264,10 +184,6 @@ const chipBase = style({
     fontWeight: 600,
     fontVariantNumeric: 'tabular-nums',
     padding: '3px 8px',
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.foreground,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
@@ -281,24 +197,17 @@ export const acctChip = styleVariants({
         chipBase,
         {
             cursor: 'pointer',
-            ':hover': {
-                borderColor: vars.color.borderBright,
-                background: vars.color.muted,
-            },
         },
     ],
-    // production mode — danger outline as the wrong-account last line of
-    // defense (danger applies whether clickable or not)
+    // Production mode uses the destructive Button variant as the wrong-account warning.
     dangerSingle: [
         chipBase,
-        { cursor: 'default', borderColor: vars.color.danger },
+        { cursor: 'default' },
     ],
     dangerMulti: [
         chipBase,
         {
             cursor: 'pointer',
-            borderColor: vars.color.danger,
-            ':hover': { background: vars.color.muted },
         },
     ],
 });
@@ -339,22 +248,16 @@ const acctMenuItemBase = style({
     padding: '5px 8px',
     cursor: 'pointer',
     textAlign: 'left',
-    background: 'transparent',
-    border: '1px solid transparent',
-    borderRadius: vars.radius.sm,
-    color: vars.color.foreground,
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
 });
 
 export const acctMenuItem = styleVariants({
-    off: [acctMenuItemBase, { ':hover': { background: vars.color.muted } }],
+    off: [acctMenuItemBase],
     on: [
         acctMenuItemBase,
         {
-            color: vars.color.accent,
-            background: vars.color.accentDim,
             fontWeight: 600,
         },
     ],
@@ -392,13 +295,7 @@ export const splitInput = style({
     fontWeight: 600,
     textAlign: 'right',
     fontVariantNumeric: 'tabular-nums',
-    color: vars.color.foreground,
-    background: vars.color.panel,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '3px 6px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
 });
 
 export const splitUnit = style({
@@ -465,13 +362,7 @@ export const presetSelect = style({
     minWidth: '5rem',
     fontFamily: vars.font.mono,
     fontSize: '0.62rem',
-    color: vars.color.foreground,
-    background: vars.color.panel,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '3px 4px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
 });
 
 export const presetInput = style({
@@ -479,13 +370,7 @@ export const presetInput = style({
     minWidth: '4rem',
     fontFamily: vars.font.body,
     fontSize: '0.62rem',
-    color: vars.color.foreground,
-    background: vars.color.panel,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '3px 6px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
 });
 
 export const presetBtn = style({
@@ -495,11 +380,6 @@ export const presetBtn = style({
     fontWeight: 500,
     padding: '3px 8px',
     cursor: 'pointer',
-    background: vars.color.muted,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.foreground,
-    ':hover': { borderColor: vars.color.borderBright },
     ':disabled': { opacity: 0.4, cursor: 'not-allowed' },
 });
 

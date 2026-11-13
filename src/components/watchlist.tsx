@@ -636,7 +636,7 @@ export function Watchlist({
                         >
                             <Pencil size={12} />
                         </Button>
-                        <Button size="compact" variant="outline"
+                        <Button size="compact" variant={arrange ? 'secondary' : 'outline'}
                             className={`${styles.listBtn} ${
                                 arrange ? styles.listBtnOn : ''
                             }`}
@@ -663,7 +663,7 @@ export function Watchlist({
                                 <GripVertical size={12} />
                             )}
                         </Button>
-                        <Button size="compact" variant="outline"
+                        <Button size="compact" variant={sortMode !== 'custom' ? 'secondary' : 'outline'}
                             className={`${styles.listBtn} ${
                                 sortMode !== 'custom' ? styles.listBtnOn : ''
                             }`}
@@ -695,7 +695,7 @@ export function Watchlist({
                                 <ArrowUp size={12} />
                             )}
                         </Button>
-                        <Button size="compact" variant="outline"
+                        <Button size="compact" variant={spark ? 'secondary' : 'outline'}
                             className={`${styles.listBtn} ${
                                 spark ? styles.listBtnOn : ''
                             }`}

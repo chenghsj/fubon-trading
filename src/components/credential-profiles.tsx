@@ -184,7 +184,7 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
 
     const confirmButtons = (label: string, onConfirm: () => void, tone: 'danger' | 'primary', cancelLabel: string) => <div className={s.confirmButtons}>
         <Button size="compact" variant="outline" ref={reg('confirm-cancel')} className={s.smallButton} aria-label={cancelLabel} disabled={locked} onClick={cancelConfirmation}>取消</Button>
-        <Button size="compact" variant="default" className={tone === 'danger' ? s.confirmDanger : s.confirmPrimary} disabled={locked} onClick={onConfirm}>{label}</Button>
+        <Button size="compact" variant={tone === 'danger' ? 'destructive' : 'default'} className={tone === 'danger' ? s.confirmDanger : s.confirmPrimary} disabled={locked} onClick={onConfirm}>{label}</Button>
     </div>;
 
     const profiles = settings.profiles;
