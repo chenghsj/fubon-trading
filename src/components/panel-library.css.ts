@@ -128,6 +128,9 @@ export const hintKey = style({
     fontFamily: vars.font.mono,
     fontSize: '0.6rem',
     whiteSpace: 'nowrap',
+    '@media': {
+        'screen and (max-width: 480px)': { display: 'none' },
+    },
 });
 
 export const body = style({

@@ -159,6 +159,8 @@ async function panelPickerLayout(page, artifacts) {
         const frame = await picker.boundingBox();
         expect(frame.width).toBeCloseTo(Math.min(760, width - 32), 0);
         expect(frame.y).toBeCloseTo(100, 0);
+        const search = picker.getByPlaceholder('搜尋面板（名稱或用途）');
+        expect((await search.boundingBox()).width).toBeGreaterThan(200);
         const cards = picker.locator('button[data-idx]');
         const count = await cards.count();
         expect(count).toBeGreaterThan(20);
@@ -179,7 +181,7 @@ async function panelPickerLayout(page, artifacts) {
         expect(await cards.count()).toBeLessThan(count);
         await category.click();
         await expect(cards).toHaveCount(count);
-        await picker.getByPlaceholder('搜尋面板（名稱或用途）').fill('K 線圖');
+        await search.fill('K 線圖');
         await expect(cards).toHaveCount(1);
         await page.keyboard.press('ArrowDown');
         await page.keyboard.press('Escape');
