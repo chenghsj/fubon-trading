@@ -294,6 +294,34 @@ async function settingsScrollbarSpacing(page, artifacts) {
         await expect(settings).toBeHidden();
     }
 }
+async function notificationHeaderClearance(page) {
+    const settingsButton = page.getByRole('button', { name: '設定', exact: true });
+    const settings = page.getByRole('dialog', { name: '設定', exact: true });
+    for (const [width, scale] of [[1440, '標準'], [390, '大']]) {
+        await page.setViewportSize({ width, height: 1000 });
+        await settingsButton.click();
+        await settings.getByRole('tab', { name: '外觀', exact: true }).click();
+        await settings.getByRole('radio', { name: scale, exact: true }).first().click();
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: '版面', exact: true }).click();
+        const library = page.getByRole('dialog', { name: '版面庫', exact: true });
+        await library.getByPlaceholder('儲存目前版面 — 輸入名稱').fill(`通知位置驗收 ${width}`);
+        await library.getByRole('button', { name: '儲存', exact: true }).click();
+        await page.keyboard.press('Escape');
+        const notice = page.locator('[data-sonner-toast]').filter({ hasText: '版面已儲存' }).last();
+        await expect(notice).toBeVisible();
+        await expect.poll(async () => {
+            const header = await page.locator('header').boundingBox();
+            const bounds = await notice.boundingBox();
+            return bounds.y - header.y - header.height;
+        }).toBeGreaterThanOrEqual(7);
+        // A visible notification must not defer the click until it expires.
+        await settingsButton.click({ timeout: 2000 });
+        await expect(settings).toBeVisible();
+        await page.keyboard.press('Escape');
+        await notice.locator('[data-close-button]').click();
+    }
+}
 async function multilineButtons(page, artifacts) {
     // Exercise the same long unsigned-account copy as the reported screenshot.
     // The account response belongs only to this temporary browser context.
@@ -568,6 +596,7 @@ try {
     expect(mobileFrame.x + mobileFrame.width).toBeLessThanOrEqual(391);
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-narrow.png') });
     await page.keyboard.press('Escape');
+    await notificationHeaderClearance(page);
     expect(errors).toEqual([]);
     console.log(`UI acceptance passed: Passkey, LIVE demo stream, themes, focus, tabs, menus, order cancellation and narrow layout.\nScreenshots: ${artifacts}`);
 } catch (error) {

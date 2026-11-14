@@ -10,7 +10,7 @@ import {
     Info,
     Receipt,
 } from 'lucide-react';
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { describeOrderReport } from '../lib/order-report';
 import { playAlert, playDeal, playError, playOrder } from '../lib/sounds';
 import { onOrderEvent } from '../lib/stream';
@@ -36,6 +36,24 @@ export function EventToasts({ onEvent }: { onEvent?: () => void }) {
     const onEventRef = useRef(onEvent);
     onEventRef.current = onEvent;
     const scale = useToastScale();
+    const [top, setTop] = useState(64);
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const header = document.querySelector('header');
+        if (!header) return;
+        const measure = () => setTop(Math.ceil(header.getBoundingClientRect().bottom) + 8);
+        measure();
+        // The broker banner can wrap or change status without resizing the
+        // header itself. Keep both desktop and mobile notices below all chrome.
+        const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure);
+        observer?.observe(header);
+        if (header.previousElementSibling) observer?.observe(header.previousElementSibling);
+        window.addEventListener('resize', measure);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, []);
     useEffect(() => {
         const push = (
             kind: ToastKind,
@@ -102,8 +120,8 @@ export function EventToasts({ onEvent }: { onEvent?: () => void }) {
     }, [scale]);
 
     return <Toaster position="top-right" expand closeButton visibleToasts={5} gap={8}
-        offset={{ top: 64, right: 16 }}
-        mobileOffset={{ top: 64, right: 12, left: 12, bottom: 16 }}
+        offset={{ top, right: 16 }}
+        mobileOffset={{ top, right: 12, left: 12, bottom: 16 }}
         style={{ '--width': `${19 * scale}rem`, '--event-toast-scale': scale } as CSSProperties} />;
 }
 
