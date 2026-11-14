@@ -15,12 +15,14 @@ from .mapping import now
 from .models import ContractKey, Mutation, PlaceOrder
 from .session import Session
 from .passkeys import Passkeys, PasskeyStore
+from .origins import localhost_ui_origin
 
 
 def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
-    public_origin = public_origin or "http://localhost:5179"
+    public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
+    allowed_ports = {cfg.port, urlparse(public_origin).port}
     passkeys = Passkeys(passkey_store if passkey_store is not None else PasskeyStore(), public_origin)
     login_lock = asyncio.Lock()
     login_attempted = False
@@ -71,7 +73,6 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     async def local_only(request: Request, call_next):
         host = request.url.hostname
         origin = request.headers.get("origin")
-        allowed_ports = {cfg.port, 5179}
         if host not in {"127.0.0.1", "localhost", "testserver"}:
             return JSONResponse({"detail": "Local bridge: invalid Host"}, status_code=403)
         if origin:
