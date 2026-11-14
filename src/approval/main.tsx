@@ -1,3 +1,5 @@
+import '../index.css';
+import { Button } from '@/components/ui/button';
 // src/approval/main.tsx — Agent 交易核可視窗（獨立 Tauri window）
 //
 // 內容只來自 Rust state（agent_approval_pending，label 驗證），主 WebView
@@ -351,9 +353,9 @@ export function ApprovalView({
                     </div>
                 )}
             </div>
-            <button className={styles.detailToggle} onClick={onToggleDetail}>
+            <Button size="compact" variant="ghost" className={styles.detailToggle} onClick={onToggleDetail}>
                 {detailOpen ? '收合技術細節' : '顯示技術細節'}
-            </button>
+            </Button>
             {detailOpen && (
                 <pre className={styles.detail}>
                     {JSON.stringify(
@@ -373,14 +375,14 @@ export function ApprovalView({
                 </pre>
             )}
             <div className={styles.footer}>
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.denyBtn}
                     disabled={busy}
                     onClick={() => onRespond(false)}
                 >
                     拒絕
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="outline"
                     className={styles.approveBtn}
                     disabled={busy || remaining === 0}
                     onClick={() => onRespond(true)}
@@ -388,7 +390,7 @@ export function ApprovalView({
                     {request.kind === 'auto_session'
                         ? '授權本次 Auto 並送出'
                         : (APPROVE_LABEL[request.operation] ?? '核准')}
-                </button>
+                </Button>
             </div>
             <div className={styles.hint}>
                 只有你現在確實要讓這個 Agent 送出上述交易時才核准。

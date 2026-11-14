@@ -203,20 +203,25 @@ describe('gesture coordinate epoch', () => {
         expect(grid()).toMatchObject({ width: next, gridConfig: { cols: gridDensity(next) * 24 } });
     });
 
-    it.each([[1910, 640], [640, 1910], [1910, 320]])('physical resize callbacks %i → %i decode the original pixel width and write only on release', async (start, next) => {
+    it.each(([[1910, 640], [640, 1910], [1910, 320]] as const).flatMap(([start, next]) =>
+        (['e', 's', 'se'] as const).map(handle => ({ start, next, handle })),
+    ))('physical $handle resize callbacks $start → $next preserve axes and write only on release', async ({ start, next, handle }) => {
         const { api, stats } = await mountHarness({ width: start });
+        expect(resizable().props.resizeHandles).toEqual(['e', 's', 'se']);
         const originalColumns = 72 * gridDensity(start) / 12;
+        const columns = originalColumns + (handle === 's' ? 0 : 2);
+        const rows = handle === 'e' ? 8 : 10;
         const startSize = position(originalColumns, 8);
-        const resized = position(originalColumns + 2, 10);
-        await act(async () => resizable().props.onResizeStart({ nativeEvent: {} }, { node: physicalNode, size: startSize, handle: 'se' }));
+        const resized = position(columns, rows);
+        await act(async () => resizable().props.onResizeStart({ nativeEvent: {} }, { node: physicalNode, size: startSize, handle }));
         const constraints = item().props.minW;
         await act(async () => api.width(next));
         expect(grid().width).toBe(start);
         expect(item().props.minW).toBe(constraints);
-        await act(async () => resizable().props.onResize({ nativeEvent: {} }, { node: physicalNode, size: resized, handle: 'se' }));
+        await act(async () => resizable().props.onResize({ nativeEvent: {} }, { node: physicalNode, size: resized, handle }));
         expect(stats.writes).toBe(0);
-        await act(async () => resizable().props.onResizeStop({ nativeEvent: {} }, { node: physicalNode, size: resized, handle: 'se' }));
-        expect(api.stored.find(row => row.i === 'a')).toMatchObject({ x: 0, y: 0, w: (originalColumns + 2) * 12 / gridDensity(start), h: 10 });
+        await act(async () => resizable().props.onResizeStop({ nativeEvent: {} }, { node: physicalNode, size: resized, handle }));
+        expect(api.stored.find(row => row.i === 'a')).toMatchObject({ x: 0, y: 0, w: columns * 12 / gridDensity(start), h: rows });
         expect(stats.writes).toBe(1);
         expect(grid().width).toBe(next);
     });

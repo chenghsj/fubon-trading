@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/quote-board.tsx — selected symbol mega display
 
 import { Fragment, useCallback, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -765,14 +766,14 @@ export function QuoteBoard({
                             )}
                             {/* 和排行榜的產業標籤一樣：點了讓產業全景下鑽到這個產業（按鈕不會觸發面板拖曳） */}
                             {range && showS('sector') && sector && contract.category && (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     type="button"
                                     className={styles.sectorTag}
                                     title="跳到此類股熱力圖"
                                     onClick={() => focusSector(contract.category!)}
                                 >
                                     {sector}
-                                </button>
+                                </Button>
                             )}
                         </Fragment>
                     ) : (
@@ -795,7 +796,7 @@ export function QuoteBoard({
             )}
             {/* 右側工具：自訂欄位（只在完整的階梯顯示，精簡時先展開；看板上按右鍵也能打開）與展開／收合 */}
             <div className={styles.boardTools}>
-                <button
+                <Button size="compact" variant="ghost"
                     type="button"
                     className={styles.boardSettings}
                     onClick={(e) => {
@@ -808,8 +809,8 @@ export function QuoteBoard({
                     title="自訂報價欄位"
                 >
                     <Settings2 size={12} aria-hidden="true" />
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="ghost"
                     type="button"
                     className={styles.boardToggle}
                     onClick={toggle}
@@ -827,7 +828,7 @@ export function QuoteBoard({
                             strokeLinejoin="round"
                         />
                     </svg>
-                </button>
+                </Button>
             </div>
             {settingsAt && (
                 <QuoteBoardSettings

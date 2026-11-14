@@ -3,6 +3,7 @@
 // 以 inline CSS 變數蓋在起始底色（深色／淺色）的 theme class 上。
 
 import type { Convention } from './theme-store';
+import { THEME_PALETTES, solidPriceColor } from './theme-palette';
 
 export type CustomBase = 'dark' | 'light';
 
@@ -27,26 +28,15 @@ export const CUSTOM_COLOR_FIELDS: { key: CustomColorKey; label: string }[] = [
     { key: 'green', label: '綠（漲跌）' },
 ];
 
-// 與 theme.css.ts 的深色／淺色色票一致
+// 自訂配色的起點與內建主題共用色票；已儲存的自訂配色維持原值。
+function customBase(base: CustomBase): CustomTheme {
+    const { background, panel, foreground, accent, red, green } = THEME_PALETTES[base];
+    return { base, background, panel, foreground, accent, red, green };
+}
+
 export const CUSTOM_BASES: Record<CustomBase, CustomTheme> = {
-    dark: {
-        base: 'dark',
-        background: '#000000',
-        panel: '#0a0c10',
-        foreground: '#d5dbe8',
-        accent: '#3d8bff',
-        red: '#f23645',
-        green: '#16b389',
-    },
-    light: {
-        base: 'light',
-        background: '#eef0f3',
-        panel: '#ffffff',
-        foreground: '#1c2433',
-        accent: '#2962ff',
-        red: '#d6213a',
-        green: '#0a8a66',
-    },
+    dark: customBase('dark'),
+    light: customBase('light'),
 };
 
 export const CUSTOM_PRESETS: { name: string; theme: CustomTheme }[] = [
@@ -58,8 +48,8 @@ export const CUSTOM_PRESETS: { name: string; theme: CustomTheme }[] = [
 
 // 狀態錯誤色（朱紅）：不跟使用者挑的漲跌紅，固定依底色，與 theme.css.ts 一致
 export const CUSTOM_DANGER: Record<CustomBase, { danger: string; dangerSolid: string }> = {
-    dark: { danger: '#ff6a4d', dangerSolid: '#d03a24' },
-    light: { danger: '#c5341a', dangerSolid: '#c5341a' },
+    dark: { danger: THEME_PALETTES.dark.danger, dangerSolid: THEME_PALETTES.dark.dangerSolid },
+    light: { danger: THEME_PALETTES.light.danger, dangerSolid: THEME_PALETTES.light.dangerSolid },
 };
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -91,6 +81,16 @@ export function alpha(hex: string, a: number): string {
     return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
+/** 選擇對強調色底對比最高的字色，亮／暗及任意自訂色都適用。 */
+function onAccent(hex: string): string {
+    const [r, g, b] = rgb(hex).map(value => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    const luminance = r! * 0.2126 + g! * 0.7152 + b! * 0.0722;
+    return luminance > 0.179 ? '#000000' : '#ffffff';
+}
+
 /** 六色推算出完整的 color token（鍵名同 theme.css.ts 的 vars.color） */
 export function customTokens(t: CustomTheme, convention: Convention): Record<string, string> {
     const dark = t.base === 'dark';
@@ -112,12 +112,17 @@ export function customTokens(t: CustomTheme, convention: Convention): Record<str
         border: mix(t.panel, fg, dark ? 0.1 : 0.12),
         borderBright: mix(t.panel, fg, dark ? 0.18 : 0.22),
         accent: t.accent,
+        onAccent: onAccent(t.accent),
         accentDim: alpha(t.accent, dark ? 0.12 : 0.1),
         magenta: mutedFg,
         up,
+        upSolid: solidPriceColor(up),
         upDim: alpha(up, dim),
         upFlash: alpha(up, flash),
         down,
+        downSolid: solidPriceColor(down),
+        upControl: dark ? mix(up, '#ffffff', 0.26) : mix(up, '#000000', 0.2),
+        downControl: dark ? mix(down, '#ffffff', 0.26) : mix(down, '#000000', 0.2),
         downDim: alpha(down, dim),
         downFlash: alpha(down, flash),
         // 日內區間軌的引線：同 theme.css.ts，深底往次要文字色混一半、淺底往底色混兩成
@@ -125,6 +130,7 @@ export function customTokens(t: CustomTheme, convention: Convention): Record<str
         wickDown: dark ? mix(down, mutedFg, 0.5) : mix(down, t.panel, 0.2),
         flat: mutedFg,
         success: t.green,
+        successSolid: solidPriceColor(t.green),
         successDim: alpha(t.green, dim),
         danger: CUSTOM_DANGER[t.base].danger,
         dangerDim: alpha(CUSTOM_DANGER[t.base].danger, dim),

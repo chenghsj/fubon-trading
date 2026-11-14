@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/app-error-boundary.tsx — App 頂層的最後一道保險。
 // 面板內的錯誤由 PanelErrorBoundary 隔離；這裡接住面板框架之外的 render
 // 崩潰（例如版面資料讓 BlockView 取不到面板定義），避免整個視窗白畫面。
@@ -46,16 +47,16 @@ export class AppErrorBoundary extends Component<Props, State> {
                 </p>
                 <pre className={local.message}>{message}</pre>
                 <div className={local.actions}>
-                    <button
+                    <Button size="compact" variant="outline"
                         type='button'
                         className={styles.button}
                         onClick={() => window.location.reload()}
                     >
                         <RotateCw size={14} aria-hidden />
                         重新載入
-                    </button>
+                    </Button>
                     {!child && (
-                        <button
+                        <Button size="compact" variant="outline"
                             type='button'
                             className={styles.button}
                             onClick={() => {
@@ -69,7 +70,7 @@ export class AppErrorBoundary extends Component<Props, State> {
                         >
                             <LayoutGrid size={14} aria-hidden />
                             重設版面
-                        </button>
+                        </Button>
                     )}
                 </div>
             </div>

@@ -1,7 +1,11 @@
+import { CardHeader } from './ui/card';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuLabel } from './ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 // src/components/panel-chrome.tsx — shared panel title bar: drag handle,
 // link/pin symbol toggle, remove button.
 
-import { Check, ChevronDown, ExternalLink, Link2, Pin, X } from 'lucide-react';
+import { ChevronDown, ExternalLink, Link2, Pin, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { LinkGroupId } from '../lib/flash-link';
 import type { LinkMode } from '../lib/workspace';
@@ -44,12 +48,7 @@ export function PanelChrome({
     const group = link && link.mode !== 'main' && link.mode !== 'pin' ? link.mode : null;
     const groupCode = group ? link!.groups.find(g => g.id === group)?.code ?? '' : null;
     const [menuOpen, setMenuOpen] = useState(false);
-    useEffect(() => {
-        if (!menuOpen) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [menuOpen]);
+
     const [editCode, setEditCode] = useState(pin ?? '');
     // 草稿綁定「群組＋目前代碼」：群組代碼一變（或換群組），同一次 render 就顯示新代碼
     const draftKey = `${group ?? ''}:${groupCode ?? ''}`;
@@ -71,7 +70,8 @@ export function PanelChrome({
     useEffect(() => setEditCode(pin ?? ''), [pin]);
 
     return (
-        <div
+        <CardHeader
+            layout="panel"
             className={`${panel.panelTitle} ${styles.titleBar} drag-handle`}
             data-controls={
                 !pinnable || !onPinChange ? 'none' : pinned || group ? 'pinned' : 'linked'
@@ -112,7 +112,7 @@ export function PanelChrome({
             {pinnable && onPinChange && link && (
                 <span className={styles.linkAnchor}>
                     {pinned && (
-                        <input
+                        <Input
                             className={styles.pinInput}
                             value={editCode}
                             title='鎖定的商品代碼，Enter 套用'
@@ -124,7 +124,7 @@ export function PanelChrome({
                         />
                     )}
                     {group && (
-                        <input
+                        <Input
                             className={styles.groupInput[group]}
                             value={editGroupCode}
                             title={`群組 ${group} 的商品代碼，Enter 全組一起換`}
@@ -135,47 +135,38 @@ export function PanelChrome({
                             }}
                         />
                     )}
-                    <button
+                    <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}><DropdownMenuTrigger asChild><Button size="compact" variant="outline"
                         className={group ? styles.groupBtn[group] : pinned ? styles.pinBtn.pinned : styles.pinBtn.linked}
                         aria-haspopup='menu'
                         aria-expanded={menuOpen}
                         title={group ? `群組 ${group}：群組內共用一個商品` : pinned ? '已鎖定' : '跟隨自選清單選擇'}
-                        onClick={() => setMenuOpen(v => !v)}
                     >
                         {group ? <span className={styles.groupDot} style={{ background: GROUP_COLOR[group] }} />
                             : pinned ? <Pin size={10} style={{ verticalAlign: '-1px' }} />
                                 : <Link2 size={10} style={{ verticalAlign: '-1px' }} />}
                         <span className={group ? undefined : styles.pinText}> {group ?? (pinned ? '鎖定' : '連動')}</span>
                         <ChevronDown size={9} aria-hidden />
-                    </button>
-                    {menuOpen && (
-                        <>
-                            <div className={styles.menuBackdrop} onClick={() => setMenuOpen(false)} />
-                            <div className={styles.linkMenu} role='menu' aria-label='連動方式'>
-                                {([['main', '連動', '自選清單'], ...link.groups.map(g => [g.id, `群組 ${g.id}`, g.count > 0 && g.code ? `${g.code} · ${g.count} 個` : '未使用'] as const)] as const).map(([mode, label, note]) => (
-                                    <button key={mode} type='button' role='menuitemradio' aria-checked={link.mode === mode} className={styles.linkItem}
-                                        onClick={() => { setMenuOpen(false); link.onMode(mode as LinkMode); }}>
-                                        <span className={styles.groupDot} style={{ background: mode === 'main' ? undefined : GROUP_COLOR[mode as LinkGroupId] }} />
-                                        {label}
-                                        <span className={styles.linkNote}>{note}</span>
-                                        {link.mode === mode && <Check size={11} aria-hidden />}
-                                    </button>
-                                ))}
-                                <button type='button' role='menuitemradio' aria-checked={pinned} className={styles.linkItem}
-                                    onClick={() => { setMenuOpen(false); link.onMode('pin'); }}>
-                                    <Pin size={10} aria-hidden />鎖定目前商品
-                                </button>
-                                <div className={styles.linkHint}>同一群組的面板共用一個商品；彈出視窗不跟群組連動</div>
-                            </div>
-                        </>
-                    )}
+                    </Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" aria-label="連動方式" className="min-w-64">
+                        <DropdownMenuRadioGroup value={link.mode} onValueChange={mode => { setMenuOpen(false); link.onMode(mode as LinkMode); }}>
+                            {([['main', '連動', '自選清單'], ...link.groups.map(g => [g.id, `群組 ${g.id}`, g.count > 0 && g.code ? `${g.code} · ${g.count} 個` : '未使用'] as const)] as const).map(([mode, label, note]) => (
+                                <DropdownMenuRadioItem key={mode} value={mode}>
+                                    <span className={styles.groupDot} style={{ background: mode === 'main' ? undefined : GROUP_COLOR[mode as LinkGroupId] }} />
+                                    {label}<span className={styles.linkNote}>{note}</span>
+                                </DropdownMenuRadioItem>
+                            ))}
+                            <DropdownMenuRadioItem value="pin"><Pin aria-hidden />鎖定目前商品</DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuGroup><DropdownMenuLabel className="max-w-64 whitespace-normal">同一群組的面板共用一個商品；彈出視窗不跟群組連動</DropdownMenuLabel></DropdownMenuGroup>
+                    </DropdownMenuContent></DropdownMenu>
                 </span>
             )}
             {pinnable &&
                 onPinChange &&
                 !link &&
                 (pin === null || pin === undefined ? (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.pinBtn.linked}
                         title='跟隨自選清單選擇；點擊鎖定目前商品'
                         onClick={() =>
@@ -184,10 +175,10 @@ export function PanelChrome({
                     >
                         <Link2 size={10} style={{ verticalAlign: '-1px' }} />
                         <span className={styles.pinText}> 連動</span>
-                    </button>
+                    </Button>
                 ) : (
                     <>
-                        <input
+                        <Input
                             className={styles.pinInput}
                             value={editCode}
                             title='鎖定的商品代碼，Enter 套用'
@@ -201,35 +192,35 @@ export function PanelChrome({
                                 }
                             }}
                         />
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.pinBtn.pinned}
                             title='已鎖定；點擊恢復連動'
                             onClick={() => onPinChange(null)}
                         >
                             <Pin size={10} style={{ verticalAlign: '-1px' }} />
                             <span className={styles.pinText}> 鎖定</span>
-                        </button>
+                        </Button>
                     </>
                 ))}
             {onPopout && (
-                <button
+                <Button size="compact-icon" variant="ghost"
                     className={`${styles.closeBtn} ${styles.popoutBtn}`}
                     title='彈出為獨立視窗（多螢幕）'
                     onClick={onPopout}
                 >
                     <ExternalLink size={11} />
-                </button>
+                </Button>
             )}
             {onRemove && (
-                <button
+                <Button size="compact-icon" variant="ghost"
                     className={styles.closeBtn}
                     title='移除此面板'
                     onClick={onRemove}
                 >
                     <X size={11} />
-                </button>
+                </Button>
             )}
-        </div>
+        </CardHeader>
     );
 }
 

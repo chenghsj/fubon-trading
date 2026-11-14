@@ -1,3 +1,8 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 // src/components/opt-payoff.tsx — 選擇權到期損益圖 (issue #2).
 // Builds the settlement payoff curve from option (and simulated futures)
 // legs: real positions of a chosen expiry can be toggled in, simulated
@@ -259,17 +264,17 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
                 {months.length > 0 && (
-                    <select
+                    <NativeSelect
                         className={styles.monthSelect}
                         value={month}
                         onChange={(e) => setMonth(e.target.value)}
                     >
                         {months.map((m) => (
-                            <option key={m} value={m}>
+                            <NativeSelectOption key={m} value={m}>
                                 {m}
-                            </option>
+                            </NativeSelectOption>
                         ))}
-                    </select>
+                    </NativeSelect>
                 )}
                 <span className={styles.warn}>
                     ⚠ 結算損益試算（不含時間價值/手續費），僅供參考，盈虧自負
@@ -291,11 +296,10 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
                     </span>
                 )}
                 {legs.map((l) => (
-                    <label key={l.id} className={styles.legRow}>
-                        <input
-                            type='checkbox'
+                    <Label key={l.id} className={styles.legRow}>
+                        <Checkbox
                             checked={l.include}
-                            onChange={() =>
+                            onCheckedChange={() =>
                                 setLegs((prev) =>
                                     prev.map((x) =>
                                         x.id === l.id
@@ -312,7 +316,7 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
                             {privMoney && !l.simulated && l.maskedLabel ? l.maskedLabel : l.label}
                         </span>
                         {l.simulated && (
-                            <button
+                            <Button size="compact" variant="destructive"
                                 className={styles.legRemove}
                                 onClick={() =>
                                     setLegs((prev) =>
@@ -321,36 +325,36 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
                                 }
                             >
                                 <X size={10} />
-                            </button>
+                            </Button>
                         )}
-                    </label>
+                    </Label>
                 ))}
             </div>
             <div className={styles.simRow}>
                 <div className={ticket.segGroup} style={{ flex: '0 0 auto' }}>
                     {(['Buy', 'Sell'] as const).map((s) => (
-                        <button
+                        <Button aria-pressed={simSide === s} size="compact" variant={simSide === s ? 'secondary' : 'outline'}
                             key={s}
                             className={ticket.seg[simSide === s ? 'on' : 'off']}
                             onClick={() => setSimSide(s)}
                         >
                             {s === 'Buy' ? '買' : '賣'}
-                        </button>
+                        </Button>
                     ))}
                 </div>
-                <select
+                <NativeSelect
                     className={styles.monthSelect}
                     value={simRight}
                     onChange={(e) =>
                         setSimRight(e.target.value as 'C' | 'P' | 'F')
                     }
                 >
-                    <option value='C'>Call</option>
-                    <option value='P'>Put</option>
-                    <option value='F'>期貨</option>
-                </select>
+                    <NativeSelectOption value='C'>Call</NativeSelectOption>
+                    <NativeSelectOption value='P'>Put</NativeSelectOption>
+                    <NativeSelectOption value='F'>期貨</NativeSelectOption>
+                </NativeSelect>
                 {simRight !== 'F' && (
-                    <input
+                    <Input
                         className={ticket.numInput}
                         placeholder='履約價'
                         value={simStrike}
@@ -358,23 +362,23 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
                         onChange={(e) => setSimStrike(e.target.value)}
                     />
                 )}
-                <input
+                <Input
                     className={ticket.numInput}
                     placeholder='口數'
                     value={simQty}
                     inputMode='numeric'
                     onChange={(e) => setSimQty(e.target.value)}
                 />
-                <input
+                <Input
                     className={ticket.numInput}
                     placeholder={simRight === 'F' ? '成交價' : '權利金'}
                     value={simPrice}
                     inputMode='decimal'
                     onChange={(e) => setSimPrice(e.target.value)}
                 />
-                <button className={styles.addBtn} onClick={addSim}>
+                <Button size="compact" variant="outline" className={styles.addBtn} onClick={addSim}>
                     ＋模擬
-                </button>
+                </Button>
             </div>
         </div>
     );

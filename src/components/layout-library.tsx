@@ -1,3 +1,7 @@
+import { TerminalDialog } from './terminal-dialog';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 // src/components/layout-library.tsx — 版面庫 dialog：預設版面＋我的版面，
 // 卡片縮圖（SVG：分類色塊反映真實 grid 幾何）＋ hover flyout 放大預覽＋
 // 底部「儲存目前版面」（所見即所存縮圖＋可選 icon）。幾何換算在
@@ -190,14 +194,6 @@ export function LayoutLibrary({
         }
     }, [open]);
 
-    useEffect(() => {
-        if (!open) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [open, onClose]);
 
     if (!open) return null;
 
@@ -243,39 +239,36 @@ export function LayoutLibrary({
         })();
 
     return (
-        <>
-            <div className={styles.backdrop} onClick={onClose} />
-            <div
+        <TerminalDialog title="版面庫" onClose={onClose} layout="custom"
                 className={styles.shell}
-                role='dialog'
-                aria-label='版面庫'
             >
                 <div className={styles.dialog}>
                     <div className={styles.titleRow}>
                         <LayoutGrid size={13} /> 版面庫
-                        <button
+                        <Button size="compact" variant="ghost"
                             className={`${hud.profileDelete} ${styles.titleClose}`}
                             title='關閉（Esc）'
                             onClick={onClose}
                         >
                             <X size={12} />
-                        </button>
+                        </Button>
                     </div>
                     <div className={styles.body}>
                         <div className={styles.sectionHeader}>預設版面</div>
                         <div className={styles.cardGrid}>
                             {LAYOUT_PRESETS.map((p) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={p.name}
                                     title={`套用預設版面「${p.name}」`}
-                                    className={
+                                    className={cn(
                                         styles.card[
                                             hovered?.kind === 'preset' &&
                                             hovered.name === p.name
                                                 ? 'active'
                                                 : 'normal'
-                                        ]
-                                    }
+                                        ],
+                                        'min-w-0 flex-col items-stretch justify-start whitespace-normal text-left',
+                                    )}
                                     onMouseEnter={() =>
                                         setHovered({
                                             kind: 'preset',
@@ -301,7 +294,7 @@ export function LayoutLibrary({
                                     <span className={styles.cardDesc}>
                                         {p.desc}
                                     </span>
-                                </button>
+                                </Button>
                             ))}
                         </div>
                         <div className={styles.sectionHeader}>我的版面</div>
@@ -372,7 +365,7 @@ export function LayoutLibrary({
                                                 />
                                             </span>
                                             {isRenaming ? (
-                                                <input
+                                                <Input
                                                     className={
                                                         styles.renameInput
                                                     }
@@ -421,7 +414,7 @@ export function LayoutLibrary({
                                                         styles.cardActions
                                                     }
                                                 >
-                                                    <button
+                                                    <Button size="compact" variant="outline"
                                                         className={
                                                             styles.actionBtn
                                                                 .normal
@@ -439,9 +432,9 @@ export function LayoutLibrary({
                                                         }}
                                                     >
                                                         <Pencil size={11} />
-                                                    </button>
+                                                    </Button>
                                                     {deleteArm === p.name ? (
-                                                        <button
+                                                        <Button size="compact" variant="destructive"
                                                             className={
                                                                 styles.actionBtn
                                                                     .danger
@@ -458,9 +451,9 @@ export function LayoutLibrary({
                                                             }}
                                                         >
                                                             確認刪除
-                                                        </button>
+                                                        </Button>
                                                     ) : (
-                                                        <button
+                                                        <Button size="compact" variant="outline"
                                                             className={
                                                                 styles.actionBtn
                                                                     .normal
@@ -476,7 +469,7 @@ export function LayoutLibrary({
                                                             <Trash2
                                                                 size={11}
                                                             />
-                                                        </button>
+                                                        </Button>
                                                     )}
                                                 </span>
                                             )}
@@ -500,7 +493,7 @@ export function LayoutLibrary({
                         </span>
                         <div className={styles.saveFields}>
                             <div className={hud.saveRow}>
-                                <input
+                                <Input
                                     className={hud.saveInput}
                                     placeholder='儲存目前版面 — 輸入名稱'
                                     value={saveName}
@@ -512,7 +505,7 @@ export function LayoutLibrary({
                                         if (e.key === 'Enter') doSave();
                                     }}
                                 />
-                                <button
+                                <Button size="compact" variant={overwriteArm ? 'destructive' : 'default'}
                                     className={
                                         overwriteArm
                                             ? styles.actionBtn.danger
@@ -539,12 +532,12 @@ export function LayoutLibrary({
                                     ) : (
                                         '儲存'
                                     )}
-                                </button>
+                                </Button>
                             </div>
                             <div className={styles.iconRow}>
                                 {Object.entries(PROFILE_ICONS).map(
                                     ([name, Icon]) => (
-                                        <button
+                                        <Button aria-pressed={saveIcon === name} size="compact" variant={saveIcon === name ? 'secondary' : 'outline'}
                                             key={name}
                                             className={
                                                 styles.iconOpt[
@@ -564,7 +557,7 @@ export function LayoutLibrary({
                                             }}
                                         >
                                             <Icon size={13} />
-                                        </button>
+                                        </Button>
                                     ),
                                 )}
                                 <span className={styles.saveHint}>
@@ -595,7 +588,6 @@ export function LayoutLibrary({
                         <FlyoutPanelList workspace={hoveredWs.ws} />
                     </div>
                 )}
-            </div>
-        </>
+        </TerminalDialog>
     );
 }

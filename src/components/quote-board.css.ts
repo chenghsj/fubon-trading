@@ -60,8 +60,8 @@ const limitBadgeBase = style({
 });
 
 export const limitBadge = styleVariants({
-    up: [limitBadgeBase, { background: vars.color.up }],
-    down: [limitBadgeBase, { background: vars.color.down }],
+    up: [limitBadgeBase, { background: vars.color.upSolid }],
+    down: [limitBadgeBase, { background: vars.color.downSolid }],
 });
 
 // 有階梯的看板（指數、個股共用）：data-tier 由 useBoardTier 依面板大小設定（目標是標題列加看板

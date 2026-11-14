@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/opt-payoff.css.ts
 
 import { style } from '@vanilla-extract/css';
@@ -10,14 +11,14 @@ export const wrap = style({
     height: '100%',
 });
 
-export const toolbar = style({
+export const toolbar = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     gap: vars.space.sm,
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const monthSelect = style({
     fontFamily: vars.font.mono,
@@ -80,13 +81,13 @@ export const legRemove = style({
     ':hover': { color: vars.color.danger, borderColor: vars.color.danger },
 });
 
-export const simRow = style({
+export const simRow = style([controlRow, {
     display: 'flex',
     gap: vars.space.xs,
     padding: vars.space.sm,
     borderTop: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const addBtn = style({
     fontFamily: vars.font.display,

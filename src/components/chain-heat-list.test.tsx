@@ -13,6 +13,14 @@ vi.mock('./chain-ui', async (importOriginal) => ({
 import type { HeatCell } from '../lib/chain-motion';
 import { fitColumns, fmtYi, GROUP_COLUMNS, GROUP_STEPS, GROUP_STEPS_IDLE, HeatList, MEMBER_COLUMNS, MEMBER_STEPS, rowStep, sortTiles, type Tile } from './chain-heat';
 
+
+function ancestor(node: ReactTestInstance, type: string): ReactTestInstance {
+    let parent = node.parent;
+    while (parent && parent.type !== type) parent = parent.parent;
+    if (!parent) throw new Error(`Missing ${type} ancestor`);
+    return parent;
+}
+
 const cell = (net: number, turnover: number): HeatCell => ({ net, turnover, ratio: turnover > 0 ? net / turnover : null, minutes: [], amounts: [] });
 const tile = (id: string, net: number, pct: number | null, order: number, turnover = 1e6): Tile => ({
     id,
@@ -115,7 +123,7 @@ describe('HeatList', () => {
 
         act(() => header('漲跌%').props.onClick());
         expect(rowNames()).toEqual(['b', 'a', 'd', 'c']);
-        expect(header('漲跌%').parent!.props['aria-sort']).toBe('descending');
+        expect(ancestor(header('漲跌%'), 'th').props['aria-sort']).toBe('descending');
 
         act(() => header('漲跌%').props.onClick());
         expect(rowNames()).toEqual(['d', 'a', 'b', 'c']);
@@ -132,12 +140,12 @@ describe('HeatList', () => {
             renderer = create(groups(null, null));
         });
         expect(rowNames()).toEqual(['b', 'a', 'd', 'c']);
-        expect(header('漲跌%').parent!.props['aria-sort']).toBe('descending');
-        expect(header('淨流入').parent!.props['aria-sort']).toBeUndefined();
+        expect(ancestor(header('漲跌%'), 'th').props['aria-sort']).toBe('descending');
+        expect(ancestor(header('淨流入'), 'th').props['aria-sort']).toBeUndefined();
 
         act(() => header('漲跌%').props.onClick());
         expect(rowNames()).toEqual(['d', 'a', 'b', 'c']);
-        expect(header('漲跌%').parent!.props['aria-sort']).toBe('ascending');
+        expect(ancestor(header('漲跌%'), 'th').props['aria-sort']).toBe('ascending');
     });
 
     it('renders only the columns it is given (the 金流 detail card)', () => {
@@ -178,7 +186,7 @@ describe('HeatList', () => {
             });
             expect(renderer!.root.findAllByType('th').map((th) => th.props.title ?? th.findAllByType('button')[0]?.props.children[0])).toEqual(['族群', '漲跌%']);
             expect(rowNames()).toEqual(['b', 'a', 'd', 'c']);
-            expect(header('漲跌%').parent!.props['aria-sort']).toBe('descending');
+            expect(ancestor(header('漲跌%'), 'th').props['aria-sort']).toBe('descending');
         } finally {
             box.width = 0;
             vi.unstubAllGlobals();

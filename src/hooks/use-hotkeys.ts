@@ -1,3 +1,4 @@
+import { isFormControlTarget } from '../lib/keyboard-target';
 // src/hooks/use-hotkeys.ts — global trading hotkeys.
 // B/S: switch order tickets to buy/sell · Esc Esc: cancel all orders
 // (opt-in via 風控 settings, default off) · Cmd/Ctrl+K: symbol palette.
@@ -11,14 +12,7 @@ import { cancelAllOrders, notify } from '../lib/trade';
 export const TICKET_ACTION_EVENT = 'sj-ticket-action';
 
 function isTyping(): boolean {
-    const el = document.activeElement;
-    return (
-        !!el &&
-        (el.tagName === 'INPUT' ||
-            el.tagName === 'TEXTAREA' ||
-            el.tagName === 'SELECT' ||
-            (el as HTMLElement).isContentEditable === true)
-    );
+    return isFormControlTarget(document.activeElement);
 }
 
 export function useHotkeys({

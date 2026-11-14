@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/chain-detail.tsx — 鏈內流向 (upstream → midstream →
 // downstream cards) and the focused-stock card of 產業鏈資金流向.
 
@@ -237,7 +238,7 @@ export function TierCard({
             <TierChart flow={flow} from={from} now={now} hover={hover} themeKey={themeKey} revision={revision} />
             <div className={s.leaders}>
                 {top.map((row) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={row.code}
                         type='button'
                         className={s.leader[row.code === focus ? 'on' : 'off']}
@@ -250,7 +251,7 @@ export function TierCard({
                         <span className={`${s.leaderNum} ${live ? panel.dirText[dir(row.flow5)] : s.dim}`}>
                             {live ? fmtTwd(row.flow5, true) : fmtTwd(row.turnover5)}
                         </span>
-                    </button>
+                    </Button>
                 ))}
                 {top.length === 0 && <span className={s.empty}>尚無成交</span>}
             </div>
@@ -306,13 +307,13 @@ export function FocusCard({
         <aside className={s.focus} aria-label='聚焦個股'>
             <div className={s.focusHead}>
                 <CircleDot size={12} className={s.focusIcon} aria-hidden='true' />
-                <button type='button' className={s.focusName} onClick={() => onPick(code)} title='設為連動商品'>
+                <Button size="compact" variant="ghost" type='button' className={s.focusName} onClick={() => onPick(code)} title='設為連動商品'>
                     {nameOf(`tw.${code}`)} <span className={s.focusCode}>{code}</span>
-                </button>
+                </Button>
                 <span className={s.spacer} />
-                <button type='button' className={s.closeBtn} onClick={onClose} aria-label='取消聚焦'>
+                <Button size="compact" variant="ghost" type='button' className={s.closeBtn} onClick={onClose} aria-label='取消聚焦'>
                     <X size={12} aria-hidden='true' />
-                </button>
+                </Button>
             </div>
             <div className={s.focusFigures}>
                 <span className={s.figure}>
@@ -377,9 +378,9 @@ export function FocusCard({
                                     </>
                                 );
                                 return tw ? (
-                                    <button key={hit.edge.id} type='button' className={s.rel} title={title} onClick={() => onPick(tw)}>
+                                    <Button size="compact" variant="ghost" key={hit.edge.id} type='button' className={s.rel} title={title} onClick={() => onPick(tw)}>
                                         {body}
-                                    </button>
+                                    </Button>
                                 ) : (
                                     <span key={hit.edge.id} className={`${s.rel} ${s.relStatic}`} title={title}>
                                         {body}

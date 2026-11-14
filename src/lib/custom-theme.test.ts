@@ -69,6 +69,7 @@ describe('custom theme', () => {
         for (const convention of ['tw', 'intl'] as const) {
             const k = customTokens(t, convention);
             expect(k.success).toBe(t.green);
+            expect(k.successSolid).toBe(customTokens(t, 'tw').successSolid);
             expect(k.danger).toBe(CUSTOM_DANGER[t.base].danger);
             expect(k.successDim).toMatch(/^rgba\(/);
             expect(k.dangerDim).toMatch(/^rgba\(/);
@@ -80,7 +81,7 @@ describe('custom theme', () => {
             const t = { ...CUSTOM_BASES[base] };
             const k = customTokens(t, 'tw');
             expect(k.danger).not.toBe(k.up);
-            expect(k.danger).toBe(base === 'dark' ? '#ff6a4d' : '#c5341a');
+            expect(k.danger).toBe(base === 'dark' ? '#ff927a' : '#c13219');
             expect(k.dangerSolid).toBe(base === 'dark' ? '#d03a24' : '#c5341a');
         }
     });

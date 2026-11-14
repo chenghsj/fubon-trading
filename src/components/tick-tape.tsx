@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { retainQuote } from '../lib/quote-ownership';
 // src/components/tick-tape.tsx — time & sales feed.
 // Preloads today's recent history ticks, then streams live deals on top.
@@ -168,7 +169,7 @@ export function TickTape({ contract }: { contract: ContractBase }) {
                                 <AsyncStatus phase='loading' text='載入歷史成交…' />
                             ) : historyError ? (
                                 <AsyncStatus phase='error' text='歷史成交無法取得'
-                                    action={<button type='button' onClick={() => setRetrySeq(n => n + 1)}>重試</button>} />
+                                    action={<Button size="compact" variant="ghost" type='button' onClick={() => setRetrySeq(n => n + 1)}>重試</Button>} />
                             ) : (
                                 <AsyncStatus phase='empty' text='今日尚無成交' />
                             )}

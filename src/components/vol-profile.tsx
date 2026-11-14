@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { retainQuote } from '../lib/quote-ownership';
 // src/components/vol-profile.tsx — 分價量表 + 內外盤比.
 // Aggregates today's history ticks once, then accumulates live ticks.
@@ -134,7 +135,7 @@ export function VolProfile({ contract }: { contract: ContractBase }) {
     if (rows.length === 0) {
         if (historyError) return <div className={dock.emptyState}>
             <AsyncStatus phase='error' text='分價量歷史無法取得'
-                action={<button type='button' onClick={() => setRetrySeq(n => n + 1)}>重試</button>} />
+                action={<Button size="compact" variant="ghost" type='button' onClick={() => setRetrySeq(n => n + 1)}>重試</Button>} />
         </div>;
         return <div className={dock.emptyState}><AsyncStatus phase='empty' text='今日尚無成交資料' /></div>;
     }

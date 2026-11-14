@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/option-expiry-picker.tsx — T 字報價的到期契約選擇器（issue #152／#154）
 //
 // 收合時只佔一列：‹ [MM/DD 週五 週選 剩 3 天 ▾] ›。‹／› 依到期日順序
@@ -98,7 +99,7 @@ export function OptionExpiryPicker({
 
     return (
         <div ref={anchorRef} className={styles.picker} role="group" aria-label="到期契約">
-            <button
+            <Button size="compact" variant="ghost"
                 type="button"
                 className={styles.step}
                 aria-label="上一個到期"
@@ -107,8 +108,8 @@ export function OptionExpiryPicker({
                 onClick={() => prev && onChange(prev.key)}
             >
                 ‹
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="ghost"
                 ref={triggerRef}
                 type="button"
                 className={styles.trigger}
@@ -134,8 +135,8 @@ export function OptionExpiryPicker({
                 <span className={styles.caret} aria-hidden>
                     ▾
                 </span>
-            </button>
-            <button
+            </Button>
+            <Button size="compact" variant="ghost"
                 type="button"
                 className={styles.step}
                 aria-label="下一個到期"
@@ -144,7 +145,7 @@ export function OptionExpiryPicker({
                 onClick={() => next && onChange(next.key)}
             >
                 ›
-            </button>
+            </Button>
             {open && !empty && (
                 <ExpiryList
                     id={listId}

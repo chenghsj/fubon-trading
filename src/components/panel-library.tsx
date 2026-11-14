@@ -1,3 +1,7 @@
+import { TerminalDialog } from './terminal-dialog';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 // src/components/panel-library.tsx — searchable panel picker dialog
 //
 // Replaces the old flat add-panel dropdown: search + recents + category
@@ -290,12 +294,13 @@ export function PanelLibrary({
         const meta = BLOCK_META[item.type];
         const Icon = PANEL_ICONS[item.type];
         return (
-            <button
+            <Button size="compact" variant="ghost"
                 key={`${idx}-${item.type}`}
                 data-idx={idx}
-                className={
-                    styles.card[idx === activeIndex ? 'active' : 'normal']
-                }
+                className={cn(
+                    styles.card[idx === activeIndex ? 'active' : 'normal'],
+                    'grid min-w-0 justify-start text-left',
+                )}
                 onMouseEnter={() => setActiveIndex(idx)}
                 onClick={(event) => activate(item, event.shiftKey)}
             >
@@ -313,25 +318,21 @@ export function PanelLibrary({
                 {item.existingId && (
                     <span className={styles.cardGo}>前往</span>
                 )}
-            </button>
+            </Button>
         );
     };
 
     const activeItem = flatItems[activeIndex];
 
     return (
-        <>
-            <div className={styles.backdrop} onClick={onClose} />
-            <div
+        <TerminalDialog title="新增面板" onClose={onClose} layout="custom"
                 className={styles.shell}
-                role='dialog'
-                aria-label='新增面板'
                 onKeyDown={onKeyDown}
             >
                 <div className={styles.dialog}>
                 <div className={styles.searchRow}>
                     <Search size={14} />
-                    <input
+                    <Input
                         ref={inputRef}
                         className={styles.searchInput}
                         placeholder='搜尋面板（名稱或用途）'
@@ -371,8 +372,8 @@ export function PanelLibrary({
                                 );
                                 return (
                                     <div key={group.key}>
-                                        <button
-                                            className={styles.sectionHeader}
+                                        <Button size="compact" variant="ghost"
+                                            className={cn(styles.sectionHeader, 'justify-start')}
                                             aria-expanded={!isCollapsed}
                                             onClick={() => {
                                                 setCollapsed((current) =>
@@ -403,7 +404,7 @@ export function PanelLibrary({
                                             >
                                                 {group.items.length}
                                             </span>
-                                        </button>
+                                        </Button>
                                         {!isCollapsed && (
                                             <div className={styles.cardGrid}>
                                                 {group.items.map(renderCard)}
@@ -451,18 +452,17 @@ export function PanelLibrary({
                         {liveType !== activeItem.type &&
                             livePreviewEnabled() &&
                             canLivePreview(activeItem.type) && (
-                                <button
+                                <Button size="compact" variant="outline"
                                     className={styles.previewButton}
                                     onClick={() =>
                                         setLiveType(activeItem.type)
                                     }
                                 >
                                     <Eye size={12} /> 即時預覽
-                                </button>
+                                </Button>
                             )}
                     </div>
                 )}
-            </div>
-        </>
+        </TerminalDialog>
     );
 }

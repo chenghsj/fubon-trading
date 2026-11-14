@@ -73,6 +73,7 @@ export const colorInput = style({
     cursor: 'pointer',
     flex: 'none',
     selectors: {
+        '&&': { width: 20, height: 20, padding: 0 },
         '&::-webkit-color-swatch-wrapper': { padding: 0 },
         '&::-webkit-color-swatch': { border: 'none', borderRadius: 3 },
     },
@@ -87,6 +88,7 @@ export const hex = style({
 
 export const preview = style({
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     gap: vars.space.md,
     padding: '6px 10px',

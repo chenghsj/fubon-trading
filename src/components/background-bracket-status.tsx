@@ -1,3 +1,6 @@
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 // src/components/background-bracket-status.tsx — minimal list of background
 // brackets (#201 ②) under the order ticket, until the 條件單管理面板 (#226)
 // takes over. Built only on bracket-contract.ts views and actions:
@@ -88,18 +91,18 @@ export function BracketRearm({ v, onClose }: { v: BracketView; onClose: () => vo
                 {cap > 0 ? `最多 ${maskMoney(`${cap} 口`, privMoney)}（目前可平倉量與括號單原本持有部位的較小者）`
                     : pos.state === 'ok' ? '目前沒有可平倉的部位，不需要重新啟用；若部位已自行處理，請按「我已自行處理」' : ''}
             </div>
-            <label className={styles.actions}>
+            <Label className={styles.actions}>
                 <span>口數</span>
-                <input aria-label='重新啟用口數' inputMode='numeric' value={value} disabled={busy || pos.state === 'loading'}
+                <Input aria-label='重新啟用口數' inputMode='numeric' value={value} disabled={busy || pos.state === 'loading'}
                     onChange={e => setQty(e.target.value.trim())} />
-            </label>
+            </Label>
             <div className={styles.note.muted}>
                 確認後才會在這個盤別重新開始盯價，不會立即送單；價格穿過時送出的平倉單就是你在這裡核可的內容。若現在價格已穿過，會先等你決定。重新啟用為單次，不會循環。
             </div>
             {message && <div className={styles.note.err} role='alert'>{message}</div>}
             <div className={styles.actions}>
-                <button type='button' className={styles.button} disabled={busy} onClick={onClose}>返回</button>
-                <button type='button' className={styles.button} disabled={busy || pos.state === 'loading' || !valid}
+                <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy} onClick={onClose}>返回</Button>
+                <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy || pos.state === 'loading' || !valid}
                     onClick={() => void run(async () => {
                         const over = checkRearmQuantity(subject, n, pos.state === 'ok' ? pos.view : { known: false, positions: [] });
                         if (over) throw new Error(over);
@@ -107,7 +110,7 @@ export function BracketRearm({ v, onClose }: { v: BracketView; onClose: () => vo
                         onClose();
                     })}>
                     {busy ? '處理中…' : `確認重新啟用（${valid ? n : '?'} 口）`}
-                </button>
+                </Button>
             </div>
         </div>
     );
@@ -171,14 +174,14 @@ function Row({ v, envNow, main }: { v: BracketView; envNow: string | null; main:
             {main && !rearming && (
                 <div className={styles.actions}>
                     {v.actions.rearm && (
-                        <button type='button' className={styles.button} disabled={busy || !here}
+                        <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy || !here}
                             title={here ? undefined : '切回原環境才能重新啟用'} onClick={() => setRearming(true)}>
                             <RotateCcw size={12} aria-hidden /> 在新盤別重新啟用
-                        </button>
+                        </Button>
                     )}
                     {v.actions.decide && (
                         <>
-                            <button type='button' className={styles.button} disabled={busy || !here}
+                            <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy || !here}
                                 title='恢復盯價時價格已穿過；立即以市價平倉這張括號單持有的口數'
                                 onClick={() => {
                                     if (!sending) { setSending(true); return; }
@@ -186,29 +189,29 @@ function Row({ v, envNow, main }: { v: BracketView; envNow: string | null; main:
                                     void run(() => resolveBackgroundTrigger(v.programId, v.levelId, 'send'));
                                 }}>
                                 <Send size={12} aria-hidden /> {sending ? `再按一次：市價平倉 ${v.position} 口` : '送出平倉單'}
-                            </button>
-                            <button type='button' className={styles.button} disabled={busy || !here}
+                            </Button>
+                            <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy || !here}
                                 title='不送單；價格回到觸發價另一側後再次穿過才觸發'
                                 onClick={() => void run(() => resolveBackgroundTrigger(v.programId, v.levelId, 'keep'))}>
                                 <Eye size={12} aria-hidden /> 繼續盯價
-                            </button>
+                            </Button>
                         </>
                     )}
                     {v.actions.markHandled && (
-                        <button type='button' className={styles.button} disabled={busy}
+                        <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy}
                             onClick={() => {
                                 if (!asking) { setAsking(true); return; }
                                 setAsking(false);
                                 void run(() => markBackgroundHandled(v.programId, v.levelId));
                             }}>
                             <UserCheck size={12} aria-hidden /> {asking ? '再按一次：確認我已自行處理' : '我已自行處理'}
-                        </button>
+                        </Button>
                     )}
                     {v.actions.remove && (
-                        <button type='button' className={styles.button} disabled={busy}
+                        <Button size="compact" variant="outline" type='button' className={styles.button} disabled={busy}
                             onClick={() => void run(() => removeBackgroundBracket(v.programId))}>
                             <Trash2 size={12} aria-hidden /> 移除
-                        </button>
+                        </Button>
                     )}
                 </div>
             )}

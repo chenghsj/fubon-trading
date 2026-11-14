@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/flash-quick-menu.tsx — 閃電下單數量旁的「張·融資」／「口·新倉」
 // 快速下拉：常用的委託條件（信用、效期、期貨倉別與市價鈕）、單位與「更多設定…」。
 // 清單與停用規則來自下單面板共用的 order-conditions；選了什麼由閃電面板保存。
@@ -27,7 +28,7 @@ function Seg<T extends string>({ label, items, value, disabled, onPick }: {
         <div className={styles.menuSegRow} role='group' aria-label={label}>
             <span className={styles.menuSegLabel}>{label}</span>
             {items.map(it => (
-                <button
+                <Button size="compact" variant="ghost"
                     key={it.value}
                     type='button'
                     role='menuitemradio'
@@ -38,7 +39,7 @@ function Seg<T extends string>({ label, items, value, disabled, onPick }: {
                     onClick={() => { if (!it.disabled) onPick(it.value); }}
                 >
                     {it.label}
-                </button>
+                </Button>
             ))}
         </div>
     );
@@ -94,7 +95,7 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                         {CREDIT_ITEMS.map(([cond, name, desc]) => {
                             const on = !odd && credit.cond === cond && !(cond === 'Cash' && credit.daytradeShort);
                             return (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={cond}
                                     type='button'
                                     role='menuitemradio'
@@ -106,11 +107,11 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                                 >
                                     {name}<span className={styles.menuDesc}>{desc}</span>
                                     {on && <Check size={11} aria-hidden />}
-                                </button>
+                                </Button>
                             );
                         })}
                         <div className={styles.menuSep} />
-                        <button
+                        <Button size="compact" variant="ghost"
                             type='button'
                             role='menuitemcheckbox'
                             aria-checked={!odd && credit.daytradeShort}
@@ -122,7 +123,7 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                         >
                             現股當沖先賣<span className={styles.menuDesc}>只限現股</span>
                             {!odd && credit.daytradeShort && <Check size={11} aria-hidden />}
-                        </button>
+                        </Button>
                         {odd && <div className={styles.menuNote}>零股只能以現股買賣，不能融資、融券或當沖；切回整股時恢復這個面板的信用設定。</div>}
                         <div className={styles.menuSep} />
                     </>
@@ -168,11 +169,11 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                         {triggerSend.type === 'LMT' && !odd && (
                             <div className={styles.menuSegRow} role='group' aria-label='觸價後限價檔數'>
                                 <span className={styles.menuSegLabel}>檔數</span>
-                                <button type='button' className={styles.menuSegBtn.off} aria-label='減一檔'
-                                    disabled={triggerSend.ticks <= 0} onClick={() => onTriggerSend({ type: 'LMT', ticks: Math.max(0, triggerSend.ticks - 1) })}>−</button>
+                                <Button size="compact" variant="ghost" type='button' className={styles.menuSegBtn.off} aria-label='減一檔'
+                                    disabled={triggerSend.ticks <= 0} onClick={() => onTriggerSend({ type: 'LMT', ticks: Math.max(0, triggerSend.ticks - 1) })}>−</Button>
                                 <span className={styles.menuDesc}>觸發價 ± {triggerSend.ticks} 檔</span>
-                                <button type='button' className={styles.menuSegBtn.off} aria-label='加一檔'
-                                    disabled={triggerSend.ticks >= TRIGGER_LIMIT_MAX_TICKS} onClick={() => onTriggerSend({ type: 'LMT', ticks: Math.min(TRIGGER_LIMIT_MAX_TICKS, triggerSend.ticks + 1) })}>＋</button>
+                                <Button size="compact" variant="ghost" type='button' className={styles.menuSegBtn.off} aria-label='加一檔'
+                                    disabled={triggerSend.ticks >= TRIGGER_LIMIT_MAX_TICKS} onClick={() => onTriggerSend({ type: 'LMT', ticks: Math.min(TRIGGER_LIMIT_MAX_TICKS, triggerSend.ticks + 1) })}>＋</Button>
                             </div>
                         )}
                         {triggerLayout && onTriggerLayout && (
@@ -197,9 +198,9 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                 {onProtect && (
                     <>
                         <div className={styles.menuSep} />
-                        <button type='button' role='menuitem' className={styles.menuItem.off} onClick={() => { onClose(); onProtect(); }}>
+                        <Button size="compact" variant="ghost" type='button' role='menuitem' className={styles.menuItem.off} onClick={() => { onClose(); onProtect(); }}>
                             <ShieldCheck size={11} aria-hidden />自動停損停利…
-                        </button>
+                        </Button>
                     </>
                 )}
                 {protectBlock && (
@@ -214,7 +215,7 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                     <>
                         <div className={styles.menuSep} />
                         {([['Common', '張（整股）'], ['IntradayOdd', '股（盤中零股）']] as [FlashLot, string][]).map(([l, name]) => (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 key={l}
                                 type='button'
                                 role='menuitemradio'
@@ -224,14 +225,14 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                             >
                                 {name}
                                 {lot === l && <Check size={11} aria-hidden />}
-                            </button>
+                            </Button>
                         ))}
                     </>
                 )}
                 {showTotals !== undefined && onShowTotals && (
                     <>
                         <div className={styles.menuSep} />
-                        <button
+                        <Button size="compact" variant="ghost"
                             type='button'
                             role='menuitemcheckbox'
                             aria-checked={showTotals}
@@ -241,13 +242,13 @@ export function FlashQuickMenu({ market, odd, warrant = false, lot, credit, orde
                         >
                             <Sigma size={11} aria-hidden />顯示委託合計
                             {showTotals && <Check size={11} aria-hidden />}
-                        </button>
+                        </Button>
                     </>
                 )}
                 <div className={styles.menuSep} />
-                <button type='button' role='menuitem' className={styles.menuItem.off} onClick={pick(onMore)}>
+                <Button size="compact" variant="ghost" type='button' role='menuitem' className={styles.menuItem.off} onClick={pick(onMore)}>
                     <Settings2 size={11} aria-hidden />更多設定…
-                </button>
+                </Button>
                 <div className={styles.menuNote}>切換後自動解除「點價即下單」。</div>
             </div>
         </>

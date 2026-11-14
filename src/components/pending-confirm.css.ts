@@ -201,7 +201,7 @@ export const primary = style({
     borderRadius: vars.radius.sm,
     border: `1px solid ${vars.color.accent}`,
     background: vars.color.accent,
-    color: vars.color.background,
+    color: vars.color.onAccent,
     ':disabled': {
         cursor: 'default',
         background: 'transparent',

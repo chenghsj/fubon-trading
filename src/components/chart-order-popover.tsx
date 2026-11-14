@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Input } from '@/components/ui/input';
 // src/components/chart-order-popover.tsx — 下單設定按鈕與彈出面板（#204）
 // K 線圖與閃電下單共用：OrderSettingsButton 是通用的按鈕＋面板，只列該面板
 // 真的會用到、且這個商品適用的選項（不做灰掉的選項），底部一句話說明
@@ -176,7 +179,7 @@ export function OrderSettingsButton({
     }, [open]);
     return (
         <span className={`${styles.anchor}${align === 'panel' ? ` ${styles.anchorStatic}` : ''}${className ? ` ${className}` : ''}`}>
-            <button
+            <Button size="compact" variant="ghost"
                 ref={buttonRef}
                 type='button'
                 className={styles.chip[open ? 'open' : 'closed']}
@@ -195,7 +198,7 @@ export function OrderSettingsButton({
             >
                 <Settings2 size={11} aria-hidden />
                 {chip !== undefined && <span className={styles.chipQty}>{chip}</span>}
-            </button>
+            </Button>
             {open && (
                 <>
                     <div className={styles.backdrop} onClick={() => setOpen(false)} />
@@ -323,20 +326,20 @@ export function OrderSettingsPanel({
             {account && (
                 <div className={styles.row}>
                     <span className={styles.label}>帳號</span>
-                    <select
-                        className={styles.select}
+                    <NativeSelect
+                        wrapperClassName="w-full" className={styles.select}
                         aria-label={`${layout.title.replace('設定', '')}帳號`}
                         value={settings.accountKey ?? FOLLOW}
                         onChange={e => set({ accountKey: e.target.value === FOLLOW ? undefined : e.target.value })}
                     >
-                        <option value={FOLLOW}>
+                        <NativeSelectOption value={FOLLOW}>
                             {account.following && account.active ? `跟隨主畫面 ${account.short(account.active)}` : '跟隨主畫面'}
-                        </option>
-                        {account.missing && settings.accountKey && <option value={settings.accountKey}>帳戶不可用</option>}
+                        </NativeSelectOption>
+                        {account.missing && settings.accountKey && <NativeSelectOption value={settings.accountKey}>帳戶不可用</NativeSelectOption>}
                         {account.eligible.map(a => (
-                            <option key={flashAccountKey(a)} value={flashAccountKey(a)}>{account.long(a)}</option>
+                            <NativeSelectOption key={flashAccountKey(a)} value={flashAccountKey(a)}>{account.long(a)}</NativeSelectOption>
                         ))}
-                    </select>
+                    </NativeSelect>
                 </div>
             )}
             {layout.unit && (
@@ -344,7 +347,7 @@ export function OrderSettingsPanel({
                     <span className={styles.label}>單位</span>
                     <div className={styles.seg} role='group' aria-label='單位'>
                         {([['Common', '整股（張）'], ['IntradayOdd', '盤中零股（股）']] as const).map(([lot, text]) => (
-                            <button
+                            <Button size="compact" variant="outline"
                                 key={lot}
                                 type='button'
                                 className={styles.segBtn[settings.lot === lot ? 'on' : 'off']}
@@ -353,7 +356,7 @@ export function OrderSettingsPanel({
                                 onClick={() => { if (settings.lot !== lot) set({ lot, qty: 1 }); }}
                             >
                                 {text}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -361,7 +364,7 @@ export function OrderSettingsPanel({
             <div className={styles.row}>
                 <span className={styles.label}>數量</span>
                 <div className={styles.qtyRow}>
-                    <input
+                    <Input
                         className={styles.qtyInput}
                         aria-label={`${layout.qtyLabel}（${unit}）`}
                         inputMode='numeric'
@@ -375,9 +378,9 @@ export function OrderSettingsPanel({
                     />
                     <span>{unit}</span>
                     {QTY_PRESETS[unit].map(n => (
-                        <button key={n} type='button' className={styles.preset[settings.qty === n ? 'on' : 'off']} onClick={() => set({ qty: n })}>
+                        <Button size="compact" variant="ghost" key={n} type='button' className={styles.preset[settings.qty === n ? 'on' : 'off']} onClick={() => set({ qty: n })}>
                             {n}
-                        </button>
+                        </Button>
                     ))}
                 </div>
             </div>
@@ -386,11 +389,11 @@ export function OrderSettingsPanel({
                     <span className={styles.label}>記住數量</span>
                     <div className={styles.seg} role='group' aria-label='記住數量' title={layout.rememberQty.note}>
                         {([[true, '開'], [false, '關']] as const).map(([on, text]) => (
-                            <button key={text} type='button' className={styles.segBtn[layout.rememberQty!.on === on ? 'on' : 'off']}
+                            <Button size="compact" variant="outline" key={text} type='button' className={styles.segBtn[layout.rememberQty!.on === on ? 'on' : 'off']}
                                 aria-pressed={layout.rememberQty!.on === on}
                                 onClick={() => { if (layout.rememberQty!.on !== on) layout.rememberQty!.onToggle(on); }}>
                                 {text}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                     <span className={styles.rowNote} data-testid='remember-qty-text'>{layout.rememberQty.text}</span>
@@ -401,10 +404,10 @@ export function OrderSettingsPanel({
                     <span className={styles.label}>委託</span>
                     <div className={styles.seg} role='group' aria-label='委託條件'>
                         {ORDER_TYPES.map(t => (
-                            <button key={t} type='button' className={styles.segBtn[settings.orderType === t ? 'on' : 'off']}
+                            <Button size="compact" variant="outline" key={t} type='button' className={styles.segBtn[settings.orderType === t ? 'on' : 'off']}
                                 aria-pressed={settings.orderType === t} title='點價買賣的限價委託條件' onClick={() => set({ orderType: t })}>
                                 {t}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -414,10 +417,10 @@ export function OrderSettingsPanel({
                     <span className={styles.label}>類別</span>
                     <div className={styles.seg} role='group' aria-label='開平倉'>
                         {OCTYPES.map(o => (
-                            <button key={o.value} type='button' className={styles.segBtn[settings.octype === o.value ? 'on' : 'off']}
+                            <Button size="compact" variant="outline" key={o.value} type='button' className={styles.segBtn[settings.octype === o.value ? 'on' : 'off']}
                                 aria-pressed={settings.octype === o.value} onClick={() => set({ octype: o.value })}>
                                 {o.label}
-                            </button>
+                            </Button>
                         ))}
                     </div>
                 </div>
@@ -437,10 +440,10 @@ export function OrderSettingsPanel({
             )}
             <div className={styles.summary} data-testid='order-settings-summary'>{summary}</div>
             <div className={styles.foot}>
-                <button type='button' className={styles.footBtn.normal} title={layout.defaultNote} onClick={onSaveDefault}>
+                <Button size="compact" variant="outline" type='button' className={styles.footBtn.normal} title={layout.defaultNote} onClick={onSaveDefault}>
                     設為預設
-                </button>
-                <button type='button' className={styles.footBtn.primary} onClick={onClose}>完成</button>
+                </Button>
+                <Button size="compact" variant="default" type='button' className={styles.footBtn.primary} onClick={onClose}>完成</Button>
             </div>
         </div>
     );
@@ -469,11 +472,11 @@ function CreditRows({ credit, view, onChange }: {
                     {CREDIT_ITEMS.map(([cond, text, sub]) => {
                         const on = !off && credit.cond === cond;
                         return (
-                            <button key={cond} type='button' className={`${styles.segBtn[on ? 'on' : 'off']} ${styles.segFit}`} aria-pressed={on}
+                            <Button size="compact" variant="outline" key={cond} type='button' className={`${styles.segBtn[on ? 'on' : 'off']} ${styles.segFit}`} aria-pressed={on}
                                 disabled={off} title={off ? view.suspended! : sub}
                                 onClick={() => { if (!off && credit.cond !== cond) onChange({ cond, daytradeShort: false }); }}>
                                 {text}
-                            </button>
+                            </Button>
                         );
                     })}
                 </div>
@@ -481,13 +484,13 @@ function CreditRows({ credit, view, onChange }: {
             <div className={styles.row}>
                 <span className={styles.label}>當沖</span>
                 <div className={styles.seg} role='group' aria-label='現股當沖先賣'>
-                    <button type='button' className={styles.segBtn[!off && credit.daytradeShort ? 'on' : 'off']}
+                    <Button size="compact" variant="outline" type='button' className={styles.segBtn[!off && credit.daytradeShort ? 'on' : 'off']}
                         aria-pressed={!off && credit.daytradeShort} disabled={off}
                         title={off ? view.suspended! : view.dayTradeOk ? '現股當沖先賣：點價賣為現沖賣出，當日需回補（只限現股）' : '此股票目前不可現沖先賣；設定保留，換到可當沖的股票時生效'}
                         // 只限現股：勾選時信用條件一起改回現股
                         onClick={() => { if (!off) onChange({ cond: 'Cash', daytradeShort: !credit.daytradeShort }); }}>
                         現股當沖先賣
-                    </button>
+                    </Button>
                 </div>
             </div>
             {(off || view.status) && (
@@ -514,10 +517,10 @@ export function SettingsSegRow<T extends string>({ label, value, options, onPick
             <span className={styles.label}>{label}</span>
             <div className={styles.seg} role='group' aria-label={label}>
                 {options.map(([v, text, sub]) => (
-                    <button key={v} type='button' className={styles.segBtn[value === v ? 'on' : 'off']} aria-pressed={value === v}
+                    <Button size="compact" variant="outline" key={v} type='button' className={styles.segBtn[value === v ? 'on' : 'off']} aria-pressed={value === v}
                         title={sub} onClick={() => { if (value !== v) onPick(v); }}>
                         {text}
-                    </button>
+                    </Button>
                 ))}
                 {extra}
             </div>

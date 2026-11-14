@@ -704,7 +704,7 @@ export const okBtn = style([
     {
         background: vars.color.accent,
         border: `1px solid ${vars.color.accent}`,
-        color: '#0b0e14',
+        color: vars.color.onAccent,
         ':hover': { opacity: 0.9 },
     },
 ]);

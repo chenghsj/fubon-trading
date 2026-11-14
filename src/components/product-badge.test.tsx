@@ -1,9 +1,9 @@
 import { createElement } from 'react';
-import { readFileSync } from 'node:fs';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PRODUCT_BADGES, PRODUCT_BADGE_ALPHA, PRODUCT_SEARCH_ACTIVE, productBadgeType, productDetailText } from '../lib/product-badge-presentation';
 import { CUSTOM_PRESETS, customTokens } from '../lib/custom-theme';
+import { THEME_PALETTES } from '../lib/theme-palette';
 import { ProductBadge } from './product-badge';
 
 let view: ReactTestRenderer | undefined;
@@ -36,14 +36,9 @@ function contrast(first: RGB, second: RGB) {
 
 // Read the actual base palettes, then apply the same custom overrides as theme-store.
 // Custom themes inherit amber from their base; price convention must not affect badge tones.
-const themeSource = readFileSync(new URL('../theme.css.ts', import.meta.url), 'utf8');
-const basePalette = (mode: 'dark' | 'light'): Record<string, string> => Object.fromEntries(
-    [...themeSource.match(new RegExp(`const ${mode}: Palette = \\{([\\s\\S]*?)\\n\\};`))![1]!.matchAll(/(\w+): '([^']+)'/g)]
-        .map(match => [match[1]!, match[2]!]),
-);
-const themes = (['tw', 'intl'] as const).flatMap(convention => [
-    ...(['dark', 'light'] as const).map(mode => ({ name: `${mode}-${convention}`, palette: basePalette(mode) })),
-    ...CUSTOM_PRESETS.map(preset => ({ name: `${preset.name}-${convention}`, palette: { ...basePalette(preset.theme.base), ...customTokens(preset.theme, convention) } })),
+const themes: { name: string; palette: Record<string, string> }[] = (['tw', 'intl'] as const).flatMap(convention => [
+    ...(['dark', 'light'] as const).map(mode => ({ name: `${mode}-${convention}`, palette: { ...THEME_PALETTES[mode] } })),
+    ...CUSTOM_PRESETS.map(preset => ({ name: `${preset.name}-${convention}`, palette: { ...THEME_PALETTES[preset.theme.base], ...customTokens(preset.theme, convention) } })),
 ]);
 
 describe('純顯示商品標籤', () => {
@@ -82,7 +77,7 @@ describe('純顯示商品標籤', () => {
     });
 
     it.each(themes.flatMap(theme => (['normal', 'selected', 'hover'] as const).map(state => ({ ...theme, state }))))(
-        '$name / $state：合成文字對比至少 4.5:1；色調僅驗數值相異，分類以文字為準', ({ palette, state }) => {
+        '$name / $state：合成文字對比至少 4.5:1；色調遵循主題，分類以文字為準', ({ palette, state }) => {
             const panel = rgb(palette.panelRaised!);
             const row = state === 'selected' ? over(palette[PRODUCT_SEARCH_ACTIVE.background]!, panel)
                 : state === 'hover' ? rgb(palette.muted!) : panel;
@@ -101,7 +96,10 @@ describe('純顯示商品標籤', () => {
                 const edge = composite(tint, fill, PRODUCT_BADGE_ALPHA.edge / 100);
                 expect(edge, `${type} 邊框僅驗數值不等於列底色`).not.toEqual(row);
             }
-            expect(tints.size, '六色調僅數值相異，不代表肉眼可分；分類以文字標籤為準').toBe(6);
+            // The neutral dark theme intentionally shares its accent and foreground:
+            // STK/FUT/OPT share paint while their complete text labels still identify them.
+            const neutral = palette.accent === palette.foreground;
+            expect(tints.size, '色調數值遵循主題；分類仍以完整文字標籤為準').toBe(neutral ? 4 : 6);
         },
     );
 

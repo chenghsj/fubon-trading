@@ -13,7 +13,6 @@ export const shell = style({
     top: '10vh',
     left: '50%',
     transform: 'translateX(-50%)',
-    zIndex: 201,
     width: 'min(760px, calc(100vw - 32px))',
 });
 
@@ -21,10 +20,6 @@ export const dialog = style({
     display: 'flex',
     flexDirection: 'column',
     maxHeight: '70vh',
-    border: `1px solid ${vars.color.borderBright}`,
-    borderRadius: vars.radius.md,
-    background: vars.color.panelRaised,
-    boxShadow: '0 18px 48px rgba(0, 0, 0, 0.45)',
     overflow: 'hidden',
 });
 
@@ -60,15 +55,10 @@ export const previewButton = style({
     justifyContent: 'center',
     gap: '5px',
     padding: '5px 8px',
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    background: 'transparent',
-    color: vars.color.accent,
     fontFamily: vars.font.body,
     fontSize: '0.66rem',
     fontWeight: 600,
     cursor: 'pointer',
-    ':hover': { background: vars.color.muted },
 });
 
 // live preview: the real panel renders full-size and scales down; all
@@ -126,13 +116,8 @@ export const searchInput = style({
     flex: 1,
     minWidth: 0,
     padding: '6px 0',
-    border: 0,
-    outline: 'none',
-    background: 'transparent',
-    color: vars.color.foreground,
     fontFamily: vars.font.body,
     fontSize: '0.82rem',
-    '::placeholder': { color: vars.color.mutedForeground },
 });
 
 export const hintKey = style({
@@ -143,6 +128,9 @@ export const hintKey = style({
     fontFamily: vars.font.mono,
     fontSize: '0.6rem',
     whiteSpace: 'nowrap',
+    '@media': {
+        'screen and (max-width: 480px)': { display: 'none' },
+    },
 });
 
 export const body = style({
@@ -198,7 +186,7 @@ const cardBase = style({
 });
 
 export const card = styleVariants({
-    normal: [cardBase, {}],
+    normal: [cardBase],
     active: [
         cardBase,
         {

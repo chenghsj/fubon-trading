@@ -249,7 +249,7 @@ export const submitBtn = style({
     padding: '11px',
     border: 'none',
     background: vars.color.accent,
-    color: '#0b0e14',
+    color: vars.color.onAccent,
     ':disabled': { opacity: 0.5, cursor: 'default' },
 });
 

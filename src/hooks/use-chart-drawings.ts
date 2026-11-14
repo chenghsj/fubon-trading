@@ -1,3 +1,4 @@
+import { isFormControlTarget } from '../lib/keyboard-target';
 // src/hooks/use-chart-drawings.ts — K 線圖畫圖工具的互動控制
 //
 // 把「畫、選、拖、刪、復原」的滑鼠與鍵盤處理從 candle-chart.tsx 拉出來；
@@ -138,15 +139,8 @@ export function chartHasFocus(scope: { contains(n: Node | null): boolean } | nul
 }
 
 // 在輸入框、文字區裡的按鍵是打字，不是快捷鍵
-export function isTypingTarget(t: EventTarget | null): boolean {
-    const el = t as HTMLElement | null;
-    return (
-        !!el &&
-        (el.tagName === 'INPUT' ||
-            el.tagName === 'TEXTAREA' ||
-            el.tagName === 'SELECT' ||
-            !!el.isContentEditable)
-    );
+export function isTypingTarget(target: EventTarget | null): boolean {
+    return isFormControlTarget(target);
 }
 
 // 復原／重做的快捷鍵：Ctrl/Cmd+Z 復原；Ctrl/Cmd+Shift+Z 或 Ctrl+Y 重做

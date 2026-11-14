@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/portfolio-bubbles.tsx — 持股泡泡 (grouped): every held group
 // is a large translucent circle, my holdings are packed inside it.
 //
@@ -301,10 +302,10 @@ export function HoldingBubbles(props: VariantProps) {
                 <div className={s.side} title={`沒有${gLabel}分類的持股（例如 ETF），只列出不畫入圖中`}>
                     <span>未歸類</span>
                     {ungrouped.stocks.map((st) => (
-                        <button key={st.code} type='button' className={s.sideRow} onClick={() => onPick(st.code)}>
+                        <Button size="compact" variant="ghost" key={st.code} type='button' className={s.sideRow} onClick={() => onPick(st.code)}>
                             <span className={s.sideName}>{st.name}</span>
                             <span className={`${s.sideNum} ${s.toneText[dir(st.dayPct)]}`}>{fmtSignedPct(st.dayPct)}</span>
-                        </button>
+                        </Button>
                     ))}
                 </div>
             )}

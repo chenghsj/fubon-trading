@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { canTrade } from '../lib/account-tradable';
 // src/components/bottom-dock-account.tsx — 帳務/交割 tab。
 // 報表風卡片牆＋donut 改成交易工具：資金狀態緊湊數字列（含風險指標色條）、
@@ -356,7 +357,7 @@ function PnlSection({
                 <span className={styles.acctHint}>今日無已實現損益</span>
             ) : (
                 <>
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.pnlToggle}
                         title={open ? '收合明細' : '展開明細'}
                         onClick={() => setOpen((v) => !v)}
@@ -374,7 +375,7 @@ function PnlSection({
                         <span className={styles.pnlCount}>
                             {pnl.rows.length} 筆
                         </span>
-                    </button>
+                    </Button>
                     {open &&
                         pnl.rows.map((r) => (
                             <div
@@ -445,9 +446,9 @@ function LimitsSection({
                     text={`交易額度查詢失敗：${error}`}
                     className={styles.acctError}
                     action={
-                        <button type='button' className={styles.acctRetry} onClick={onRetry}>
+                        <Button size="compact" variant="ghost" type='button' className={styles.acctRetry} onClick={onRetry}>
                             <RotateCw size={11} aria-hidden /> 重試
-                        </button>
+                        </Button>
                     }
                 />
             ) : limits === undefined && !closed ? (

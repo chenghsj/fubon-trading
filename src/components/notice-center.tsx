@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/notice-center.tsx — 通知中心: persistent log of every
 // in-app notice and order event (toasts disappear; this keeps history).
 
@@ -40,22 +41,22 @@ export function NoticeCenter() {
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
                 {FILTERS.map((f) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={f.key}
                         className={styles.filter[filter === f.key ? 'on' : 'off']}
                         onClick={() => setFilter(f.key)}
                     >
                         {f.label}
-                    </button>
+                    </Button>
                 ))}
                 <span style={{ flex: 1 }} />
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.clearBtn}
                     disabled={log.length === 0}
                     onClick={clearNoticeLog}
                 >
                     清除
-                </button>
+                </Button>
             </div>
             <div className={styles.list}>
                 {rows.length === 0 && (

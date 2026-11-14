@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/watchlist.css.ts
 
 import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -176,16 +177,9 @@ export const moveBtn = style({
     justifyContent: 'center',
     width: '20px',
     height: '15px',
+    minHeight: 0,
     padding: 0,
     cursor: 'pointer',
-    background: vars.color.panelRaised,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
-    ':hover': {
-        color: vars.color.foreground,
-        borderColor: vars.color.borderBright,
-    },
     ':disabled': { opacity: 0.35, cursor: 'default' },
 });
 
@@ -211,13 +205,23 @@ export const removeBtn = style({
     display: 'none',
 });
 
-export const listPicker = style({
+export const listPicker = style([controlRow, {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: vars.space.xs,
-    padding: `4px ${vars.space.sm}`,
+    gap: '6px',
+    padding: '6px 4px',
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
+}]);
+
+// Keep list actions together; allow another line in very narrow panels.
+export const listActions = style({
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '4px',
+    minWidth: 0,
 });
 
 export const listSelect = style({
@@ -226,13 +230,7 @@ export const listSelect = style({
     fontFamily: vars.font.body,
     fontSize: '0.72rem',
     fontWeight: 500,
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '3px 6px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
 });
 
 export const listBtn = style({
@@ -241,12 +239,7 @@ export const listBtn = style({
     width: '24px',
     height: '24px',
     cursor: 'pointer',
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
     flexShrink: 0,
-    ':hover': { color: vars.color.foreground, borderColor: vars.color.borderBright },
     ':disabled': { opacity: 0.45, cursor: 'not-allowed' },
 });
 
@@ -258,29 +251,16 @@ export const reloadBtn = style({
             width: '24px',
             height: '24px',
             marginLeft: 0,
-            background: vars.color.inset,
-            border: `1px solid ${vars.color.border}`,
-            borderRadius: vars.radius.sm,
-            color: vars.color.mutedForeground,
-        },
-        '&&:hover:not(:disabled)': {
-            color: vars.color.foreground,
-            borderColor: vars.color.borderBright,
-            background: vars.color.inset,
         },
     },
 });
 
 export const listBtnOn = style({
-    color: vars.color.accent,
-    borderColor: vars.color.accent,
-    background: vars.color.accentDim,
 });
 
 export const listBtnDanger = style({
-    color: '#fff',
-    background: vars.color.dangerSolid,
-    borderColor: vars.color.dangerSolid,
+    minWidth: '3rem',
+    width: 'auto',
     fontSize: '0.6rem',
 });
 
@@ -313,14 +293,14 @@ export const loadingHint = style({
     color: vars.color.mutedForeground,
 });
 
-export const addRow = style({
+export const addRow = style([controlRow, {
     position: 'relative',
     display: 'flex',
     gap: vars.space.xs,
     padding: vars.space.sm,
     borderTop: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 // Name-search suggestions float above the add input. The popup is portaled to the
 // body and placed by useAnchoredPopup; the margins keep the add row's inset.
@@ -353,28 +333,12 @@ export const addInput = style({
     minWidth: 0,
     fontFamily: vars.font.mono,
     fontSize: '0.76rem',
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '4px 8px',
-    outline: 'none',
-    ':focus': {
-        borderColor: vars.color.accent,
-    },
-    '::placeholder': {
-        color: vars.color.mutedForeground,
-    },
 });
 
 export const typeSelect = style({
     fontFamily: vars.font.body,
     fontSize: '0.72rem',
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    outline: 'none',
 });
 
 // ---- 漲跌停亮燈樣式 ----
@@ -396,8 +360,8 @@ const limitBlockBase = style({
     borderRadius: vars.radius.md,
 });
 export const limitBlock = styleVariants({
-    up: [limitBlockBase, { background: solidFill(limitTone.up, 82) }],
-    down: [limitBlockBase, { background: solidFill(limitTone.down, 82) }],
+    up: [limitBlockBase, { background: solidFill(vars.color.upSolid, 82) }],
+    down: [limitBlockBase, { background: solidFill(vars.color.downSolid, 82) }],
 });
 globalStyle(`${limitBlockBase} span`, { color: '#fff' });
 // 排序模式左右各讓出把手與上移／下移鈕的空間 — 色塊不外推、內距收窄，
@@ -447,17 +411,31 @@ export const limitSolid = styleVariants({
     up: [
         limitSolidBase,
         {
-            background: solidFill(limitTone.up, 78),
-            ':hover': { background: solidFill(limitTone.up, 70) },
+            background: solidFill(vars.color.upSolid, 78),
+            ':hover': { background: solidFill(vars.color.upSolid, 70) },
         },
     ],
     down: [
         limitSolidBase,
         {
-            background: solidFill(limitTone.down, 78),
-            ':hover': { background: solidFill(limitTone.down, 70) },
+            background: solidFill(vars.color.downSolid, 78),
+            ':hover': { background: solidFill(vars.color.downSolid, 70) },
         },
     ],
 });
 globalStyle(`${limitSolidBase} span`, { color: '#fff' });
 globalStyle(`${limitSolidBase} ${name}`, { color: 'rgba(255, 255, 255, 0.85)' });
+
+// The add control must not stretch to the neighbouring input's default height.
+export const addButton = style({
+    selectors: {
+        '&&': {
+            width: '1.5rem',
+            height: '1.5rem',
+            minHeight: '1.5rem',
+            padding: 0,
+            flexShrink: 0,
+            alignSelf: 'center',
+        },
+    },
+});

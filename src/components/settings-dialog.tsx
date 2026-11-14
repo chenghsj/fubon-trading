@@ -1,3 +1,12 @@
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Field, FieldGroup, FieldSet, FieldLegend } from '@/components/ui/field';
+import { Separator } from './ui/separator';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { TerminalDialog } from './terminal-dialog';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 import { canTrade } from '../lib/account-tradable';
 // src/components/settings-dialog.tsx — 統一設定面板：外觀／音效與隱私／
 // 帳號／風控／版面 五分類。原本散在 header 的主題/帳號/版面 popover 全數
@@ -6,14 +15,16 @@ import { canTrade } from '../lib/account-tradable';
 import {
     Bot,
     LayoutGrid,
+    Moon,
     Palette,
+    Sun,
     RefreshCw,
     ShieldAlert,
     UserRound,
     Volume2,
     X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { AsyncStatus } from './async-status';
 import {
     ensureAccounts,
@@ -119,6 +130,27 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { key: 'layout', label: '版面', icon: <LayoutGrid size={13} /> },
 ];
 
+function PreferenceRow({
+    label,
+    caption,
+    children,
+}: {
+    label: string;
+    caption: string;
+    children: (labelId: string) => ReactNode;
+}) {
+    const labelId = useId();
+    return (
+        <Field orientation="horizontal" className={styles.preferenceRow}>
+            <div id={labelId} className={styles.preferenceLabel}>
+                <span className={styles.preferenceTitle}>{label}</span>
+                <span className={styles.preferenceCaption}>{caption}</span>
+            </div>
+            <div className={styles.preferenceControl}>{children(labelId)}</div>
+        </Field>
+    );
+}
+
 function AppearanceSection() {
     const settings = useThemeSettings();
     const limitStyle = useLimitStyle();
@@ -126,126 +158,100 @@ function AppearanceSection() {
     const headerItems = useHeaderItems();
     return (
         <>
-            <span className={hud.settingLabel}>主題 Theme</span>
-            <div className={hud.settingGroup}>
-                {MODE_OPTIONS.map((m) => (
-                    <button
-                        key={m.key}
-                        className={hud.opt[settings.mode === m.key ? 'on' : 'off']}
-                        onClick={() =>
-                            setThemeSettings(
-                                m.key === 'custom'
-                                    ? { mode: 'custom', custom: settings.custom ?? CUSTOM_BASES[baseMode(settings)] }
-                                    : { mode: m.key },
-                            )
-                        }
-                    >
-                        {m.label}
-                    </button>
-                ))}
-            </div>
-            {settings.mode === 'custom' && <CustomThemeEditor />}
-            <span className={hud.settingLabel}>漲跌顏色 Price Colors</span>
-            <div className={hud.settingGroup}>
-                {CONVENTION_OPTIONS.map((c) => (
-                    <button
-                        key={c.key}
-                        className={
-                            hud.opt[settings.convention === c.key ? 'on' : 'off']
-                        }
-                        onClick={() => setThemeSettings({ convention: c.key })}
-                    >
-                        {c.label}
-                    </button>
-                ))}
-            </div>
-            <div className={hud.convPreview}>
-                <span className={panel.dirText.up}>▲ +1.25 上漲</span>
-                <span className={panel.dirText.down}>▼ -1.25 下跌</span>
-            </div>
-            <span className={hud.settingLabel} id='limit-style-label'>
-                自選清單漲跌停 Limit Highlight
-            </span>
-            <div
-                className={hud.settingGroup}
-                role='group'
-                aria-labelledby='limit-style-label'
-            >
-                {LIMIT_STYLE_OPTIONS.map((o) => (
-                    <button
-                        key={o.key}
-                        className={hud.opt[limitStyle === o.key ? 'on' : 'off']}
-                        title={o.title}
-                        aria-pressed={limitStyle === o.key}
-                        onClick={() => setLimitStyle(o.key)}
-                    >
-                        {o.label}
-                    </button>
-                ))}
-            </div>
-            <span className={hud.settingLabel}>字級 Font Size</span>
-            <div className={hud.settingGroup}>
-                {(
-                    [
-                        [1, '小'],
-                        [1.15, '標準'],
-                        [1.3, '大'],
-                    ] as [FontScale, string][]
-                ).map(([scale, label]) => (
-                    <button
-                        key={scale}
-                        className={
-                            hud.opt[settings.fontScale === scale ? 'on' : 'off']
-                        }
-                        onClick={() => setThemeSettings({ fontScale: scale })}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
-            <span className={hud.settingLabel}>通知大小 Toast Size</span>
-            <div className={hud.settingGroup}>
-                {(
-                    [
-                        [0.9, '小'],
-                        [1, '標準'],
-                        [1.25, '大'],
-                    ] as [ToastScale, string][]
-                ).map(([scale, label]) => (
-                    <button
-                        key={scale}
-                        className={hud.opt[toastScale === scale ? 'on' : 'off']}
-                        onClick={() => setToastScale(scale)}
-                    >
-                        {label}
-                    </button>
-                ))}
-            </div>
-            <span className={hud.settingLabel}>頂欄顯示 Header Items</span>
-            {HEADER_ITEMS.map((item) => (
-                <div key={item.key} className={hud.switchRow}>
-                    <span className={hud.switchLabel}>{item.label}</span>
-                    <button
-                        className={
-                            hud.switchTrack[
-                                headerItems[item.key] ? 'on' : 'off'
-                            ]
-                        }
-                        title={
-                            headerItems[item.key]
-                                ? `隱藏頂欄「${item.label}」`
-                                : `顯示頂欄「${item.label}」`
-                        }
-                        onClick={() =>
-                            setHeaderItem(item.key, !headerItems[item.key])
-                        }
-                    />
-                </div>
-            ))}
-            <span className={hud.emptyHint}>
-                logo、環境徽章、伺服器、風控、新增面板與設定為固定項目，
-                無法隱藏。
-            </span>
+            <FieldGroup className={styles.preferenceList}>
+                <PreferenceRow label="主題" caption="Theme">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline"
+                        value={settings.mode} aria-labelledby={labelId} className={styles.optionGroup}>
+                        {MODE_OPTIONS.map(m => (
+                            <ToggleGroupItem value={m.key} key={m.key} className={styles.option}
+                                onClick={() => setThemeSettings(
+                                    m.key === 'custom'
+                                        ? { mode: 'custom', custom: settings.custom ?? CUSTOM_BASES[baseMode(settings)] }
+                                        : { mode: m.key },
+                                )}>
+                                {m.key === 'dark' ? <Moon /> : m.key === 'light' ? <Sun /> : <Palette />}
+                                {m.label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+                {settings.mode === 'custom' && <div className={styles.customEditor}><CustomThemeEditor /></div>}
+                <Separator />
+                <PreferenceRow label="漲跌顏色" caption="Price Colors">
+                    {labelId => <>
+                        <ToggleGroup type="single" size="compact" variant="outline" value={settings.convention}
+                            aria-labelledby={labelId} className={styles.optionGroup}>
+                            {CONVENTION_OPTIONS.map(c => (
+                                <ToggleGroupItem value={c.key} key={c.key} className={styles.option}
+                                    onClick={() => setThemeSettings({ convention: c.key })}>
+                                    {c.label}
+                                </ToggleGroupItem>
+                            ))}
+                        </ToggleGroup>
+                        <div className={cn(hud.convPreview, styles.pricePreview)}>
+                            <span className={panel.dirText.up}>▲ +1.25 上漲</span>
+                            <span className={panel.dirText.down}>▼ -1.25 下跌</span>
+                        </div>
+                    </>}
+                </PreferenceRow>
+                <Separator />
+                <PreferenceRow label="自選清單漲跌停" caption="Limit Highlight">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline" value={limitStyle}
+                        aria-labelledby={labelId} className={cn(styles.optionGroup, styles.limitOptions)}>
+                        {LIMIT_STYLE_OPTIONS.map(o => (
+                            <ToggleGroupItem value={o.key} key={o.key} title={o.title} className={styles.option}
+                                onClick={() => setLimitStyle(o.key)}>
+                                {o.label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+                <Separator />
+                <PreferenceRow label="字級" caption="Font Size">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline" value={String(settings.fontScale)}
+                        aria-labelledby={labelId} className={styles.optionGroup}>
+                        {([[1, '小'], [1.15, '標準'], [1.3, '大']] as [FontScale, string][]).map(([scale, label]) => (
+                            <ToggleGroupItem value={String(scale)} key={scale} className={styles.option}
+                                onClick={() => setThemeSettings({ fontScale: scale })}>
+                                {label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+                <Separator />
+                <PreferenceRow label="通知大小" caption="Toast Size">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline" value={String(toastScale)}
+                        aria-labelledby={labelId} className={styles.optionGroup}>
+                        {([[0.9, '小'], [1, '標準'], [1.25, '大']] as [ToastScale, string][]).map(([scale, label]) => (
+                            <ToggleGroupItem value={String(scale)} key={scale} className={styles.option}
+                                onClick={() => setToastScale(scale)}>
+                                {label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+            </FieldGroup>
+            <Separator />
+            <FieldSet className={styles.headerSettings}>
+                <FieldLegend className={styles.headerLegend}>
+                    <span className={styles.preferenceTitle}>頂欄顯示</span>
+                    <span className={styles.preferenceCaption}>Header Items</span>
+                </FieldLegend>
+                <FieldGroup className={styles.headerItems}>
+                    {HEADER_ITEMS.map(item => (
+                        <Field orientation="horizontal" key={item.key} className={styles.headerItem}>
+                            <label htmlFor={`header-item-${item.key}`} className={hud.switchLabel}>{item.label}</label>
+                            <Switch id={`header-item-${item.key}`} checked={headerItems[item.key]} aria-label={item.label}
+                                title={headerItems[item.key] ? `隱藏頂欄「${item.label}」` : `顯示頂欄「${item.label}」`}
+                                onCheckedChange={() => setHeaderItem(item.key, !headerItems[item.key])}
+                            />
+                        </Field>
+                    ))}
+                </FieldGroup>
+                <span className={hud.emptyHint}>
+                    logo、環境徽章、伺服器、風控、新增面板與設定為固定項目，無法隱藏。
+                </span>
+            </FieldSet>
         </>
     );
 }
@@ -257,44 +263,41 @@ function SoundPrivacySection() {
     return (
         <>
             <span className={hud.settingLabel}>音效 Sound</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span className={hud.switchLabel}>成交/警示音效</span>
-                <button
-                    className={hud.switchTrack[sound ? 'on' : 'off']}
+                <Switch  checked={sound}  aria-label={'成交/警示音效'}
                     title={sound ? '關閉音效' : '開啟成交/警示音效'}
-                    onClick={() => {
+                    onCheckedChange={() => {
                         setSoundEnabled(!sound);
                         setSound(!sound);
                     }}
                 />
-            </div>
+            </Field>
             <span className={hud.settingLabel}>隱私 Privacy</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span
                     className={hud.switchLabel}
                     title='截圖/分享畫面時遮蔽帳號號碼與姓名'
                 >
                     帳號遮蔽
                 </span>
-                <button
-                    className={hud.switchTrack[priv ? 'on' : 'off']}
+                <Switch  checked={priv}  aria-label={'帳號遮蔽'}
                     title='截圖/分享畫面時遮蔽帳號號碼與姓名'
-                    onClick={() => setPrivacyMode(!priv)}
+                    onCheckedChange={() => setPrivacyMode(!priv)}
                 />
-            </div>
-            <div className={hud.switchRow}>
+            </Field>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span
                     className={hud.switchLabel}
                     title='遮蔽水位/數量/損益/權益等金額（炫耀截圖用）'
                 >
                     金額遮蔽
                 </span>
-                <button
-                    className={hud.switchTrack[privMoney ? 'on' : 'off']}
+                <Switch  checked={privMoney}  aria-label={'金額遮蔽'}
                     title='遮蔽水位/數量/損益/權益等金額（炫耀截圖用）'
-                    onClick={() => setPrivacyMoney(!privMoney)}
+                    onCheckedChange={() => setPrivacyMoney(!privMoney)}
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 遮蔽只影響畫面顯示，不影響下單與查詢。
             </span>
@@ -340,13 +343,15 @@ export function AccountsSection() {
                         {list.map((a) => {
                             const key = `${a.broker_id}-${a.account_id}`;
                             return (
-                                <button
+                                <Button aria-pressed={g.selected === key} size="compact" variant={g.selected === key ? 'secondary' : 'outline'}
                                     key={key}
-                                    className={`${
+                                    className={cn(
                                         hud.opt[
                                             g.selected === key ? 'on' : 'off'
-                                        ]
-                                    } ${canTrade(a) ? '' : styles.acctUnsigned}`}
+                                        ],
+                                        !canTrade(a) && styles.acctUnsigned,
+                                        'w-full min-w-0 flex-col items-start justify-start whitespace-normal text-left',
+                                    )}
                                     style={{ width: '100%', marginTop: 4 }}
                                     disabled={!canTrade(a)}
                                     title={
@@ -356,15 +361,17 @@ export function AccountsSection() {
                                     }
                                     onClick={() => selectAccount(a)}
                                 >
-                                    {a.broker_id}-
-                                    {maskAccountId(a.account_id, priv)}（
-                                    {maskName(a.username, priv)}）
+                                    <span className="max-w-full [overflow-wrap:anywhere]">
+                                        {a.broker_id}-
+                                        {maskAccountId(a.account_id, priv)}（
+                                        {maskName(a.username, priv)}）
+                                    </span>
                                     {!a.signed && (
                                         <span className={styles.unsignedTag}>
                                             {unsignedAccountLabel(simulation)}
                                         </span>
                                     )}
-                                </button>
+                                </Button>
                             );
                         })}
                     </div>
@@ -409,7 +416,7 @@ export function AccountsSection() {
                     </>
                 )}
             </span>
-            <button
+            <Button size="compact" variant="outline"
                 className={hud.updateBtn}
                 disabled={refreshing}
                 onClick={() => {
@@ -425,7 +432,7 @@ export function AccountsSection() {
                     <RefreshCw size={13} />
                 )}
                 {refreshing ? '重新整理中…' : '重新整理帳號'}
-            </button>
+            </Button>
         </>
     );
 }
@@ -439,18 +446,17 @@ function RiskSection() {
     return (
         <>
             <span className={hud.settingLabel}>風控規則 Rules</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span className={hud.switchLabel}>啟用風控規則</span>
-                <button
-                    className={hud.switchTrack[risk.enabled ? 'on' : 'off']}
-                    onClick={() =>
+                <Switch  checked={risk.enabled}  aria-label={'啟用風控規則'}
+                    onCheckedChange={() =>
                         setRiskSettings({ enabled: !risk.enabled })
                     }
                 />
-            </div>
+            </Field>
             <div className={hud.saveRow}>
                 <span className={hud.riskLabel}>單筆上限</span>
-                <input
+                <Input
                     className={hud.saveInput}
                     inputMode='numeric'
                     value={risk.maxQty || ''}
@@ -465,7 +471,7 @@ function RiskSection() {
             </div>
             <div className={hud.saveRow}>
                 <span className={hud.riskLabel}>日虧上限</span>
-                <input
+                <Input
                     className={hud.saveInput}
                     inputMode='numeric'
                     value={risk.maxDailyLoss || ''}
@@ -488,31 +494,26 @@ function RiskSection() {
                 Kill Switch（鎖定下單）在畫面右上角「風控」鈕，一鍵鎖定/解鎖。
             </span>
             <span className={hud.settingLabel}>下單確認</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span
                     className={hud.switchLabel}
                     title='手動下單前顯示可視化委託確認（方向/商品/價格/數量）；停損停利等自動觸發單不受影響'
                 >
                     手動下單確認
                 </span>
-                <button
-                    className={
-                        hud.switchTrack[
-                            risk.confirmManualOrders ? 'on' : 'off'
-                        ]
-                    }
+                <Switch  checked={risk.confirmManualOrders}  aria-label={'手動下單確認'}
                     title={
                         risk.confirmManualOrders
                             ? '關閉手動下單確認'
                             : '啟用手動下單確認'
                     }
-                    onClick={() =>
+                    onCheckedChange={() =>
                         setRiskSettings({
                             confirmManualOrders: !risk.confirmManualOrders,
                         })
                     }
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 預設關閉（維持快速下單）。開啟後閃電下單、下單面板、
                 圖表點價、平倉與鋪單都會先跳委託確認；停損/停利等
@@ -520,50 +521,46 @@ function RiskSection() {
             </span>
             {isTauri && <BackgroundExecutionSetting />}
             <span className={hud.settingLabel}>圖表帶價 Chart Price</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span
                     className={hud.switchLabel}
                     title='在 K 線圖上移動游標時，把十字線價位即時帶入同商品的下單面板'
                 >
                     游標移動帶價
                 </span>
-                <button
-                    className={hud.switchTrack[hoverPricePick ? 'on' : 'off']}
-                    aria-label='游標移動帶價'
-                    aria-pressed={hoverPricePick}
+                <Switch
+                     aria-label={'圖表游標選價'}
+                     checked={hoverPricePick}
                     title={
                         hoverPricePick
                             ? '關閉游標移動帶價（只在點擊圖表時帶價）'
                             : '啟用游標移動帶價'
                     }
-                    onClick={() => setChartHoverPricePick(!hoverPricePick)}
+                    onCheckedChange={() => setChartHoverPricePick(!hoverPricePick)}
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 {'預設關閉，避免游標掃過圖表時改寫已填好的委託價；關閉時仍可點擊 K 線圖或五檔帶價。'}
             </span>
             <span className={hud.settingLabel}>快捷鍵 Hotkeys</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span
                     className={hud.switchLabel}
                     title='0.6 秒內連按兩次 Esc 撤銷所有未成交委託'
                 >
                     雙擊 Esc 全部刪單
                 </span>
-                <button
-                    className={
-                        hud.switchTrack[risk.escCancelAll ? 'on' : 'off']
-                    }
+                <Switch  checked={risk.escCancelAll}  aria-label={'Esc 連按兩次刪除全部委託'}
                     title={
                         risk.escCancelAll
                             ? '關閉雙擊 Esc 全部刪單'
                             : '啟用雙擊 Esc 全部刪單'
                     }
-                    onClick={() =>
+                    onCheckedChange={() =>
                         setRiskSettings({ escCancelAll: !risk.escCancelAll })
                     }
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 預設關閉，避免誤觸；開啟後在非輸入狀態下 0.6 秒內連按兩次
                 Esc 會撤銷全部未成交委託（第一下會先跳提示）。
@@ -601,33 +598,31 @@ function AgentSection() {
     return (
         <>
             <span className={hud.settingLabel}>Agent Harness</span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span className={hud.switchLabel}>保護 Agent 下單操作</span>
-                <button
-                    className={hud.switchTrack[enabled ? 'on' : 'off']}
+                <Switch  checked={enabled}  aria-label={'Agent 測試介面'}
                     disabled={busy}
                     title={enabled ? '關閉 Agent Harness' : '開啟 Agent Harness'}
-                    onClick={() => void toggle()}
+                    onCheckedChange={() => void toggle()}
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 關閉時，一般 UI 下單走原本的直接 HTTP 路徑；開啟後，Agent
                 與 UI 的每筆交易異動都需要一次性授權。切換立即生效，
                 不需重啟伺服器。
             </span>
-            <div className={hud.switchRow}>
+            <Field orientation="horizontal" className={hud.switchRow}>
                 <span
                     className={hud.switchLabel}
                     title='Agent 在正式環境的每筆交易都需由獨立核可視窗確認'
                 >
                     正式環境逐筆核可
                 </span>
-                <button
-                    className={hud.switchTrack.on}
+                <Switch aria-label={'正式環境逐筆核可'}  checked={true}
                     disabled
                     title='Phase 1 安全基線：正式環境固定開啟'
                 />
-            </div>
+            </Field>
             <span className={hud.emptyHint}>
                 正式環境的逐筆確認固定由獨立的原生核可視窗確認，無法關閉；
                 正式 Auto 首筆需在原生視窗授權本次 runtime 與帳戶，停止或
@@ -659,7 +654,7 @@ function LayoutSection({
     return (
         <>
             <span className={hud.settingLabel}>版面 Layouts</span>
-            <button
+            <Button size="compact" variant="outline"
                 className={hud.updateBtn}
                 onClick={() => {
                     onClose();
@@ -667,12 +662,12 @@ function LayoutSection({
                 }}
             >
                 <LayoutGrid size={13} /> 開啟版面庫…
-            </button>
+            </Button>
             <span className={hud.emptyHint}>
                 預設版面、儲存/切換/改名/刪除自訂版面都在版面庫；
                 頂欄的「版面」鈕可直接開啟。
             </span>
-            <button
+            <Button size="compact" variant="ghost"
                 className={hud.menuItem}
                 onClick={() => {
                     onResetWorkspace();
@@ -680,7 +675,7 @@ function LayoutSection({
                 }}
             >
                 ↺ 重設為預設版面
-            </button>
+            </Button>
         </>
     );
 }
@@ -694,64 +689,49 @@ export function SettingsDialog({
     onClose: () => void;
 }) {
     const [tab, setTab] = useState<SettingsTab>('appearance');
+    const [narrow, setNarrow] = useState(false);
 
     useEffect(() => {
-        if (!open) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                // capture + preventDefault so the global Esc-Esc cancel-all
-                // hotkey ignores the press that closes this dialog
-                e.preventDefault();
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', onKey, true);
-        return () => window.removeEventListener('keydown', onKey, true);
-    }, [open, onClose]);
+        const media = window.matchMedia('(max-width: 640px)');
+        const update = () => setNarrow(media.matches);
+        update();
+        if (typeof media.addEventListener === 'function') {
+            media.addEventListener('change', update);
+            return () => media.removeEventListener('change', update);
+        }
+        // Older desktop WebViews expose the original MediaQueryList API.
+        media.addListener(update);
+        return () => media.removeListener(update);
+    }, []);
 
     if (!open) return null;
 
     return (
-        <>
-            <div className={styles.backdrop} onClick={onClose} />
-            <div className={styles.dialog}>
-                <div className={hud.srvDialogTitle}>
+        <TerminalDialog title="設定" onClose={onClose} layout="custom" className={styles.dialog}>
+                <div className={cn(hud.srvDialogTitle, styles.title)}>
                     設定
-                    <button
-                        className={hud.profileDelete}
+                    <Button size="compact" variant="ghost"
+                        className={cn(hud.profileDelete, styles.closeButton)}
                         title='關閉（Esc）'
+                        aria-label='關閉設定'
                         onClick={onClose}
                     >
                         <X size={12} />
-                    </button>
+                    </Button>
                 </div>
-                <div className={styles.body}>
-                    <div className={styles.nav}>
-                        {TABS.map((t) => (
-                            <button
-                                key={t.key}
-                                className={
-                                    styles.navItem[tab === t.key ? 'on' : 'off']
-                                }
-                                onClick={() => setTab(t.key)}
-                            >
-                                {t.icon}
-                                {t.label}
-                            </button>
-                        ))}
-                    </div>
-                    <div className={styles.content}>
+                <Tabs value={tab} onValueChange={value => setTab(value as SettingsTab)} className={styles.body} orientation={narrow ? 'horizontal' : 'vertical'}>
+                    <TabsList className={styles.nav} aria-label="設定分類">
+                        {TABS.map(t => <TabsTrigger key={t.key} value={t.key} className={styles.navItem}>{t.icon}{t.label}</TabsTrigger>)}
+                    </TabsList>
+                    <TabsContent key={tab} value={tab} className={styles.content}>
                         {tab === 'appearance' && <AppearanceSection />}
                         {tab === 'soundPrivacy' && <SoundPrivacySection />}
                         {tab === 'accounts' && <AccountsSection />}
                         {tab === 'risk' && <RiskSection />}
                         {tab === 'agent' && <AgentSection />}
-                        {tab === 'layout' && (
-                            <LayoutSection {...layoutProps} onClose={onClose} />
-                        )}
-                    </div>
-                </div>
-            </div>
-        </>
+                        {tab === 'layout' && <LayoutSection {...layoutProps} onClose={onClose} />}
+                    </TabsContent>
+                </Tabs>
+        </TerminalDialog>
     );
 }

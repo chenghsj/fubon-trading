@@ -15,7 +15,7 @@ const stack: Handler[] = [];
 let listener: ((e: KeyboardEvent) => void) | null = null;
 
 function onKeydown(e: KeyboardEvent) {
-    if (e.key !== 'Escape' || stack.length === 0) return;
+    if (e.key !== 'Escape' || e.isComposing || e.keyCode === 229 || stack.length === 0) return;
     // 按住 Esc 的 OS 連發不往下層級聯（一次按鍵只關一層）
     if (e.repeat) {
         e.preventDefault();

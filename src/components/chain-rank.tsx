@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/chain-rank.tsx：金流 (rank) view: groups ranked by net inflow.
 //
 // One row per group: a category dot, the name, a small rank-change mark, a
@@ -186,13 +187,13 @@ export function FlowRank({
                             {note}
                         </span>
                         {showAll && order.length > SIDE_ROWS * 2 && (
-                            <button type='button' className={s.rankDrawerToggle} onClick={() => setShowAll(false)} title='只顯示淨流入與淨流出最大的族群'>
+                            <Button size="compact" variant="ghost" type='button' className={s.rankDrawerToggle} onClick={() => setShowAll(false)} title='只顯示淨流入與淨流出最大的族群'>
                                 <ChevronsDownUp size={12} aria-hidden='true' />
                                 收合
-                            </button>
+                            </Button>
                         )}
                         {!docked && selectedRow && (
-                            <button
+                            <Button size="compact" variant="ghost"
                                 type='button'
                                 ref={drawerToggle}
                                 className={s.rankDrawerToggle}
@@ -203,7 +204,7 @@ export function FlowRank({
                             >
                                 <PanelRightOpen size={12} aria-hidden='true' />
                                 明細
-                            </button>
+                            </Button>
                         )}
                     </div>
                     <div className={s.rankAxis} aria-hidden='true'>
@@ -223,14 +224,14 @@ export function FlowRank({
                         <div className={s.rankArea} ref={areaRef}>
                             <div className={s.rankRows} ref={rowsRef} style={{ height }} role='group' aria-label={`族群${label}淨流入排行`}>
                                 {hidden > 0 && (
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         type='button'
                                         className={s.rankFold}
                                         style={{ top: (firstOut >= 0 ? firstOut : shown.length) * ROW_PX }}
                                         onClick={() => setShowAll(true)}
                                     >
                                         {now === null ? `另有 ${hidden} 個族群・顯示全部` : `另有 ${hidden} 個族群淨流量較小・顯示全部`}
-                                    </button>
+                                    </Button>
                                 )}
                                 {shown.map((row) => {
                                     const move = showMoves ? (moves.map.get(row.id) ?? 0) : 0;
@@ -239,7 +240,7 @@ export function FlowRank({
                                     const [num, unit] = splitUnit(now !== null ? fmtTwd(row.value, true) : '--');
                                     // the river engine positions the row (translateY) every frame
                                     return (
-                                        <button
+                                        <Button size="compact" variant="ghost"
                                             key={row.id}
                                             ref={(el) => {
                                                 if (el) rowEls.current.set(row.id, el);
@@ -270,7 +271,7 @@ export function FlowRank({
                                                 <Odometer text={num} reducedMotion={reducedMotion} />
                                                 {unit && <span className={s.rankUnit}>{unit}</span>}
                                             </span>
-                                        </button>
+                                        </Button>
                                     );
                                 })}
                             </div>

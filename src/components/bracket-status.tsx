@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/bracket-status.tsx — explicit bracket (括號單) protection
 // status for one symbol (#102). Shows filled / protected / unprotected
 // quantities, why protection is NOT confirmed, and offers the manual actions:
@@ -135,7 +136,7 @@ function Row({ plan, envNow, feedMissing, executing, stale }: {
             {message && <div className={styles.note.muted}>{message}</div>}
             <div className={styles.actions}>
                 {isLive(plan) && (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.button}
                         disabled={busy}
                         title='向券商更新此帳戶委託（update_status，會使用查詢額度）'
@@ -143,10 +144,10 @@ function Row({ plan, envNow, feedMissing, executing, stale }: {
                             v => `對帳完成，回報快取狀態 ${(v as { health: string }).health}`)}
                     >
                         對帳
-                    </button>
+                    </Button>
                 )}
                 {workingEntry > 0 && plan.entryCancel === 'unconfirmed' && (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.button}
                         disabled={busy}
                         title='刪單已送出但未確認取消；向券商更新委託核對，不會重送刪單'
@@ -154,10 +155,10 @@ function Row({ plan, envNow, feedMissing, executing, stale }: {
                             v => `對帳完成，回報快取狀態 ${(v as { health: string }).health}`)}
                     >
                         刪單待確認 · 對帳
-                    </button>
+                    </Button>
                 )}
                 {workingEntry > 0 && plan.entryCancel !== 'unconfirmed' && (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.button}
                         disabled={busy || plan.entryCancel === 'sending'}
                         title='只送出一次刪單，不會自動重試或重送任何委託'
@@ -169,19 +170,19 @@ function Row({ plan, envNow, feedMissing, executing, stale }: {
                         }}
                     >
                         {plan.entryCancel === 'sending' ? '刪單處理中…' : confirmCancel ? '再按一次：刪除剩餘進場單' : '刪除剩餘進場單'}
-                    </button>
+                    </Button>
                 )}
                 {unknownExit && (
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.button}
                         disabled={busy}
                         title='已在委託／持倉確認出場結果；釋放保留量，不會送出任何委託'
                         onClick={() => void run(() => acknowledgeBracketExit(plan.id))}
                     >
                         已確認出場結果
-                    </button>
+                    </Button>
                 )}
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.button}
                     disabled={busy}
                     onClick={() => {
@@ -193,7 +194,7 @@ function Row({ plan, envNow, feedMissing, executing, stale }: {
                     }}
                 >
                     {confirmRemove ? '再按一次：移除並撤銷保護' : isLive(plan) ? '移除追蹤' : '關閉'}
-                </button>
+                </Button>
             </div>
         </div>
     );

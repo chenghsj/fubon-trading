@@ -1,3 +1,5 @@
+import { TableHead, TableCell, TableRow, Table, TableHeader, TableBody } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { RefreshButton } from './refresh-button';
 import { useLiveSnapshots } from '../hooks/use-live-snapshots';
 // src/components/option-chain.tsx — 臺指選擇權 T 字報價表（月選＋週選）.
@@ -312,8 +314,8 @@ interface ChainRowData {
 function SideHead({ label }: { label: string }) {
     return (
         <>
-            <th className={`${styles.th} ${styles.sideHeadWide}`} colSpan={4}>{label}</th>
-            <th className={`${styles.th} ${styles.sideHeadNarrow}`} colSpan={2}>{label}</th>
+            <TableHead className={`${styles.th} ${styles.sideHeadWide}`} colSpan={4}>{label}</TableHead>
+            <TableHead className={`${styles.th} ${styles.sideHeadNarrow}`} colSpan={2}>{label}</TableHead>
         </>
     );
 }
@@ -321,10 +323,10 @@ function SideHead({ label }: { label: string }) {
 function QuoteHead() {
     return (
         <>
-            <th className={styles.th}>成交</th>
-            <th className={`${styles.th} ${styles.bookCol}`}>買</th>
-            <th className={`${styles.th} ${styles.bookCol}`}>賣</th>
-            <th className={styles.th}>量</th>
+            <TableHead className={styles.th}>成交</TableHead>
+            <TableHead className={`${styles.th} ${styles.bookCol}`}>買</TableHead>
+            <TableHead className={`${styles.th} ${styles.bookCol}`}>賣</TableHead>
+            <TableHead className={styles.th}>量</TableHead>
         </>
     );
 }
@@ -333,28 +335,28 @@ function QuoteCells({ snapshot: s }: { snapshot?: Snapshot }) {
     if (!s) {
         return (
             <>
-                <td className={styles.td}>—</td>
-                <td className={`${styles.td} ${styles.bookCol}`}>—</td>
-                <td className={`${styles.td} ${styles.bookCol}`}>—</td>
-                <td className={`${styles.td} ${styles.volume}`}>—</td>
+                <TableCell className={styles.td}>—</TableCell>
+                <TableCell className={`${styles.td} ${styles.bookCol}`}>—</TableCell>
+                <TableCell className={`${styles.td} ${styles.bookCol}`}>—</TableCell>
+                <TableCell className={`${styles.td} ${styles.volume}`}>—</TableCell>
             </>
         );
     }
     const dir = s.change_price > 0 ? 'up' : s.change_price < 0 ? 'down' : 'flat';
     return (
         <>
-            <td className={`${styles.td} ${panel.dirText[dir]}`}>
+            <TableCell className={`${styles.td} ${panel.dirText[dir]}`}>
                 {s.close ? fmtPrice(s.close, 0) : '—'}
-            </td>
-            <td className={`${styles.td} ${styles.bookCol}`}>
+            </TableCell>
+            <TableCell className={`${styles.td} ${styles.bookCol}`}>
                 {s.buy_price ? fmtPrice(s.buy_price, 0) : '—'}
-            </td>
-            <td className={`${styles.td} ${styles.bookCol}`}>
+            </TableCell>
+            <TableCell className={`${styles.td} ${styles.bookCol}`}>
                 {s.sell_price ? fmtPrice(s.sell_price, 0) : '—'}
-            </td>
-            <td className={`${styles.td} ${styles.volume}`} title={`今日成交量 ${fmtInt(s.total_volume)} 口`}>
+            </TableCell>
+            <TableCell className={`${styles.td} ${styles.volume}`} title={`今日成交量 ${fmtInt(s.total_volume)} 口`}>
                 {fmtCompactInt(s.total_volume)}
-            </td>
+            </TableCell>
         </>
     );
 }
@@ -371,7 +373,7 @@ const ChainRow = memo(function ChainRow({ row, call, put, atm, live, onPick }: {
     const pickHint = onPick ? '點 CALL 側連動買權、PUT 側連動賣權' : '';
     const staleHint = live ? '' : '畫面外的檔位：顯示快照，捲到畫面內才即時更新';
     return (
-        <tr
+        <TableRow
             className={`${onPick ? styles.pickableRow : ''} ${live ? '' : styles.staleRow}`}
             data-live={live ? true : undefined}
             title={[pickHint, staleHint].filter(Boolean).join('\n') || undefined}
@@ -384,11 +386,11 @@ const ChainRow = memo(function ChainRow({ row, call, put, atm, live, onPick }: {
             }}
         >
             <QuoteCells snapshot={call} />
-            <td className={`${styles.strike} ${atm ? styles.atmStrike : ''}`}>
+            <TableCell className={`${styles.strike} ${atm ? styles.atmStrike : ''}`}>
                 {fmtPrice(row.strike, 0)}
-            </td>
+            </TableCell>
             <QuoteCells snapshot={put} />
-        </tr>
+        </TableRow>
     );
 });
 
@@ -728,7 +730,7 @@ export function OptionChain({
                         '中位數置中'
                     )}
                 </span>
-                <button
+                <Button size="compact-icon" variant="outline"
                     type="button"
                     className={styles.atmBtn}
                     aria-label="回到價平"
@@ -740,7 +742,7 @@ export function OptionChain({
                     }}
                 >
                     <Crosshair size={12} aria-hidden />
-                </button>
+                </Button>
                 <RefreshButton
                     label="更新報價"
                     loading={quotesLoading}
@@ -763,22 +765,22 @@ export function OptionChain({
                 </div>
             )}
             <div className={panel.panelBody} ref={bodyRef} onScroll={onScroll} data-testid="optchain-body">
-                <table className={styles.table}>
-                    <thead className={styles.thead}>
-                        <tr>
+                <Table containerClassName="contents" className={styles.table}>
+                    <TableHeader className={styles.thead}>
+                        <TableRow>
                             <SideHead label="CALL 買權" />
-                            <th className={`${styles.th} ${styles.strikeTh}`}>
+                            <TableHead className={`${styles.th} ${styles.strikeTh}`}>
                                 履約價
-                            </th>
+                            </TableHead>
                             <SideHead label="PUT 賣權" />
-                        </tr>
-                        <tr>
+                        </TableRow>
+                        <TableRow>
                             <QuoteHead />
-                            <th className={`${styles.th} ${styles.strikeTh}`} />
+                            <TableHead className={`${styles.th} ${styles.strikeTh}`} />
                             <QuoteHead />
-                        </tr>
-                    </thead>
-                    <tbody>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
                         {rows.map((r, i) => (
                             <ChainRow
                                 key={r.strike}
@@ -790,8 +792,8 @@ export function OptionChain({
                                 onPick={onPick ? pick : undefined}
                             />
                         ))}
-                    </tbody>
-                </table>
+                    </TableBody>
+                </Table>
             </div>
         </div>
     );

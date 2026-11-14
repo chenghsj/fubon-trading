@@ -1,6 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
 *,
 *::before,
 *::after {
+    border-width: 0;
+    border-style: solid;
+    border-color: var(--border);
     box-sizing: border-box;
 }
 
@@ -23,6 +31,9 @@ a {
 }
 
 button {
+    background-color: transparent;
+    color: inherit;
+    cursor: pointer;
     font-family: inherit;
     font-size: inherit;
 }
@@ -36,4 +47,6 @@ select {
 @keyframes pulse-glow {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.55; }
+}
+
 }

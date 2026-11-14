@@ -1,3 +1,7 @@
+import { Field } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { TableRow, TableCell, Table, TableHeader, TableHead, TableBody } from '@/components/ui/table';
 // src/components/conditional-panel.tsx — 條件單管理面板 (#226, design v4).
 // Every conditional order in one place: 需要你處理 pinned on top, then the
 // running ones; each row can be modified, paused / resumed or cancelled, and
@@ -306,36 +310,36 @@ function RowActions({ row, expanded, onToggle, compact }: {
                     ['primary', elsewhere && (row.actions.send || row.actions.rearm || row.actions.handled) && !primary
                         ? <span className={styles.muted} title='這張由背景執行，請在主視窗處理'>主視窗處理</span>
                         : primary ? (
-                            <button type='button' className={styles.opButton[primary.tone ?? 'plain']} disabled={busy} title={primary.title}
+                            <Button size="compact" variant="default" type='button' className={styles.opButton[primary.tone ?? 'plain']} disabled={busy} title={primary.title}
                                 aria-expanded={primary.expands ? expanded : undefined} onClick={primary.run}>
                                 {primary.label}
-                            </button>
+                            </Button>
                         ) : null],
                     ['more', more.length > 0 ? <MoreMenu items={more} busy={busy} /> : null],
                     ['edit', a.modify ? (
-                        <button type='button' className={expanded ? styles.iconButton.active : styles.iconButton.plain}
+                        <Button size="compact-icon" variant="ghost" type='button' className={expanded ? styles.iconButton.active : styles.iconButton.plain}
                             title='修改' aria-label='修改' aria-expanded={expanded} onClick={onToggle}>
                             <Pencil size={13} aria-hidden />
-                        </button>
+                        </Button>
                     ) : null],
                     ['pause', a.pause ? (
-                        <button type='button' className={styles.iconButton.plain} disabled={busy} title='暫停（不再盯價，之後可恢復）'
+                        <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy} title='暫停（不再盯價，之後可恢復）'
                             aria-label='暫停' onClick={() => pause(true)}>
                             <Pause size={13} aria-hidden />
-                        </button>
+                        </Button>
                     ) : a.resume ? (
-                        <button type='button' className={styles.iconButton.plain} disabled={busy}
+                        <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy}
                             title='恢復盯價；若暫停期間已穿價，會先等你確認，不會直接送出' aria-label='恢復' onClick={() => pause(false)}>
                             <Play size={13} aria-hidden />
-                        </button>
+                        </Button>
                     ) : null],
                     ['delete', del ? (
-                        <button type='button' className={deleting ? styles.iconButton.dangerSolid : styles.iconButton.danger} disabled={busy}
+                        <Button size="compact-icon" variant="destructive" type='button' className={deleting ? styles.iconButton.dangerSolid : styles.iconButton.danger} disabled={busy}
                             title={deleting ? `再按一次確認：${HANDLED_TEXT}` : HANDLED_TEXT}
                             aria-label={deleting ? `再按一次確認：${HANDLED_TEXT}` : HANDLED_TEXT}
                             data-testid='cond-delete' onClick={del}>
                             <Trash2 size={13} aria-hidden />
-                        </button>
+                        </Button>
                     ) : null],
                 ];
                 // wide table: fixed slots (empty ones keep their place, rows line up);
@@ -360,19 +364,19 @@ function MoreMenu({ items, busy }: { items: { key: string; label: string; title:
     const [open, setOpen] = useState(false);
     return (
         <span className={styles.moreAnchor}>
-            <button type='button' className={styles.iconButton.plain} disabled={busy} title='其他動作' aria-label='其他動作'
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy} title='其他動作' aria-label='其他動作'
                 aria-haspopup='menu' aria-expanded={open} onClick={() => setOpen(!open)}>
                 <ChevronDown size={13} aria-hidden />
-            </button>
+            </Button>
             {open && (
                 <>
                     <span className={styles.moreBackdrop} onClick={() => setOpen(false)} />
                     <span className={styles.moreMenu} role='menu'>
                         {items.map(it => (
-                            <button key={it.key} type='button' role='menuitem' className={styles.moreItem} title={it.title}
+                            <Button size="compact" variant="ghost" key={it.key} type='button' role='menuitem' className={styles.moreItem} title={it.title}
                                 onClick={() => { setOpen(false); it.run(); }}>
                                 {it.label}
-                            </button>
+                            </Button>
                         ))}
                     </span>
                 </>
@@ -458,27 +462,27 @@ function TriggerEdit({ trigger, onDone }: { trigger: TriggerOrder; onDone: () =>
     const unit = trigger.account?.account_type === 'S' ? (trigger.orderLot === 'IntradayOdd' ? '股' : '張') : '口';
     return (
         <>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>觸發價</span>
-                <input className={styles.input} value={price} inputMode='decimal' aria-label='觸發價'
+                <Input className={styles.input} value={price} inputMode='decimal' aria-label='觸發價'
                     onChange={e => setPrice(e.target.value)} />
                 <Distance code={trigger.code} price={p} />
-            </div>
+            </Field>
             {!alert && (
-                <div className={styles.formRow}>
+                <Field orientation="horizontal" className={styles.formRow}>
                     <span className={styles.label}>數量</span>
-                    <input className={styles.inputNarrow} value={qty} inputMode='numeric' aria-label='數量'
+                    <Input className={styles.inputNarrow} value={qty} inputMode='numeric' aria-label='數量'
                         onChange={e => setQty(e.target.value)} />
                     <span>{unit}</span>
-                </div>
+                </Field>
             )}
             {full && <SendControl value={send} onChange={setSend} futures={market === 'futures'} label='送出方式' />}
             {full && <ValidityControl value={validity} onChange={setValidity} market={market} allowNone={!trigger.validity} />}
-            <div className={styles.formRow}>
-                <button type='button' className={styles.button.primary} disabled={busy} onClick={save}>儲存修改</button>
-                <button type='button' className={styles.button.plain} disabled={busy} onClick={onDone}>取消</button>
+            <Field orientation="horizontal" className={styles.formRow}>
+                <Button size="compact" variant="default" type='button' className={styles.button.primary} disabled={busy} onClick={save}>儲存修改</Button>
+                <Button size="compact" variant="outline" type='button' className={styles.button.plain} disabled={busy} onClick={onDone}>取消</Button>
                 <span className={styles.muted}>只改條件，不會立刻送單；新價格若已穿過，會先等你確認</span>
-            </div>
+            </Field>
             {message && <div className={styles.message[message.tone]}>{message.text}</div>}
         </>
     );
@@ -497,19 +501,19 @@ function OcoEdit({ legs, onDone }: { legs: TriggerOrder[]; onDone: () => void })
     return (
         <>
             {legs.map((l, i) => (
-                <div key={l.id} className={styles.formRow}>
+                <Field orientation="horizontal" key={l.id} className={styles.formRow}>
                     <span className={styles.label}>{l.condition === 'above' ? '上方' : '下方'}</span>
                     <span>{l.condition === 'above' ? '≥' : '≤'}</span>
-                    <input className={styles.input} value={prices[i]} inputMode='decimal' aria-label={`${l.condition === 'above' ? '上方' : '下方'}觸發價`}
+                    <Input className={styles.input} value={prices[i]} inputMode='decimal' aria-label={`${l.condition === 'above' ? '上方' : '下方'}觸發價`}
                         onChange={e => setPrices(ps => ps.map((v, j) => j === i ? e.target.value : v))} />
                     <span className={l.action === 'Buy' ? styles.up : styles.down}>{l.action === 'Buy' ? '買進' : '賣出'} {l.quantity}</span>
-                </div>
+                </Field>
             ))}
-            <div className={styles.formRow}>
-                <button type='button' className={styles.button.primary} disabled={busy} onClick={save}>儲存修改</button>
-                <button type='button' className={styles.button.plain} disabled={busy} onClick={onDone}>取消</button>
+            <Field orientation="horizontal" className={styles.formRow}>
+                <Button size="compact" variant="default" type='button' className={styles.button.primary} disabled={busy} onClick={save}>儲存修改</Button>
+                <Button size="compact" variant="outline" type='button' className={styles.button.plain} disabled={busy} onClick={onDone}>取消</Button>
                 <span className={styles.muted}>只改條件，不會立刻送單</span>
-            </div>
+            </Field>
             {message && <div className={styles.message[message.tone]}>{message.text}</div>}
         </>
     );
@@ -529,39 +533,39 @@ function BracketEdit({ row, onDone }: { row: CondRow; onDone: () => void }) {
     const loosened = curStop !== null && s !== null && (long ? s < curStop : s > curStop);
     return (
         <>
-            <div className={styles.formRow}>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>停損</span>
-                <input className={styles.input} value={stop} inputMode='decimal' aria-label='停損價' placeholder='不設'
+                <Input className={styles.input} value={stop} inputMode='decimal' aria-label='停損價' placeholder='不設'
                     onChange={e => setStop(e.target.value)} />
                 <Distance code={plan.quoteCode} price={s} />
-            </div>
-            <div className={styles.formRow}>
+            </Field>
+            <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>停利</span>
-                <input className={styles.input} value={take} inputMode='decimal' aria-label='停利價' placeholder='不設'
+                <Input className={styles.input} value={take} inputMode='decimal' aria-label='停利價' placeholder='不設'
                     onChange={e => setTake(e.target.value)} />
                 <Distance code={plan.quoteCode} price={t} />
-            </div>
+            </Field>
             {loosened && <div className={styles.message.warn}>停損放寬，風險會變大；確定再儲存</div>}
-            <div className={styles.formRow}>
-                <button type='button' className={styles.button.primary} disabled={busy}
+            <Field orientation="horizontal" className={styles.formRow}>
+                <Button size="compact" variant="default" type='button' className={styles.button.primary} disabled={busy}
                     onClick={() => void run(async () => {
                         await modifyBracket(plan.id, optionalPrice(stop, '停損價'), optionalPrice(take, '停利價'));
                         onDone();
                     })}>
                     儲存修改
-                </button>
-                <button type='button' className={styles.button.plain} disabled={busy} onClick={onDone}>取消</button>
+                </Button>
+                <Button size="compact" variant="outline" type='button' className={styles.button.plain} disabled={busy} onClick={onDone}>取消</Button>
                 <span className={styles.muted}>只改停損停利，不會立刻送單</span>
-            </div>
+            </Field>
             {row.actions.reconcile && (
-                <div className={styles.formRow}>
-                    <button type='button' className={styles.button.plain} disabled={busy}
+                <Field orientation="horizontal" className={styles.formRow}>
+                    <Button size="compact" variant="outline" type='button' className={styles.button.plain} disabled={busy}
                         title='向券商更新此帳戶委託（會使用查詢額度）'
                         onClick={() => void run(() => reconcileBracket(plan.id), '對帳完成')}>
                         對帳
-                    </button>
+                    </Button>
                     <span className={styles.muted}>確認進場成交與保護數量</span>
-                </div>
+                </Field>
             )}
             {message && <div className={styles.message[message.tone]}>{message.text}</div>}
         </>
@@ -614,32 +618,32 @@ function StatusLabel({ row }: { row: CondRow }) {
     return <span className={styles.tone[row.status.tone]} title={text} data-testid='cond-status'>{shortStatus(text)}</span>;
 }
 
-function TableRow({ row, expanded, onToggle }: { row: CondRow; expanded: boolean; onToggle: () => void }) {
+function ConditionalTableRow({ row, expanded, onToggle }: { row: CondRow; expanded: boolean; onToggle: () => void }) {
     const cls = [row.attention ? styles.rowAlert : '', expanded ? styles.rowSelected : '', styles.rowClickable].filter(Boolean).join(' ');
     return (
         <>
             {/* the row opens its details (full status, edit, history) */}
-            <tr className={cls} onClick={onToggle} aria-expanded={expanded}>
-                <td className={styles.nameCell}><ProductCell row={row} /></td>
-                <td>{KIND_LABEL[row.kind]}<RunnerTag row={row} /></td>
-                <td><SideText side={row.side} /></td>
-                <td className={styles.numCell} title={row.condition}>{row.condition}</td>
-                <td className={`${styles.colPrice} ${styles.numCell}`}><PriceCell row={row} /></td>
-                <td className={styles.statusCell}><StatusLabel row={row} /></td>
-                <td className={`${styles.muted} ${styles.colValidity}`}>{row.validity}</td>
-                <td className={styles.colAccount}><AccountText row={row} /></td>
-                <td className={styles.opsCell}><RowActions row={row} expanded={expanded} onToggle={onToggle} /></td>
-            </tr>
+            <TableRow className={cls} onClick={onToggle} aria-expanded={expanded}>
+                <TableCell className={styles.nameCell}><ProductCell row={row} /></TableCell>
+                <TableCell>{KIND_LABEL[row.kind]}<RunnerTag row={row} /></TableCell>
+                <TableCell><SideText side={row.side} /></TableCell>
+                <TableCell className={styles.numCell} title={row.condition}>{row.condition}</TableCell>
+                <TableCell className={`${styles.colPrice} ${styles.numCell}`}><PriceCell row={row} /></TableCell>
+                <TableCell className={styles.statusCell}><StatusLabel row={row} /></TableCell>
+                <TableCell className={`${styles.muted} ${styles.colValidity}`}>{row.validity}</TableCell>
+                <TableCell className={styles.colAccount}><AccountText row={row} /></TableCell>
+                <TableCell className={styles.opsCell}><RowActions row={row} expanded={expanded} onToggle={onToggle} /></TableCell>
+            </TableRow>
             {expanded && (
-                <tr className={styles.expand}>
-                    <td colSpan={9}><Expanded row={row} onClose={onToggle} /></td>
-                </tr>
+                <TableRow className={styles.expand}>
+                    <TableCell colSpan={9}><Expanded row={row} onClose={onToggle} /></TableCell>
+                </TableRow>
             )}
         </>
     );
 }
 
-function Table({ rows, ended, expanded, onToggle }: {
+function ConditionalTable({ rows, ended, expanded, onToggle }: {
     rows: CondRow[];
     ended: boolean;
     expanded: string | null;
@@ -648,7 +652,7 @@ function Table({ rows, ended, expanded, onToggle }: {
     const attention = rows.filter(r => r.attention);
     const running = rows.filter(r => !r.attention);
     return (
-        <table className={styles.table}>
+        <Table containerClassName="contents" className={styles.table}>
             {/* one table, one set of widths: 需要你處理 and 執行中 line up */}
             <colgroup>
                 <col className={styles.cName} /><col className={styles.cKind} /><col className={styles.cSide} /><col />
@@ -656,20 +660,20 @@ function Table({ rows, ended, expanded, onToggle }: {
                 <col className={`${styles.cValidity} ${styles.colValidity}`} /><col className={`${styles.cAccount} ${styles.colAccount}`} />
                 <col className={styles.cOps} />
             </colgroup>
-            <thead>
-                <tr>
-                    <th>商品</th><th>類型</th><th>方向／數量</th><th className={styles.thRight}>條件</th><th className={`${styles.colPrice} ${styles.thRight}`}>現價／距離</th>
-                    <th>狀態</th><th className={styles.colValidity}>{ended ? '結束時間' : '有效期'}</th>
-                    <th className={styles.colAccount}>帳戶</th><th className={`${styles.thRight} ${styles.opsCell}`}>操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                {attention.length > 0 && <tr className={styles.section}><td colSpan={9}>需要你處理</td></tr>}
-                {attention.map(r => <TableRow key={r.id} row={r} expanded={expanded === r.id} onToggle={() => onToggle(r.id)} />)}
-                {!ended && attention.length > 0 && running.length > 0 && <tr className={styles.section}><td colSpan={9}>執行中</td></tr>}
-                {running.map(r => <TableRow key={r.id} row={r} expanded={expanded === r.id} onToggle={() => onToggle(r.id)} />)}
-            </tbody>
-        </table>
+            <TableHeader>
+                <TableRow>
+                    <TableHead>商品</TableHead><TableHead>類型</TableHead><TableHead>方向／數量</TableHead><TableHead className={styles.thRight}>條件</TableHead><TableHead className={`${styles.colPrice} ${styles.thRight}`}>現價／距離</TableHead>
+                    <TableHead>狀態</TableHead><TableHead className={styles.colValidity}>{ended ? '結束時間' : '有效期'}</TableHead>
+                    <TableHead className={styles.colAccount}>帳戶</TableHead><TableHead className={`${styles.thRight} ${styles.opsCell}`}>操作</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {attention.length > 0 && <TableRow className={styles.section}><TableCell colSpan={9}>需要你處理</TableCell></TableRow>}
+                {attention.map(r => <ConditionalTableRow key={r.id} row={r} expanded={expanded === r.id} onToggle={() => onToggle(r.id)} />)}
+                {!ended && attention.length > 0 && running.length > 0 && <TableRow className={styles.section}><TableCell colSpan={9}>執行中</TableCell></TableRow>}
+                {running.map(r => <ConditionalTableRow key={r.id} row={r} expanded={expanded === r.id} onToggle={() => onToggle(r.id)} />)}
+            </TableBody>
+        </Table>
     );
 }
 
@@ -720,7 +724,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
             <div className={styles.emptyTitle}>目前沒有條件單</div>
             觸價單、二擇一與括號單都會集中在這裡，可以修改、暫停或取消。
             <div style={{ marginTop: 12 }}>
-                <button type='button' className={styles.button.primary} onClick={onNew}><Plus size={13} aria-hidden />新增條件單</button>
+                <Button size="compact" variant="default" type='button' className={styles.button.primary} onClick={onNew}><Plus size={13} aria-hidden />新增條件單</Button>
             </div>
         </div>
     );
@@ -759,12 +763,12 @@ export function ConditionalPanel({ contract }: { contract?: ContractInfo | null 
             <span className={styles.title}><Crosshair size={14} aria-hidden />條件單</span>
             {view.counts.attention > 0 && <span className={styles.pill.err}>待確認 {view.counts.attention}</span>}
             <span className={styles.grow} />
-            <button type='button' className={styles.iconButton.plain} title='新增條件單' aria-label='新增條件單' onClick={() => setCreating(true)}>
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} title='新增條件單' aria-label='新增條件單' onClick={() => setCreating(true)}>
                 <Plus size={13} aria-hidden />
-            </button>
-            <button type='button' className={styles.iconButton.plain} title='設定' aria-label='設定' onClick={() => setDialog('settings')}>
+            </Button>
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} title='設定' aria-label='設定' onClick={() => setDialog('settings')}>
                 <Settings2 size={13} aria-hidden />
-            </button>
+            </Button>
         </div>
     ) : (
         <div className={styles.header}>
@@ -776,15 +780,15 @@ export function ConditionalPanel({ contract }: { contract?: ContractInfo | null 
             )}
             {!nothing && <span className={styles.pill.muted}>今日已觸發 {view.counts.firedToday}</span>}
             <span className={styles.grow} />
-            <button type='button' className={styles.button.primary} onClick={() => setCreating(true)}>
+            <Button size="compact" variant="default" type='button' className={styles.button.primary} onClick={() => setCreating(true)}>
                 <Plus size={13} aria-hidden />新增條件單
-            </button>
+            </Button>
             {!nothing && (
                 <>
-                    <button type='button' className={styles.button.plain} onClick={() => setDialog('settings')}>
+                    <Button size="compact" variant="outline" type='button' className={styles.button.plain} onClick={() => setDialog('settings')}>
                         <Settings2 size={13} aria-hidden />設定
-                    </button>
-                    <button type='button' className={styles.button.plain} disabled={pa.busy || pauseButton.disabled}
+                    </Button>
+                    <Button size="compact" variant="outline" type='button' className={styles.button.plain} disabled={pa.busy || pauseButton.disabled}
                         title={settings.pauseStopsExits ? '暫停全部條件單（含停損停利；暫停前已觸發、正在送出的平倉單照常送出）'
                             : '暫停新進場的條件單；停損停利保護繼續執行（可在設定修改）'}
                         onClick={() => void pa.run(async () => {
@@ -792,10 +796,10 @@ export function ConditionalPanel({ contract }: { contract?: ContractInfo | null 
                             if (r.failed.length) throw new Error(r.failed.join('；'));
                         })}>
                         {pauseButton.mode === 'pause' ? <><Pause size={13} aria-hidden />全部暫停</> : <><Play size={13} aria-hidden />全部恢復</>}
-                    </button>
-                    <button type='button' className={styles.button.danger} onClick={() => setDialog('flatten')}>
+                    </Button>
+                    <Button size="compact" variant="destructive" type='button' className={styles.button.danger} onClick={() => setDialog('flatten')}>
                         <OctagonX size={13} aria-hidden />全平並取消
-                    </button>
+                    </Button>
                 </>
             )}
             {pa.message && <span className={styles.message[pa.message.tone]}>{pa.message.text}</span>}
@@ -809,12 +813,12 @@ export function ConditionalPanel({ contract }: { contract?: ContractInfo | null 
                     <>
                         <div className={styles.tabs} role='tablist'>
                             {TABS.map(t => (
-                                <button key={t.id} type='button' role='tab' aria-selected={tab === t.id}
+                                <Button size="compact" variant="ghost" key={t.id} type='button' role='tab' aria-selected={tab === t.id}
                                     className={tab === t.id ? styles.tab.on : styles.tab.off}
                                     style={t.id === 'ended' && !narrow ? { marginLeft: 'auto' } : undefined}
                                     onClick={() => { setTab(t.id); setExpanded(null); }}>
                                     {t.label}<span className={styles.tabCount}>{view.counts.byTab[t.id]}</span>
-                                </button>
+                                </Button>
                             ))}
                         </div>
                         <div className={styles.body}>
@@ -825,7 +829,7 @@ export function ConditionalPanel({ contract }: { contract?: ContractInfo | null 
                                     {rows.map(r => <Card key={r.id} row={r} expanded={expanded === r.id} onToggle={() => toggle(r.id)} />)}
                                 </div>
                             ) : (
-                                <Table rows={rows} ended={tab === 'ended'} expanded={expanded} onToggle={toggle} />
+                                <ConditionalTable rows={rows} ended={tab === 'ended'} expanded={expanded} onToggle={toggle} />
                             )}
                         </div>
                     </>
@@ -859,10 +863,10 @@ export function ConditionalBracketCards({ code }: { code: string }) {
             <div className={styles.cardsFoot}>
                 {ended > 0 && <span>已結束 {ended} 張</span>}
                 {main ? (
-                    <button type='button' className={styles.linkButton}
+                    <Button size="compact" variant="ghost" type='button' className={styles.linkButton}
                         onClick={() => window.dispatchEvent(new Event(OPEN_CONDITIONAL_PANEL_EVENT))}>
                         {ended > 0 ? '在條件單管理查看' : '完整清單在條件單管理'}<ChevronRight size={12} aria-hidden />
-                    </button>
+                    </Button>
                 ) : <span>完整清單請開「條件單管理」面板</span>}
             </div>
         </div>

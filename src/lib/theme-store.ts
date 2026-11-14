@@ -5,7 +5,8 @@
 import { useSyncExternalStore } from 'react';
 import { isTauri } from './runtime';
 import { themeClasses, vars } from '../theme.css';
-import { CUSTOM_BASES, customTokens, isCustomTheme, type CustomTheme } from './custom-theme';
+import { CUSTOM_BASES, alpha, customTokens, isCustomTheme, type CustomTheme } from './custom-theme';
+import { THEME_PALETTES } from './theme-palette';
 
 export type ThemeMode = 'dark' | 'light' | 'custom';
 export type Convention = 'tw' | 'intl';
@@ -157,41 +158,6 @@ export interface ChartColors {
     labelBg: string;
 }
 
-const CHROME: Record<
-    'dark' | 'light',
-    Pick<ChartColors, 'text' | 'grid' | 'crosshair' | 'border' | 'labelBg'>
-> = {
-    dark: {
-        text: '#7e8798',
-        grid: 'rgba(26, 31, 41, 0.7)',
-        crosshair: '#3d8bff',
-        border: '#1a1f29',
-        labelBg: '#10131a',
-    },
-    light: {
-        text: '#5f6b80',
-        grid: 'rgba(221, 226, 233, 0.9)',
-        crosshair: '#2962ff',
-        border: '#dde2e9',
-        labelBg: '#f7f8fa',
-    },
-};
-
-const RG: Record<'dark' | 'light', { red: string; green: string; redVol: string; greenVol: string }> = {
-    dark: {
-        red: '#f23645',
-        green: '#16b389',
-        redVol: 'rgba(242, 54, 69, 0.45)',
-        greenVol: 'rgba(22, 179, 137, 0.4)',
-    },
-    light: {
-        red: '#d6213a',
-        green: '#0a8a66',
-        redVol: 'rgba(214, 33, 58, 0.4)',
-        greenVol: 'rgba(10, 138, 102, 0.35)',
-    },
-};
-
 export function getChartColors(s: ThemeSettings): ChartColors {
     const custom = activeCustom(s);
     if (custom) {
@@ -200,29 +166,30 @@ export function getChartColors(s: ThemeSettings): ChartColors {
         const down = t.down!;
         return {
             up,
-            upVol: withAlpha(up, 0.42),
+            upVol: alpha(up, 0.42),
             down,
-            downVol: withAlpha(down, 0.4),
+            downVol: alpha(down, 0.4),
             text: t.mutedForeground!,
-            grid: withAlpha(t.border!, 0.7),
+            grid: alpha(t.border!, 0.7),
             crosshair: t.accent!,
             border: t.border!,
             labelBg: t.panelRaised!,
         };
     }
     const mode = baseMode(s);
-    const rg = RG[mode];
+    const p = THEME_PALETTES[mode];
+    const redVol = alpha(p.red, mode === 'dark' ? 0.45 : 0.4);
+    const greenVol = alpha(p.green, mode === 'dark' ? 0.4 : 0.35);
     const isTw = s.convention === 'tw';
     return {
-        up: isTw ? rg.red : rg.green,
-        upVol: isTw ? rg.redVol : rg.greenVol,
-        down: isTw ? rg.green : rg.red,
-        downVol: isTw ? rg.greenVol : rg.redVol,
-        ...CHROME[mode],
+        up: isTw ? p.red : p.green,
+        upVol: isTw ? redVol : greenVol,
+        down: isTw ? p.green : p.red,
+        downVol: isTw ? greenVol : redVol,
+        text: p.mutedForeground,
+        grid: alpha(p.border, mode === 'dark' ? 0.7 : 0.9),
+        crosshair: p.accent,
+        border: p.border,
+        labelBg: p.panelRaised,
     };
-}
-
-function withAlpha(hex: string, a: number): string {
-    const n = parseInt(hex.slice(1), 16);
-    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }

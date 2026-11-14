@@ -8,91 +8,10 @@ import {
     globalStyle,
 } from '@vanilla-extract/css';
 
-interface Palette {
-    background: string;
-    panel: string;
-    panelRaised: string;
-    inset: string;
-    foreground: string;
-    muted: string;
-    mutedForeground: string;
-    border: string;
-    borderBright: string;
-    accent: string;
-    accentDim: string;
-    amber: string;
-    red: string;
-    redDim: string;
-    redFlash: string;
-    green: string;
-    greenDim: string;
-    greenFlash: string;
-    // 狀態錯誤色（斷線、錯誤、破壞性動作）：朱紅，和漲跌紅分開，與 mobile 一致
-    danger: string;
-    dangerDim: string;
-    // 白字實心底（按鈕、徽章）：深色朱紅太亮，白字不足 4.5:1，改用較深的朱紅
-    dangerSolid: string;
-    // 日內區間軌的引線（影線）：漲跌色往 wickBase 混到 wickShare，霧面淡色但對背景仍過 3:1
-    wickBase: string;
-    wickShare: string;
-}
+import { mix } from './lib/custom-theme';
+import { THEME_PALETTES, solidPriceColor, type Palette } from './lib/theme-palette';
 
-// 深色＝原本的純黑（使用者 2026-09-29 決定只留純黑與淺色）
-const dark: Palette = {
-    background: '#000000',
-    panel: '#0a0c10',
-    panelRaised: '#10131a',
-    inset: '#040508',
-    foreground: '#d5dbe8',
-    muted: '#14181f',
-    mutedForeground: '#7e8798',
-    border: '#1a1f29',
-    borderBright: '#2a3140',
-    accent: '#3d8bff',
-    accentDim: 'rgba(61, 139, 255, 0.12)',
-    amber: '#e0a43c',
-    red: '#f23645',
-    redDim: 'rgba(242, 54, 69, 0.13)',
-    redFlash: 'rgba(242, 54, 69, 0.2)',
-    green: '#16b389',
-    greenDim: 'rgba(22, 179, 137, 0.13)',
-    greenFlash: 'rgba(22, 179, 137, 0.18)',
-    // 對 panel 6.92:1；白字對 dangerSolid 4.87:1
-    danger: '#ff6a4d',
-    dangerDim: 'rgba(255, 106, 77, 0.13)',
-    dangerSolid: '#d03a24',
-    // 往灰色混：紅 #b85e6e 4.53:1、綠 #4a9d90 6.07:1（對 panel）
-    wickBase: '#7e8798',
-    wickShare: '50%',
-};
-
-const light: Palette = {
-    background: '#eef0f3',
-    panel: '#ffffff',
-    panelRaised: '#f7f8fa',
-    inset: '#f1f3f6',
-    foreground: '#1c2433',
-    muted: '#e9ecf1',
-    mutedForeground: '#5f6b80',
-    border: '#dde2e9',
-    borderBright: '#c3ccd9',
-    accent: '#2962ff',
-    accentDim: 'rgba(41, 98, 255, 0.10)',
-    amber: '#b97f14',
-    red: '#d6213a',
-    redDim: 'rgba(214, 33, 58, 0.10)',
-    redFlash: 'rgba(214, 33, 58, 0.16)',
-    green: '#0a8a66',
-    greenDim: 'rgba(10, 138, 102, 0.10)',
-    greenFlash: 'rgba(10, 138, 102, 0.14)',
-    // 對 panel 5.41:1、對 background 4.74:1；白字對 dangerSolid 5.41:1
-    danger: '#c5341a',
-    dangerDim: 'rgba(197, 52, 26, 0.10)',
-    dangerSolid: '#c5341a',
-    // 淺色的灰比實體深，往灰混會比實體還搶眼，改往白混：紅 #de4d61 3.93:1、綠 #3ba185 3.17:1
-    wickBase: '#ffffff',
-    wickShare: '80%',
-};
+const { dark, light } = THEME_PALETTES;
 
 // tw: red = up (台股慣例); intl: green = up
 function makeTokens(p: Palette, convention: 'tw' | 'intl') {
@@ -114,13 +33,18 @@ function makeTokens(p: Palette, convention: 'tw' | 'intl') {
             border: p.border,
             borderBright: p.borderBright,
             accent: p.accent,
+            onAccent: p.onAccent,
             accentDim: p.accentDim,
             magenta: p.mutedForeground,
             amber: p.amber,
             up,
+            upSolid: solidPriceColor(up),
             upDim,
             upFlash,
             down,
+            downSolid: solidPriceColor(down),
+            upControl: p === light ? (convention === 'tw' ? '#be123c' : '#047857') : mix(up, '#ffffff', 0.26),
+            downControl: p === light ? (convention === 'tw' ? '#047857' : '#be123c') : mix(down, '#ffffff', 0.26),
             downDim,
             downFlash,
             wickUp: `color-mix(in srgb, ${up} ${p.wickShare}, ${p.wickBase})`,
@@ -130,6 +54,7 @@ function makeTokens(p: Palette, convention: 'tw' | 'intl') {
             // 錯誤用朱紅 danger，不沿用漲跌紅，避免台股配色下錯誤和「漲」同色。
             // 價格、買賣方向才用 up／down
             success: p.green,
+            successSolid: solidPriceColor(p.green),
             successDim: p.greenDim,
             danger: p.danger,
             dangerDim: p.dangerDim,
@@ -202,4 +127,39 @@ globalStyle('::-webkit-scrollbar-thumb', {
 });
 globalStyle('::-webkit-scrollbar-thumb:hover', {
     background: vars.color.borderBright,
+});
+
+// shadcn semantic tokens reference the active terminal palette, including
+// custom inline overrides. Portals inherit these aliases from <html>.
+globalStyle(':root', {
+    vars: {
+        '--background': vars.color.background,
+        '--foreground': vars.color.foreground,
+        '--card': vars.color.panel,
+        '--card-foreground': vars.color.foreground,
+        '--popover': vars.color.panelRaised,
+        '--popover-foreground': vars.color.foreground,
+        '--primary': vars.color.accent,
+        '--primary-soft': vars.color.accentDim,
+        '--primary-foreground': vars.color.onAccent,
+        '--secondary': vars.color.muted,
+        '--secondary-foreground': vars.color.foreground,
+        '--muted': vars.color.muted,
+        '--muted-foreground': vars.color.mutedForeground,
+        '--accent': vars.color.muted,
+        '--accent-foreground': vars.color.foreground,
+        '--destructive': vars.color.danger,
+        '--destructive-solid': vars.color.dangerSolid,
+        '--destructive-foreground': '#ffffff',
+        '--border': vars.color.border,
+        '--input': vars.color.borderBright,
+        '--ring': vars.color.accent,
+        '--radius': vars.radius.lg,
+        '--trade-up': vars.color.upControl,
+        '--trade-up-dim': vars.color.upDim,
+        '--trade-up-solid': vars.color.upSolid,
+        '--trade-down': vars.color.downControl,
+        '--trade-down-dim': vars.color.downDim,
+        '--trade-down-solid': vars.color.downSolid,
+    },
 });

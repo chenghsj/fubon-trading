@@ -1,6 +1,8 @@
+import { toast } from 'sonner';
+import { Toaster } from './ui/sonner';
 // src/components/event-toasts.tsx — order/deal/notice toasts.
-// Prominent, kind-coded cards (成交/委託/錯誤/訊息) with clean formatted
-// content instead of raw event dumps; size follows the 通知大小 setting.
+// Native Sonner title/description slots keep notices compact and consistent
+// with the shared shadcn surface; text remains reactive to privacy settings.
 
 import {
     BadgeCheck,
@@ -8,7 +10,7 @@ import {
     Info,
     Receipt,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { describeOrderReport } from '../lib/order-report';
 import { playAlert, playDeal, playError, playOrder } from '../lib/sounds';
 import { onOrderEvent } from '../lib/stream';
@@ -19,12 +21,8 @@ import * as styles from './event-toasts.css';
 
 type ToastKind = 'deal' | 'ok' | 'err' | 'info';
 
-interface ToastItem {
-    id: number;
-    kind: ToastKind;
-    title: string;
-    lines: { text: string; dir?: 'up' | 'down' }[];
-}
+type ToastLines = { text: string; dir?: 'up' | 'down' }[];
+type VisibleToast = { kind: ToastKind; title: string; lines: ToastLines };
 
 const KIND_ICON: Record<ToastKind, React.ReactNode> = {
     deal: <Receipt size={15} />,
@@ -34,26 +32,51 @@ const KIND_ICON: Record<ToastKind, React.ReactNode> = {
 };
 
 export function EventToasts({ onEvent }: { onEvent?: () => void }) {
-    const [toasts, setToasts] = useState<ToastItem[]>([]);
-    const nextId = useRef(1);
+    const items = useRef(new Map<string | number, VisibleToast>());
     const onEventRef = useRef(onEvent);
     onEventRef.current = onEvent;
     const scale = useToastScale();
-    // toast 顯示期間才打開隱私／遮金額也要立即遮（#268）
-    const reveal = useRevealText();
-
+    const [top, setTop] = useState(64);
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const header = document.querySelector('header');
+        if (!header) return;
+        const measure = () => setTop(Math.ceil(header.getBoundingClientRect().bottom) + 8);
+        measure();
+        // The broker banner can wrap or change status without resizing the
+        // header itself. Keep both desktop and mobile notices below all chrome.
+        const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure);
+        observer?.observe(header);
+        if (header.previousElementSibling) observer?.observe(header.previousElementSibling);
+        window.addEventListener('resize', measure);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', measure);
+        };
+    }, []);
     useEffect(() => {
         const push = (
             kind: ToastKind,
             title: string,
-            lines: ToastItem['lines'],
+            lines: ToastLines,
         ) => {
-            const id = nextId.current++;
-            setToasts((prev) => [...prev.slice(-4), { id, kind, title, lines }]);
-            setTimeout(
-                () => setToasts((prev) => prev.filter((t) => t.id !== id)),
-                kind === 'err' ? 9000 : 6000,
-            );
+            const show = kind === 'err' ? toast.error : kind === 'info' ? toast.info : toast.success;
+            const id = show(<ToastTitle text={title} />, {
+                description: lines.length > 0 ? <ToastDescription lines={lines} /> : undefined,
+                icon: KIND_ICON[kind],
+                classNames: {
+                    toast: styles.toast,
+                    icon: styles.icon[kind],
+                    content: styles.content,
+                    title: styles.title,
+                    description: styles.description,
+                    closeButton: styles.closeButton,
+                },
+                duration: kind === 'err' ? 9000 : 6000,
+                onDismiss: item => { items.current.delete(item.id); },
+                onAutoClose: item => { items.current.delete(item.id); },
+            });
+            items.current.set(id, { kind, title, lines });
         };
         const offOrder = onOrderEvent((ev) => {
             const d = describeOrderReport(ev);
@@ -75,39 +98,43 @@ export function EventToasts({ onEvent }: { onEvent?: () => void }) {
         return () => {
             offOrder();
             offNotice();
+            items.current.forEach((_item, id) => toast.dismiss(id));
+            items.current.clear();
         };
     }, []);
 
-    return (
-        <div
-            className={styles.stack}
-            style={{
-                fontSize: `${scale}rem`,
-                width: `${21 * scale}rem`,
-            }}
-        >
-            {toasts.map((t) => (
-                <div key={t.id} className={styles.toast[t.kind]}>
-                    <span className={styles.icon[t.kind]}>
-                        {KIND_ICON[t.kind]}
-                    </span>
-                    <div className={styles.content}>
-                        <div className={styles.title}>{reveal(t.title)}</div>
-                        {t.lines.map((l, i) => (
-                            <div
-                                key={i}
-                                className={
-                                    l.dir
-                                        ? styles.line[l.dir]
-                                        : styles.line.plain
-                                }
-                            >
-                                {reveal(l.text)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            ))}
-        </div>
-    );
+    useEffect(() => {
+        // Native Sonner remeasures when its content props change. Refresh the
+        // existing IDs after reflow so multi-line toasts do not overlap.
+        const reflow = () => items.current.forEach((item, id) => {
+            const show = item.kind === 'err' ? toast.error : item.kind === 'info' ? toast.info : toast.success;
+            show(<ToastTitle text={item.title} />, {
+                id,
+                description: item.lines.length > 0 ? <ToastDescription lines={item.lines} /> : undefined,
+            });
+        });
+        reflow();
+        if (typeof window === 'undefined') return;
+        window.addEventListener('resize', reflow);
+        return () => window.removeEventListener('resize', reflow);
+    }, [scale]);
+
+    return <Toaster position="top-right" expand closeButton visibleToasts={5} gap={8}
+        offset={{ top, right: 16 }}
+        mobileOffset={{ top, right: 12, left: 12, bottom: 16 }}
+        style={{ '--width': `${19 * scale}rem`, '--event-toast-scale': scale } as CSSProperties} />;
+}
+
+/** Keep these hooks inside the visible Sonner slots so toggling privacy also
+ * masks notifications that were already on screen. */
+function ToastTitle({ text }: { text: string }) {
+    const reveal = useRevealText();
+    return <>{reveal(text)}</>;
+}
+
+function ToastDescription({ lines }: { lines: ToastLines }) {
+    const reveal = useRevealText();
+    return <>{lines.map((line, i) => (
+        <div key={i} className={styles.line[line.dir ?? 'plain']}>{reveal(line.text)}</div>
+    ))}</>;
 }

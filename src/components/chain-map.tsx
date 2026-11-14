@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/chain-map.tsx：產業鏈資金流向：shioaji-data 產業鏈／題材／細產業 ×
 // 即時 1 分 K 資金流，三種即時視圖：
 // - 輪動（預設）：每個族群一顆泡泡，x＝開啟以來淨流入、y＝加速（近 10 分鐘
@@ -259,9 +260,9 @@ export function ChainMap({
                     phase='error'
                     text={data.phase === 'error' ? data.error : '沒有產業鏈資料'}
                     action={
-                        <button type='button' className={panel.btn} onClick={data.retry}>
+                        <Button size="compact" variant="outline" type='button' className={panel.btn} onClick={data.retry}>
                             重試
-                        </button>
+                        </Button>
                     }
                 />
             </div>
@@ -377,9 +378,9 @@ export function ChainMap({
                             text={cardsError ?? '讀取細產業…'}
                             action={
                                 cardsError ? (
-                                    <button type='button' className={panel.btn} onClick={retryCards}>
+                                    <Button size="compact" variant="outline" type='button' className={panel.btn} onClick={retryCards}>
                                         重試
-                                    </button>
+                                    </Button>
                                 ) : undefined
                             }
                         />

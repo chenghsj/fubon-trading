@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/odd-spread.css.ts — 整零價差面板
 
 import { createContainer, style, styleVariants } from '@vanilla-extract/css';
@@ -172,7 +173,7 @@ const goBase = style({
 });
 
 export const goBtn = styleVariants({
-    on: [goBase, { color: '#fff', background: vars.color.success, ':hover': { filter: 'brightness(1.08)' } }],
+    on: [goBase, { color: '#fff', background: vars.color.successSolid, ':hover': { filter: 'brightness(1.08)' } }],
     off: [goBase, { color: vars.color.mutedForeground, background: vars.color.muted, cursor: 'not-allowed' }],
 });
 
@@ -328,14 +329,14 @@ export const footer = style({
     marginTop: 'auto',
 });
 
-export const fRow = style({
+export const fRow = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
     fontSize: '0.68rem',
     color: vars.color.foreground,
-});
+}]);
 
 export const fLabel = style({ color: vars.color.mutedForeground, whiteSpace: 'nowrap' });
 export const fLabelW = style({ color: vars.color.mutedForeground, whiteSpace: 'nowrap', minWidth: '3.4rem' });

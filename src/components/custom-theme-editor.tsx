@@ -1,3 +1,6 @@
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 // src/components/custom-theme-editor.tsx — 外觀設定「自訂」主題的編輯區：
 // 起始底色、預設組合、六個顏色與即時預覽。
 
@@ -30,7 +33,7 @@ export function CustomThemeEditor() {
             <span className={hud.settingLabel}>起始底色</span>
             <div className={hud.settingGroup}>
                 {BASE_OPTIONS.map((b) => (
-                    <button
+                    <Button size="compact" variant={custom.base === b.key ? 'secondary' : 'outline'}
                         key={b.key}
                         className={hud.opt[custom.base === b.key ? 'on' : 'off']}
                         aria-pressed={custom.base === b.key}
@@ -38,13 +41,13 @@ export function CustomThemeEditor() {
                         onClick={() => custom.base !== b.key && apply(CUSTOM_BASES[b.key])}
                     >
                         {b.label}
-                    </button>
+                    </Button>
                 ))}
             </div>
             <span className={hud.settingLabel}>預設組合</span>
             <div className={styles.presets}>
                 {CUSTOM_PRESETS.map((p) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={p.name}
                         className={styles.preset[same(p.theme, custom) ? 'on' : 'off']}
                         aria-pressed={same(p.theme, custom)}
@@ -56,14 +59,14 @@ export function CustomThemeEditor() {
                             <span style={{ background: p.theme.accent }} />
                         </span>
                         {p.name}
-                    </button>
+                    </Button>
                 ))}
             </div>
             <span className={hud.settingLabel}>顏色（點色塊開啟選色器）</span>
             <div className={styles.swatches}>
                 {CUSTOM_COLOR_FIELDS.map(({ key, label }) => (
-                    <label key={key} className={styles.swatch}>
-                        <input
+                    <Label key={key} className={styles.swatch}>
+                        <Input
                             type='color'
                             className={styles.colorInput}
                             value={custom[key]}
@@ -72,7 +75,7 @@ export function CustomThemeEditor() {
                         />
                         <span>{label}</span>
                         <span className={styles.hex}>{custom[key].toUpperCase()}</span>
-                    </label>
+                    </Label>
                 ))}
             </div>
             <div className={styles.preview}>
@@ -81,13 +84,13 @@ export function CustomThemeEditor() {
                 <span className={panel.dirText.down}>▼ -1.25 下跌</span>
                 <span className={styles.previewAccent}>連動</span>
             </div>
-            <button
+            <Button size="compact" variant="ghost"
                 className={styles.reset}
                 disabled={same(custom, CUSTOM_BASES[custom.base])}
                 onClick={() => apply(CUSTOM_BASES[custom.base])}
             >
                 重設為起始底色
-            </button>
+            </Button>
         </div>
     );
 }

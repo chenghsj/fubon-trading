@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/sector-heatmap.tsx — 產業全景（原類股熱力圖，issue #2 原地
 // 升級）。資料源：shioaji index_components 群組／群組內排行串流（1 秒），
 // 查詢僅建底（docs/adr/0001）。兩層：
@@ -250,7 +251,7 @@ const HeatTiles = memo(function HeatTiles({ tiles }: { tiles: TileView[] }) {
                     fit.mode === 'both' &&
                     tile.rect.h >= fit.fontSize * 3.6 + 16;
                 return (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={tile.key}
                         className={styles.heatTile}
                         style={{
@@ -286,7 +287,7 @@ const HeatTiles = memo(function HeatTiles({ tiles }: { tiles: TileView[] }) {
                         {showSub && (
                             <span className={styles.tileSub}>{tile.sub}</span>
                         )}
-                    </button>
+                    </Button>
                 );
             })}
         </>
@@ -1057,7 +1058,7 @@ export function SectorHeatmap({
                     <div className={styles.toolbar}>
                         <span className={styles.segmentGroup}>
                             {PANORAMA_INDEX_CODES.map((code) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={code}
                                     className={
                                         styles.segment[
@@ -1068,12 +1069,12 @@ export function SectorHeatmap({
                                     onClick={() => selectIndex(code)}
                                 >
                                     {INDEX_LABELS[code]}
-                                </button>
+                                </Button>
                             ))}
                         </span>
                         <span className={styles.segmentGroup}>
                             {SIZE_METRICS.map((metric) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={metric.value}
                                     className={
                                         styles.segment[
@@ -1087,7 +1088,7 @@ export function SectorHeatmap({
                                     onClick={() => setMetric(metric.value)}
                                 >
                                     {metric.label}
-                                </button>
+                                </Button>
                             ))}
                         </span>
                         <span className={styles.spacer} />
@@ -1112,7 +1113,7 @@ export function SectorHeatmap({
                         {isSimtrade && (
                             <span className={styles.simtrade}>試撮</span>
                         )}
-                        <button
+                        <Button size="compact-icon" variant="ghost"
                             className={styles.iconBtn}
                             onClick={() => void exportPng()}
                             disabled={exporting || panoramaTiles.length === 0}
@@ -1120,7 +1121,7 @@ export function SectorHeatmap({
                             aria-label="匯出 PNG 圖片"
                         >
                             <ImageDown size={13} />
-                        </button>
+                        </Button>
                     </div>
                     <div className={styles.caption}>
                         <span className={styles.captionText} title={captionText}>
@@ -1140,7 +1141,7 @@ export function SectorHeatmap({
                             }
                         >
                             {sectorHeaders.map(({ key, row, rect }) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={`h${key}`}
                                     className={styles.sectorHeader}
                                     style={{
@@ -1163,7 +1164,7 @@ export function SectorHeatmap({
                                             {fmtPct(row.pct)}
                                         </span>
                                     )}
-                                </button>
+                                </Button>
                             ))}
                             <HeatTiles tiles={panoramaTiles} />
                             {panoramaTiles.length === 0 && (
@@ -1296,14 +1297,14 @@ export function SectorHeatmap({
             ) : (
                 <>
                     <div className={styles.toolbar}>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.backBtn}
                             onClick={() => setDrillCat(null)}
                             title="回產業全景"
                         >
                             <ChevronLeft size={13} />
                             全景
-                        </button>
+                        </Button>
                         <span className={styles.crumbName}>
                             {drillGroup?.name ?? ''}
                             {drillGroup && (
@@ -1356,7 +1357,7 @@ export function SectorHeatmap({
                         <span className={styles.spacer} />
                         <span className={styles.segmentGroup}>
                             {DRILL_METRICS.map((metric) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={metric.value}
                                     className={
                                         styles.segment[
@@ -1370,7 +1371,7 @@ export function SectorHeatmap({
                                     onClick={() => setMetric(metric.value)}
                                 >
                                     {metric.label}
-                                </button>
+                                </Button>
                             ))}
                         </span>
                         {isSimtrade && (
@@ -1407,7 +1408,7 @@ export function SectorHeatmap({
                                           ? 'down'
                                           : 'flat';
                                 return (
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         key={entry.code}
                                         className={styles.rankRow}
                                         title={`權重 ${entry.weight_pct.toFixed(2)}%`}
@@ -1508,7 +1509,7 @@ export function SectorHeatmap({
                                         >
                                             {fmtDrillValue(entry.value)}
                                         </span>
-                                    </button>
+                                    </Button>
                                 );
                             })}
                             {drillEntries.length === 0 && (

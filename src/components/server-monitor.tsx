@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { useEffect, useState, type ReactNode } from 'react';
 import { getApiBase, isTauri } from '../lib/runtime';
 import { useMonitorResource } from '../hooks/use-monitor-resource';
@@ -66,7 +67,7 @@ export function ServerMonitor() {
     const failures = [usage, metrics, data, portfolio, orders, subscriptions].filter(r => r.error);
     return <section className={styles.wrap} aria-label="用量與 API 監控">
         <header className={styles.header}><div><h2 className={styles.title}>用量與 API 監控</h2><p className={styles.caption}>先看額度，再查請求來源與異常</p></div>
-            <button className={styles.button} onClick={() => setPaused(v => !v)}>{paused ? '繼續更新' : '暫停監控'}</button></header>
+            <Button size="compact" variant="outline" className={styles.button} onClick={() => setPaused(v => !v)}>{paused ? '繼續更新' : '暫停監控'}</Button></header>
         <div className={styles.status} role="status">{!enabled ? '已暫停 · 以下為上次觀測' : metrics.updated ? `監控更新 ${new Date(metrics.updated).toLocaleTimeString('zh-TW', { hour12: false })}` : metrics.error ? '監控無法取得' : '監控讀取中…'}<span>監控 10 秒 · 額度 60 秒更新</span></div>
         {failures.length > 0 && <div className={styles.warning} role="status">部分資料無法取得，對應數值顯示未知。{failures.map(r => r.error).filter((s, i, a) => a.indexOf(s) === i).join('；')}</div>}
         <div className={styles.cards}>
@@ -103,7 +104,7 @@ export function ServerMonitor() {
             <p className={styles.caption}>{sub && !sub.unavailable ? Object.entries(sub.by_type).map(([type, count]) => `${type} ${count}`).join(' · ') : '訂閱資料未知'}{sub?.partial ? ' · 分布不完整' : ''}</p>
             <p className={styles.caption}>請求摘要：{report ? report.settings.capture.requests ? '已啟用' : '未開啟，無明細不代表沒有請求' : '未知'}<br />串流統計：{report ? report.settings.capture.streams === 'auto' ? '按需；展開官方 Dashboard 的連線詳情才收集' : '已停用' : '未知'}<br />歷史最後儲存：{report?.last_saved_ms ? new Date(report.last_saved_ms).toLocaleTimeString('zh-TW', { hour12: false }) : '尚無紀錄'}</p>
         </details>
-        {ownedOrigin && <button className={styles.button} aria-expanded={dashboard} onClick={() => setDashboard(v => !v)}>{dashboard ? '收合' : '開啟'}官方 Server Dashboard</button>}
+        {ownedOrigin && <Button size="compact" variant="outline" className={styles.button} aria-expanded={dashboard} onClick={() => setDashboard(v => !v)}>{dashboard ? '收合' : '開啟'}官方 Server Dashboard</Button>}
         {dashboard && enabled && ownedOrigin && <iframe className={styles.frame} title="Shioaji Server Dashboard" src={`${ownedOrigin}/?monitor.source=backend&monitor.origin=all&monitor.window=5m`} sandbox="allow-scripts allow-same-origin" referrerPolicy="no-referrer" />}
         {dashboard && <p className={styles.caption}>收合、暫停或隱藏本頁會卸載 Dashboard，釋放自己的收集 session；不影響行情訂閱。完整 Dashboard 建議放大面板查看。</p>}
     </section>;

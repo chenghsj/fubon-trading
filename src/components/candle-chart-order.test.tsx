@@ -1,3 +1,60 @@
+
+// Business tests drive the controlled Tabs API; DOM acceptance covers roving focus.
+vi.mock('./ui/tabs', async () => {
+    const { createElement, createContext, useContext } = await import('react');
+    type State = { value?: string; onValueChange?: (value: string) => void };
+    type Container = { children?: import('react').ReactNode; [key: string]: unknown };
+    const Context = createContext<State>({});
+    return {
+        Tabs: ({ children, value, onValueChange, ...props }: State & Container) =>
+            createElement(Context.Provider, { value: { value, onValueChange } }, createElement('div', props, children)),
+        TabsList: ({ children, ...props }: Container) => createElement('div', { ...props, role: 'tablist' }, children),
+        TabsTrigger: ({ children, value, onClick, ...props }: Container & { value: string; onClick?: () => void }) => {
+            const group = useContext(Context);
+            return createElement('button', { ...props, role: 'tab', 'aria-selected': group.value === value,
+                onClick: () => { onClick?.(); group.onValueChange?.(value); } }, children);
+        },
+        TabsContent: ({ children, value, ...props }: Container & { value: string }) => {
+            const group = useContext(Context);
+            return value === group.value ? createElement('div', { ...props, role: 'tabpanel' }, children) : null;
+        },
+    };
+});
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, onEscapeClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; onEscapeClose?: () => void; [key: string]: unknown;
+    }) => {
+        useEscClose(onEscapeClose ?? (() => { if (!locked && (canClose?.() ?? true)) onClose?.(); }));
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 import '../test/mock-order-reconciliation';
 import { operationNotice } from '../test/operation-notice';
 // #204 K 線圖下單設定：工具列一顆按鈕（數量＋單位）、彈出面板只列適用選項、
@@ -529,14 +586,14 @@ describe('chart order settings button', () => {
         expect(lockButton().findAllByType(LockOpen)).toHaveLength(1);
         expect(lockButton().findAllByType(Lock)).toHaveLength(0);
         // 圖上沒有委託線：未鎖定但不亮
-        expect(lockButton().props.className).toBe(styles.orderLockBtn.idle);
+        expect(lockButton().props.className).toContain(styles.orderLockBtn.idle);
         expect(lockButton().props.title).toBe(`委託線可拖曳改價 — 點擊或按 ${shortcut} 鎖定，避免誤拖（所有圖表，重開後保留）`);
         await act(async () => { lockButton().props.onClick(); });
         expect(getRiskSettings().orderLineLock).toBe(true);
         expect(lockButton().props['aria-pressed']).toBe(true);
         expect(lockButton().findAllByType(Lock)).toHaveLength(1);
         expect(lockButton().findAllByType(LockOpen)).toHaveLength(0);
-        expect(lockButton().props.className).toBe(styles.orderLockBtn.locked);
+        expect(lockButton().props.className).toContain(styles.orderLockBtn.locked);
         expect(lockButton().props.title).toBe(`委託線已鎖定（所有圖表）：按住線只會平移圖表，點價時點在線上不下單 — 點擊或按 ${shortcut} 解鎖`);
         await act(async () => { lockButton().props.onClick(); });
         expect(getRiskSettings().orderLineLock).toBe(false);
@@ -551,17 +608,20 @@ describe('chart order settings button', () => {
             status: { status: 'Submitted', deal_quantity: 0, cancel_quantity: 0, modified_price: 0 } };
         await mount({ contract: stk, trades: [trade] });
         const lockButton = () => view.root.find(n => n.type === 'button' && n.props['aria-label'] === '委託線鎖定');
-        expect(lockButton().props.className).toBe(styles.orderLockBtn[lit]);
+        expect(lockButton().props.className).toContain(styles.orderLockBtn[lit]);
         act(() => setRiskSettings({ orderLineLock: true }));
-        expect(lockButton().props.className).toBe(styles.orderLockBtn.locked);
+        expect(lockButton().props.className).toContain(styles.orderLockBtn.locked);
     });
 
     it('鎖定鈕在下單區塊開頭：分隔線之後、點價買之前，更新歷史維持在最右端', async () => {
         await mount({ contract: stk });
         const lockButton = view.root.find(n => n.type === 'button' && n.props['aria-label'] === '委託線鎖定');
-        const toolbar = lockButton.parent!;
+        let toolbar = lockButton.parent!;
+        while (typeof toolbar.type !== 'string') toolbar = toolbar.parent!;
         expect(toolbar.props.className).toBe(styles.toolbar);
-        const items = toolbar.children as ReactTestInstance[];
+        const hostChildren = (node: ReactTestInstance): ReactTestInstance[] => node.children.flatMap(child =>
+            typeof child === 'string' ? [] : typeof child.type === 'string' ? [child] : hostChildren(child));
+        const items = hostChildren(toolbar);
         const at = items.indexOf(lockButton);
         expect(items[at - 1]!.props.className).toBe(styles.toolbarDivider);
         expect(items[at + 1]).toBe(button(view.root, '點價買'));
@@ -569,7 +629,7 @@ describe('chart order settings button', () => {
         expect(items.indexOf(highLow)).toBeLessThan(at - 1);
         const refreshButton = view.root.findByType(RefreshButton);
         expect(refreshButton.parent).toBe(toolbar);
-        expect(items.indexOf(refreshButton)).toBe(items.length - 1);
+        expect(items.indexOf(refreshButton.findByType('button'))).toBe(items.length - 1);
     });
 
     it('委託線鎖住時標題沒有拖曳提示，解鎖後恢復', async () => {
@@ -768,7 +828,7 @@ describe('chart order settings button', () => {
         await act(async () => { dialog = create(createElement(DrawingSettingsDialog, { api: drawingApi(), drawing, onClose: vi.fn() })); });
         try {
             await act(async () => button(view.root, '點價買').props.onClick());
-            const target = dialog.root.findAllByProps({ role: 'tab' })[0]!;
+            const target = dialog.root.findAll(n => n.type === 'button' && n.props.role === 'tab')[0]!;
             await act(async () => capture(target, kind));
             await clickChart();
             expect(m.place).not.toHaveBeenCalled();

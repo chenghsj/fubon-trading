@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { RefreshButton } from './refresh-button';
 import { fetchChartHistory, nextChartHistoryRevision } from '../lib/chart-history';
 // src/components/intraday-chart.tsx — 當日走勢圖 (intraday time-price
@@ -1386,7 +1388,7 @@ export function IntradayChart({
                 {canPickSession ? (
                     // 期/選：時段標籤即切換鈕 — 自動 / 鎖日盤 / 鎖夜盤
                     <span className={styles.settingsWrap}>
-                        <button
+                        <Button size="compact" variant="ghost"
                             className={
                                 styles.sessionChipBtn[
                                     sessionMode === 'auto' ? 'auto' : 'manual'
@@ -1403,7 +1405,7 @@ export function IntradayChart({
                         >
                             {staleDate ? `${staleDate} ` : ''}
                             {chipLabel}
-                        </button>
+                        </Button>
                         {sessionPopOpen && (
                             <>
                                 <span
@@ -1421,7 +1423,7 @@ export function IntradayChart({
                                             時段
                                         </span>
                                         {SESSION_MODES.map((m) => (
-                                            <button
+                                            <Button size="compact" variant="outline"
                                                 key={m.key}
                                                 role='menuitemradio'
                                                 aria-checked={
@@ -1440,7 +1442,7 @@ export function IntradayChart({
                                                 }
                                             >
                                                 {m.label}
-                                            </button>
+                                            </Button>
                                         ))}
                                     </span>
                                 </span>
@@ -1525,7 +1527,7 @@ export function IntradayChart({
                 <span className={styles.toggles}>
                     <RefreshButton label="更新歷史" loading={loading} onClick={() => setReloadSeq(nextChartHistoryRevision())} />
                     <span className={styles.settingsWrap}>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.scaleBtn.normal}
                             style={{
                                 display: 'inline-flex',
@@ -1535,7 +1537,7 @@ export function IntradayChart({
                             onClick={() => setSettingsOpen((v) => !v)}
                         >
                             <Settings2 size={12} />
-                        </button>
+                        </Button>
                         {settingsOpen && (
                             <>
                                 <span
@@ -1549,7 +1551,7 @@ export function IntradayChart({
                                         >
                                             樣式
                                         </span>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 styles.scaleBtn[
                                                     chartStyle === 'line'
@@ -1563,8 +1565,8 @@ export function IntradayChart({
                                             }
                                         >
                                             線圖
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 styles.scaleBtn[
                                                     chartStyle === 'bars'
@@ -1578,7 +1580,7 @@ export function IntradayChart({
                                             }
                                         >
                                             美國線
-                                        </button>
+                                        </Button>
                                     </span>
                                     {contract.limit_up >
                                         contract.limit_down &&
@@ -1595,7 +1597,7 @@ export function IntradayChart({
                                                 >
                                                     Y 軸
                                                 </span>
-                                                <button
+                                                <Button size="compact" variant="outline"
                                                     className={
                                                         styles.scaleBtn[
                                                             scaleMode ===
@@ -1610,8 +1612,8 @@ export function IntradayChart({
                                                     }
                                                 >
                                                     自動
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button size="compact" variant="outline"
                                                     className={
                                                         styles.scaleBtn[
                                                             scaleMode ===
@@ -1630,7 +1632,7 @@ export function IntradayChart({
                                                     }
                                                 >
                                                     漲跌停
-                                                </button>
+                                                </Button>
                                                 {pastRef.current &&
                                                     scaleMode === 'band' && (
                                                         <span
@@ -1649,27 +1651,27 @@ export function IntradayChart({
                                         >
                                             記憶
                                         </span>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={styles.scaleBtn.normal}
                                             title={`把目前 Y 軸模式套用到整個${scaleCatOf(contract) === 'equity' ? '個股' : '指數'}類（並清除同類的單檔記憶）`}
                                             onClick={applyScaleToCat}
                                         >
                                             套用同類
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={styles.scaleBtn.normal}
                                             title='把目前 Y 軸模式套用到所有商品（清除所有單檔記憶）'
                                             onClick={applyScaleToAll}
                                         >
                                             套用全部
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={styles.scaleBtn.normal}
                                             title='清空 Y 軸記憶，回到預設（指數=自動、個股=漲跌停）'
                                             onClick={resetScaleMem}
                                         >
                                             重設
-                                        </button>
+                                        </Button>
                                     </span>
                                     <span className={styles.settingsRow}>
                                         <span
@@ -1677,7 +1679,7 @@ export function IntradayChart({
                                         >
                                             量能
                                         </span>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 styles.scaleBtn[
                                                     volMode === 'overlay'
@@ -1691,8 +1693,8 @@ export function IntradayChart({
                                             }
                                         >
                                             疊圖
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 styles.scaleBtn[
                                                     volMode === 'pane'
@@ -1706,7 +1708,7 @@ export function IntradayChart({
                                             }
                                         >
                                             分欄
-                                        </button>
+                                        </Button>
                                     </span>
                                     <span className={styles.settingsRow}>
                                         <span
@@ -1715,7 +1717,7 @@ export function IntradayChart({
                                             顯示
                                         </span>
                                         {!isIndex && (
-                                            <button
+                                            <Button size="compact" variant="outline"
                                                 className={
                                                     styles.scaleBtn[
                                                         legendItems.avg
@@ -1728,9 +1730,9 @@ export function IntradayChart({
                                                 }
                                             >
                                                 均價
-                                            </button>
+                                            </Button>
                                         )}
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 styles.scaleBtn[
                                                     legendItems.hilo
@@ -1743,8 +1745,8 @@ export function IntradayChart({
                                             }
                                         >
                                             高低
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={
                                                 styles.scaleBtn[
                                                     legendItems.total
@@ -1757,7 +1759,7 @@ export function IntradayChart({
                                             }
                                         >
                                             {isIndex ? '總額' : '總量'}
-                                        </button>
+                                        </Button>
                                     </span>
                                     <span className={styles.settingsRow}>
                                         <span
@@ -1765,8 +1767,7 @@ export function IntradayChart({
                                         >
                                             線寬
                                         </span>
-                                        <input
-                                            type='range'
+                                        <Slider
                                             className={styles.slider}
                                             style={
                                                 {
@@ -1776,10 +1777,10 @@ export function IntradayChart({
                                             min={LINE_WIDTH_MIN}
                                             max={LINE_WIDTH_MAX}
                                             step={0.5}
-                                            value={lineWidth}
-                                            onChange={(e) =>
+                                            value={[Number(lineWidth)]}
+                                            onValueChange={(e) =>
                                                 pickLineWidth(
-                                                    Number(e.target.value),
+                                                    Number(e[0]!),
                                                 )
                                             }
                                         />

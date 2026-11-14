@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 // src/components/panel-error-boundary.tsx — 面板崩潰隔離（QA11）。
 // 單一面板 render throw 只讓該面板顯示錯誤卡，其餘面板與版面照常；
 // 「重新載入面板」以 epoch key 強制整個子樹重掛（不只清錯誤旗標，
@@ -40,7 +41,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
                         {this.props.label ?? '面板'}發生錯誤
                     </div>
                     <div className={styles.message}>{message}</div>
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.retry}
                         onClick={() =>
                             this.setState((current) => ({
@@ -50,7 +51,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
                         }
                     >
                         <RotateCcw size={12} /> 重新載入面板
-                    </button>
+                    </Button>
                 </div>
             );
         }

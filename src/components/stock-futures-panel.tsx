@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { RefreshButton } from './refresh-button';
 import { Star } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -129,18 +131,18 @@ export function StockFuturesPanel({
                         localStorage.setItem(STOCK_FUTURE_UNDERLYING, stock.code);
                     }}
                 />
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.segment[mode === 'continuous' ? 'on' : 'off']}
                     onClick={() => setMode('continuous')}
                 >
                     近月／次月
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="ghost"
                     className={styles.segment[mode === 'all' ? 'on' : 'off']}
                     onClick={() => setMode('all')}
                 >
                     全月份
-                </button>
+                </Button>
                 <RefreshButton label="更新報價" loading={quotesLoading} onClick={() => void refreshQuotes()} />
             </div>
             <CatalogRetryAlert catalogError={catalogError} error={error} text='個股期合約載入失敗' onRetry={retry} />
@@ -161,7 +163,7 @@ export function StockFuturesPanel({
                 <div className={styles.empty}><AsyncStatus phase='empty' text='此標的目前沒有個股期' /></div>
             ) : (
                 <div className={styles.scroll}>
-                    <table className={styles.table}>
+                    <Table containerClassName="contents" className={styles.table}>
                         <colgroup>
                             <col style={{ width: '31%' }} />
                             <col style={{ width: '13%' }} />
@@ -170,17 +172,17 @@ export function StockFuturesPanel({
                             <col style={{ width: '14%' }} />
                             <col style={{ width: '34px' }} />
                         </colgroup>
-                        <thead>
-                            <tr>
-                                <th className={styles.thLeft}>合約</th>
-                                <th className={styles.th}>月份</th>
-                                <th className={styles.th}>成交</th>
-                                <th className={styles.th}>漲跌</th>
-                                <th className={styles.th}>乘數</th>
-                                <th className={styles.th} aria-label='加入自選' />
-                            </tr>
-                        </thead>
-                        <tbody>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className={styles.thLeft}>合約</TableHead>
+                                <TableHead className={styles.th}>月份</TableHead>
+                                <TableHead className={styles.th}>成交</TableHead>
+                                <TableHead className={styles.th}>漲跌</TableHead>
+                                <TableHead className={styles.th}>乘數</TableHead>
+                                <TableHead className={styles.th} aria-label='加入自選' />
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {visible.map((contract) => {
                                 const quote = snapshots.get(contract.code);
                                 const direction = quote
@@ -191,7 +193,7 @@ export function StockFuturesPanel({
                                           : 'flat'
                                     : 'flat';
                                 return (
-                                    <tr
+                                    <TableRow
                                         key={contract.code}
                                         className={styles.row}
                                         title='連動此合約'
@@ -201,7 +203,7 @@ export function StockFuturesPanel({
                                             onPick(contract.code);
                                         }}
                                     >
-                                        <td className={styles.tdLeft}>
+                                        <TableCell className={styles.tdLeft}>
                                             <strong>{contract.code}</strong>{' '}
                                             {/R1$/.test(contract.code) && (
                                                 <span className={styles.badge}>近月</span>
@@ -212,21 +214,21 @@ export function StockFuturesPanel({
                                             <span className={styles.contractName}>
                                                 {contract.name}
                                             </span>
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {contract.delivery_month ?? '—'}
-                                        </td>
-                                        <td className={`${styles.td} ${panel.dirText[direction]}`}>
+                                        </TableCell>
+                                        <TableCell className={`${styles.td} ${panel.dirText[direction]}`}>
                                             {quote ? fmtPrice(quote.close) : '—'}
-                                        </td>
-                                        <td className={`${styles.td} ${panel.dirText[direction]}`}>
+                                        </TableCell>
+                                        <TableCell className={`${styles.td} ${panel.dirText[direction]}`}>
                                             {quote ? fmtSigned(quote.change_price) : '—'}
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {contract.multiplier?.toLocaleString() ?? '—'}
-                                        </td>
-                                        <td className={styles.td}>
-                                            <button
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
+                                            <Button size="compact-icon" variant="ghost"
                                                 className={styles.iconButton}
                                                 title='加入目前自選清單'
                                                 aria-label={`將 ${contract.code} 加入自選`}
@@ -255,13 +257,13 @@ export function StockFuturesPanel({
                                                 }}
                                             >
                                                 <Star size={13} />
-                                            </button>
-                                        </td>
-                                    </tr>
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </TableBody>
+                    </Table>
                 </div>
             )}
         </div>

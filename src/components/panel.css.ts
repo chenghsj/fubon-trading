@@ -8,14 +8,12 @@ export const panel = style({
     display: 'flex',
     flexDirection: 'column',
     minHeight: 0,
-    background: vars.color.panel,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.md,
     overflow: 'hidden',
 });
 
 export const panelTitle = style({
     display: 'flex',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: vars.space.sm,
     padding: `7px ${vars.space.md}`,
@@ -24,7 +22,7 @@ export const panelTitle = style({
     fontWeight: 600,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: vars.color.mutedForeground,
+    color: vars.color.foreground,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
     userSelect: 'none',

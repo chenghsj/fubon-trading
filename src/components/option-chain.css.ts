@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/option-chain.css.ts
 
 import { createContainer, style } from '@vanilla-extract/css';
@@ -18,7 +19,7 @@ export const wrap = style({
     containerType: 'inline-size',
 });
 
-export const toolbar = style({
+export const toolbar = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
@@ -26,7 +27,7 @@ export const toolbar = style({
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const atm = style({
     marginLeft: 'auto',

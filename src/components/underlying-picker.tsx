@@ -1,3 +1,5 @@
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStockCatalog } from '../hooks/use-stock-catalog';
 import {
@@ -35,7 +37,7 @@ export function UnderlyingPicker({
 
     return (
         <div className={styles.picker}>
-            <input
+            <Input
                 className={styles.input}
                 value={input}
                 placeholder='輸入股票代碼或名稱'
@@ -66,13 +68,13 @@ export function UnderlyingPicker({
             {error && (
                 <span role='alert'>
                     標的目錄載入失敗
-                    <button type='button' onClick={retry}>重試</button>
+                    <Button size="compact" variant="ghost" type='button' onClick={retry}>重試</Button>
                 </span>
             )}
             {open && suggestions.length > 0 && (
                 <div className={styles.suggestions}>
                     {suggestions.map((stock) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={stock.code}
                             className={styles.suggestion}
                             onMouseDown={(event) => event.preventDefault()}
@@ -88,7 +90,7 @@ export function UnderlyingPicker({
                             <span className={styles.suggestionName}>
                                 {stock.name}
                             </span>
-                        </button>
+                        </Button>
                     ))}
                 </div>
             )}

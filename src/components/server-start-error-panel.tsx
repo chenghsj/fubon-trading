@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { CircleAlert, FileText, FileX2, FolderOpen, KeyRound, Plug, ShieldAlert, SquareTerminal, Timer, UserRoundCog, WifiOff, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { serverStartErrorCopy, type ServerStartError } from '../lib/server-start-error';
@@ -41,9 +42,9 @@ export function ServerStartErrorPanel({ error, logPath, onOpenLogFolder }: {
             </>}
             {(logPath || onOpenLogFolder) && <div className={styles.footer}>
                 {logPath && <span className={styles.logPath}><FileText size={12} aria-hidden />記錄檔：{logPath}</span>}
-                {onOpenLogFolder && <button type="button" className={styles.openButton} disabled={opening} onClick={() => void open()}>
+                {onOpenLogFolder && <Button size="compact" variant="outline" type="button" className={styles.openButton} disabled={opening} onClick={() => void open()}>
                     <FolderOpen size={13} aria-hidden />打開記錄資料夾
-                </button>}
+                </Button>}
                 {openFailed && <p className={styles.openError}>無法開啟記錄資料夾，請手動前往上方路徑。</p>}
             </div>}
         </div>

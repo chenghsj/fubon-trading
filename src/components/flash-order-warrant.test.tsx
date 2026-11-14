@@ -1,3 +1,38 @@
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 // 權證閃電下單（docs/qa/warrant-rules.md）：權證走證券帳戶、固定整張現股
 //（不得零股、不適用信用），外國標的權證（第六碼 F／Q）無漲跌幅、市價鈕停用。
 // SDK 1.7 以前權證可能標成 STK：以代號判斷，行為與 WRT 相同。
@@ -227,7 +262,7 @@ describe('權證觸價單與自動停損停利（背景執行引擎 #217 已支�
             expect(group(r, '觸價後')).toHaveLength(1);
             expect(marketItem(r).props.disabled).toBe(false);
             expect(group(r, '觸價點法')).toHaveLength(1);
-            expect(r.root.findAll(n => n.props.role === 'menuitem' && text(n).includes('自動停損停利'))).toHaveLength(1);
+            expect(r.root.findAll(n => typeof n.type === 'string' && n.props.role === 'menuitem' && text(n).includes('自動停損停利'))).toHaveLength(1);
             expect(testId(r, 'flash-warrant-trigger-note')).toHaveLength(0);
             expect(testId(r, 'flash-warrant-protect-note')).toHaveLength(0);
         });
@@ -271,7 +306,7 @@ describe('權證觸價單與自動停損停利（背景執行引擎 #217 已支�
             expect(marketItem(r).props.disabled).toBe(true);
             expect(marketItem(r).props.title).toBe(WARRANT_FLASH_TEXT.foreignTriggerMenu);
             expect(text(testId(r, 'flash-warrant-trigger-note')[0]!)).toContain(WARRANT_FLASH_TEXT.foreignTriggerMenu);
-            expect(r.root.findAll(n => n.props.role === 'menuitem' && text(n).includes('自動停損停利'))).toHaveLength(0);
+            expect(r.root.findAll(n => typeof n.type === 'string' && n.props.role === 'menuitem' && text(n).includes('自動停損停利'))).toHaveLength(0);
             expect(text(testId(r, 'flash-warrant-protect-note')[0]!)).toContain(WARRANT_FLASH_TEXT.foreignProtect);
             expect(testId(r, 'flash-protect')).toHaveLength(0);
         });
@@ -291,12 +326,12 @@ describe('權證觸價單與自動停損停利（背景執行引擎 #217 已支�
         const r = await mount(stk);
         expect(headers(r)).toHaveLength(2);
         expect(r.root.findAll(n => n.props['data-trigger'] === 'buy' && n.type === 'div').length).toBeGreaterThan(0);
-        expect(r.root.findAll(n => n.props['data-testid'] === 'flash-protect')).toHaveLength(1);
+        expect(r.root.findAll(n => typeof n.type === 'string' && n.props['data-testid'] === 'flash-protect')).toHaveLength(1);
         await openMenu(r);
         expect(group(r, '觸價後')).toHaveLength(1);
         expect(marketItem(r).props.disabled).toBe(false);
         expect(group(r, '觸價點法')).toHaveLength(1);
-        expect(r.root.findAll(n => n.props.role === 'menuitem' && text(n).includes('自動停損停利'))).toHaveLength(1);
+        expect(r.root.findAll(n => typeof n.type === 'string' && n.props.role === 'menuitem' && text(n).includes('自動停損停利'))).toHaveLength(1);
         expect(testId(r, 'flash-warrant-trigger-note')).toHaveLength(0);
         expect(testId(r, 'flash-warrant-protect-note')).toHaveLength(0);
     });

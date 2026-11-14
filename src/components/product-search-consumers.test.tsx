@@ -1,3 +1,17 @@
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
 import { act } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProductSuggestion } from '../lib/product-search';

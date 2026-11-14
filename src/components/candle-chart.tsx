@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from '../lib/fubon-support';
 import { canTrade } from '../lib/account-tradable';
 import { reportOrderError } from '../lib/order-outcome';
@@ -1979,14 +1980,14 @@ export function CandleChart({
                                         ]
                                     }
                                 >
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         className={styles.legendLabel}
                                         style={{ color: nameColor }}
                                         title='開啟指標設定'
                                         onClick={() => openSettings(inst.id)}
                                     >
                                         {instanceLabel(inst)}
-                                    </button>
+                                    </Button>
                                     {offTf && (
                                         <span className={styles.legendNote}>
                                             此時框停用
@@ -2009,7 +2010,7 @@ export function CandleChart({
                                         </span>
                                     )}
                                     <span className={styles.legendCtrls}>
-                                        <button
+                                        <Button size="compact" variant="outline"
                                             className={styles.legendCtrlBtn}
                                             title={
                                                 inst.hidden ? '顯示' : '隱藏'
@@ -2025,8 +2026,8 @@ export function CandleChart({
                                             ) : (
                                                 <Eye size={11} />
                                             )}
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={styles.legendCtrlBtn}
                                             title='設定'
                                             onClick={() =>
@@ -2034,8 +2035,8 @@ export function CandleChart({
                                             }
                                         >
                                             <Settings2 size={11} />
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={styles.legendCtrlBtn}
                                             title='移除'
                                             onClick={() =>
@@ -2043,8 +2044,8 @@ export function CandleChart({
                                             }
                                         >
                                             <X size={11} />
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button size="compact" variant="outline"
                                             className={styles.legendCtrlBtn}
                                             title='更多'
                                             onClick={() =>
@@ -2056,7 +2057,7 @@ export function CandleChart({
                                             }
                                         >
                                             <MoreHorizontal size={11} />
-                                        </button>
+                                        </Button>
                                     </span>
                                     {legendMenuFor === inst.id && (
                                         <>
@@ -2071,7 +2072,7 @@ export function CandleChart({
                                             <div
                                                 className={styles.legendMenu}
                                             >
-                                                <button
+                                                <Button size="compact" variant="ghost"
                                                     className={
                                                         styles.legendMenuItem
                                                     }
@@ -2086,8 +2087,8 @@ export function CandleChart({
                                                 >
                                                     <Star size={11} />
                                                     加入 / 移除我的最愛
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button size="compact" variant="ghost"
                                                     className={
                                                         styles.legendMenuItem
                                                     }
@@ -2102,8 +2103,8 @@ export function CandleChart({
                                                 >
                                                     <Copy size={11} />
                                                     複製指標
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button size="compact" variant="ghost"
                                                     className={
                                                         styles.legendMenuItem
                                                     }
@@ -2117,8 +2118,8 @@ export function CandleChart({
                                                 >
                                                     <ArrowUp size={11} />
                                                     上移（視覺順序）
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button size="compact" variant="ghost"
                                                     className={
                                                         styles.legendMenuItem
                                                     }
@@ -2135,8 +2136,8 @@ export function CandleChart({
                                                 >
                                                     <ArrowDown size={11} />
                                                     下移（視覺順序）
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button size="compact" variant="ghost"
                                                     className={
                                                         styles.legendMenuItem
                                                     }
@@ -2146,8 +2147,8 @@ export function CandleChart({
                                                 >
                                                     <Settings2 size={11} />
                                                     設定…
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button size="compact" variant="destructive"
                                                     className={
                                                         styles.legendMenuItemDanger
                                                     }
@@ -2162,7 +2163,7 @@ export function CandleChart({
                                                 >
                                                     <X size={11} />
                                                     移除
-                                                </button>
+                                                </Button>
                                             </div>
                                         </>
                                     )}
@@ -2205,18 +2206,18 @@ export function CandleChart({
             onFocusCapture={() => { if (panelService && panelId) panelService.focus(panelId); }}>
             <div className={styles.toolbar}>
                 {TIMEFRAMES.map((t, i) => (
-                    <button
+                    <Button size="compact" variant="outline"
                         key={t.label}
                         className={styles.tfBtn[i === tfIdx ? 'active' : 'normal']}
                         onClick={() => pickTimeframe(i)}
                     >
                         {t.label}
-                    </button>
+                    </Button>
                 ))}
                 {canDayOnly && (
                     // 單一切換鈕（亮＝僅日盤）— 工具列寬度吃緊，不另開
                     // 「全盤」鈕與分隔線，窄面板才不會提早折行
-                    <button
+                    <Button size="compact" variant="outline"
                         className={styles.tfBtn[dayOnly ? 'active' : 'normal']}
                         title={
                             dayOnly
@@ -2227,17 +2228,17 @@ export function CandleChart({
                         onClick={() => pickSessionMode(dayOnly ? 'all' : 'day')}
                     >
                         日盤
-                    </button>
+                    </Button>
                 )}
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.iconBtn}
                     onClick={resetView}
                     title='重設視圖（自動縮放）'
                     aria-label='重設視圖'
                 >
                     <Maximize2 size={12} />
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="ghost"
                     className={styles.iconBtnToggle[showOhlc ? 'on' : 'off']}
                     onClick={toggleOhlc}
                     title={showOhlc ? 'K 棒讀值（開高低收）：顯示中 — 點擊隱藏' : 'K 棒讀值（開高低收）：已隱藏 — 點擊顯示'}
@@ -2245,8 +2246,8 @@ export function CandleChart({
                     aria-pressed={showOhlc}
                 >
                     <ChartCandlestick size={12} />
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="ghost"
                     className={styles.iconBtnToggle[showHighLow ? 'on' : 'off']}
                     onClick={toggleHighLow}
                     title={showHighLow ? '最高／最低標記（目前畫面範圍）：顯示中 — 點擊隱藏' : '最高／最低標記（目前畫面範圍）：已隱藏 — 點擊顯示'}
@@ -2254,9 +2255,9 @@ export function CandleChart({
                     aria-pressed={showHighLow}
                 >
                     <ArrowUpDown size={12} />
-                </button>
+                </Button>
                 <span className={styles.toolbarDivider} />
-                <button
+                <Button size="compact" variant="outline"
                     type='button'
                     // 放在下單區塊開頭：委託線是下單互動，與點價買／賣同一組。
                     // 鎖定＝按下；未鎖定時只有圖上真的有拖得動的委託線才用強調色提醒
@@ -2270,7 +2271,7 @@ export function CandleChart({
                     aria-pressed={orderLineLock}
                 >
                     {orderLineLock ? <Lock size={12} /> : <LockOpen size={12} />}
-                </button>
+                </Button>
                 {TRADE_MODES.filter(
                     // 組合商品只能用組合單下單 — 圖上僅保留警示，
                     // 點價買賣與觸價停損停利（flat code 會被 server 拒）
@@ -2284,7 +2285,7 @@ export function CandleChart({
                     const ruleBlocked = isFubonBroker() && ['stop', 'take', 'alert'].includes(m.key) ? FUBON_AUTOMATION_UNAVAILABLE : (m.key === 'stop' || m.key === 'take') ? warrantExitBlock : null;
                     const off = (!!blocked && creditApplies) || !!ruleBlocked;
                     return (
-                    <button
+                    <Button size="compact" variant="outline"
                         key={m.key}
                         className={styles.modeBtn[shownMode === m.key ? 'armed' : 'normal']}
                         disabled={off || undefined}
@@ -2296,7 +2297,7 @@ export function CandleChart({
                     >
                         {ruleBlocked && <Lock size={10} aria-hidden />}
                         {m.label}
-                    </button>
+                    </Button>
                     );
                 })}
                 {orderMarket && !isCombo && !warrant && (
@@ -2319,7 +2320,7 @@ export function CandleChart({
                         contractLabel={`${contract.code}${(contract as { name?: string }).name ? ` ${(contract as { name?: string }).name}` : ''}`}
                     />
                 )}
-                <button
+                <Button size="compact" variant="outline"
                     className={
                         styles.indicatorBtn[
                             instances.length > 0 ? 'active' : 'normal'
@@ -2328,7 +2329,7 @@ export function CandleChart({
                     onClick={() => setPickerOpen(true)}
                 >
                     指標
-                </button>
+                </Button>
                 {pickerOpen && (
                     <IndicatorDialog
                         instances={instances}
@@ -2412,7 +2413,7 @@ export function CandleChart({
                                         委{t.order.action === 'Buy' ? '買' : '賣'}
                                         {remaining} @{fmtPrice(price)}
                                     </span>
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         className={styles.orderCancel}
                                         title='刪單'
                                         onClick={() =>
@@ -2441,7 +2442,7 @@ export function CandleChart({
                                         }
                                     >
                                         CANCEL
-                                    </button>
+                                    </Button>
                                 </div>
                             );
                         })}
@@ -2480,12 +2481,12 @@ export function CandleChart({
                                             </span>
                                         )}
                                 </span>
-                                <button
+                                <Button size="compact" variant="destructive"
                                     className={styles.triggerRemove}
                                     onClick={() => removeTrigger(t.id)}
                                 >
                                     <X size={10} />
-                                </button>
+                                </Button>
                             </div>
                         ))}
                     </div>

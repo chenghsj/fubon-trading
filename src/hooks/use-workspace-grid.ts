@@ -69,7 +69,7 @@ export function useWorkspaceGrid({ workspace, workspaceRef, width, updateWorkspa
         onDragStop: (next: Layout, _old: LayoutItem | null, item: LayoutItem | null) => stopGesture('drag', next, item),
         onResizeStop: (next: Layout, _old: LayoutItem | null, item: LayoutItem | null) => stopGesture('resize', next, item),
         dragConfig: { enabled: !projected, handle: '.drag-handle', cancel: 'button, input, select' },
-        resizeConfig: { enabled: !projected },
+        resizeConfig: { enabled: !projected, handles: ['e', 's', 'se'] as const },
     }), [onLayoutChange, startGesture, stopGesture, projected]);
     return { renderLayout, renderCols, renderWidth, density, gridProps };
 }

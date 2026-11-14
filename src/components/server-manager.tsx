@@ -1,3 +1,6 @@
+import { Field } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 // src/components/server-manager.tsx — desktop-only shioaji server控制台:
 // status, start/stop/restart, API-key settings, simulation/production mode.
 
@@ -712,7 +715,7 @@ export function ServerManager({
     return (
         <div ref={popoverWrapRef} className={styles.settingsWrap}>
             {envNotice && <ServerEnvNotice notice={envNotice} onOpen={() => onToggle(true)} />}
-            <button
+            <Button size="compact" variant="outline"
                 className={styles.resetBtn}
                 style={{
                     display: 'inline-flex',
@@ -738,7 +741,7 @@ export function ServerManager({
                     />
                 )}
                 {updateNeedsAttention ? updateHeaderLabel : phaseLabel}
-            </button>
+            </Button>
             {open && (
                 <>
                     <div
@@ -920,34 +923,34 @@ export function ServerManager({
                         {savedForRestart && <p role='status' className={styles.emptyHint}>設定已儲存，下次啟動或重啟時套用。</p>}
                         {settingsLoadError && <p role='alert' className={styles.emptyHint}>{settingsLoadError}</p>}
                         <div className={styles.settingGroup}>
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.opt.off}
                                 disabled={busy || switching || !settingsLoaded || !!status?.running}
                                 onClick={() => { setSwitchTarget(null); void doStart(); }}
                             >
                                 <Play size={11} style={{ verticalAlign: '-1px' }} />{' '}
                                 啟動
-                            </button>
-                            <button
+                            </Button>
+                            <Button size="compact" variant="ghost"
                                 className={styles.opt.off}
                                 disabled={busy || switching || !settingsLoaded || !status?.running}
                                 onClick={() => { setSwitchTarget(null); void doRestart(); }}
                             >
                                 <RotateCcw size={11} style={{ verticalAlign: '-1px' }} />{' '}
                                 重啟
-                            </button>
-                            <button
+                            </Button>
+                            <Button size="compact" variant="ghost"
                                 className={styles.opt.off}
                                 disabled={busy || !status?.running}
                                 onClick={() => { setSwitchTarget(null); void doStop(); }}
                             >
                                 <Square size={10} style={{ verticalAlign: '-1px' }} />{' '}
                                 停止
-                            </button>
+                            </Button>
                         </div>
                         <p className={styles.emptyHint}>重啟或停止會一併停止本 App 的 Agent，並撤銷本次 Auto 授權。</p>
 
-                        <div className={styles.switchRow}>
+                        <Field orientation="horizontal" className={styles.switchRow}>
                             <span className={styles.switchLabel}>
                                 <Lock size={12} />
                                 本機 HTTPS
@@ -963,12 +966,7 @@ export function ServerManager({
                                         </span>
                                     )}
                             </span>
-                            <button
-                                className={
-                                    styles.switchTrack[
-                                        settings.httpsEnabled ? 'on' : 'off'
-                                    ]
-                                }
+                            <Switch
                                 role='switch'
                                 aria-label='本機 HTTPS（切換後重啟伺服器）'
                                 aria-checked={settings.httpsEnabled}
@@ -978,13 +976,13 @@ export function ServerManager({
                                         ? '停用並改回 HTTP'
                                         : '一鍵產生並信任本機憑證，以 HTTPS＋HTTP/2 連本機伺服器'
                                 }
-                                onClick={() =>
+                                onCheckedChange={() =>
                                     void (settings.httpsEnabled
                                         ? disableHttps()
                                         : enableHttps())
                                 }
                             />
-                        </div>
+                        </Field>
                         {httpsBusy && (
                             <span className={styles.emptyHint}>
                                 正在產生憑證…（系統若跳出信任視窗請允許）
@@ -1004,27 +1002,22 @@ export function ServerManager({
                                 {httpsMsg}
                             </span>
                         )}
-                        <div className={styles.switchRow}>
+                        <Field orientation="horizontal" className={styles.switchRow}>
                             <span className={styles.switchLabel}>
                                 App 啟動時自動啟動伺服器
                             </span>
-                            <button
-                                className={
-                                    styles.switchTrack[
-                                        settings.autoStart ? 'on' : 'off'
-                                    ]
-                                }
+                            <Switch
                                 role='switch'
                                 aria-label='App 啟動時自動啟動伺服器'
                                 aria-checked={settings.autoStart}
                                 disabled={!settingsLoaded || busy}
-                                onClick={() =>
+                                onCheckedChange={() =>
                                     persist({
                                         autoStart: !settings.autoStart,
                                     })
                                 }
                             />
-                        </div>
+                        </Field>
                         {!settings.configured && (
                             <span
                                 className={styles.emptyHint}
@@ -1058,7 +1051,7 @@ export function ServerManager({
                             </span>
                         )}
                         {updateNeedsAttention && (
-                            <button
+                            <Button size="compact" variant="outline"
                                 className={styles.updateBtn}
                                 onClick={runUpdateAction}
                                 disabled={updateBusy}
@@ -1081,10 +1074,10 @@ export function ServerManager({
                                                   ? '…'
                                                   : ` ${updatePercent}%`
                                           }`}
-                            </button>
+                            </Button>
                         )}
                         <div className={styles.settingGroup}>
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.opt.off}
                                 onClick={() => void copyDiagnostics()}
                             >
@@ -1093,8 +1086,8 @@ export function ServerManager({
                                     style={{ verticalAlign: '-1px' }}
                                 />{' '}
                                 複製診斷
-                            </button>
-                            <button
+                            </Button>
+                            <Button size="compact" variant="ghost"
                                 className={styles.opt.off}
                                 disabled={updateBusy}
                                 onClick={runUpdateAction}
@@ -1124,9 +1117,9 @@ export function ServerManager({
                                 ) : (
                                     '檢查更新'
                                 )}
-                            </button>
+                            </Button>
                         </div>
-                        <button
+                        <Button size="compact" variant="outline"
                             className={styles.updateBtn}
                             disabled={!settingsLoaded || busy}
                             ref={settingsButton}
@@ -1134,7 +1127,7 @@ export function ServerManager({
                         >
                             <Settings size={13} />
                             完整設定…
-                        </button>
+                        </Button>
                     </div>
                     {settingsOpen && <ServerSettingsDialog
                         settings={settings} status={status} busy={busy || httpsBusy}
@@ -1150,19 +1143,19 @@ export function ServerManager({
                         <details className={dialogStyles.details}>
                             <summary>目前連線診斷</summary>
                             <p className={dialogStyles.hint}>檢查正在運行的伺服器，表單中的未套用設定不會納入檢查。</p>
-                            <button className={dialogStyles.button} onClick={runReadyCheck} disabled={checking || !status?.running}>
+                            <Button size="compact" variant="outline" className={dialogStyles.button} onClick={runReadyCheck} disabled={checking || !status?.running}>
                                 <ShieldCheck size={14} />{checking ? '檢查中…' : '檢查目前帳戶／CA'}
-                            </button>
+                            </Button>
                             {caError && <p className={dialogStyles.warning}>{caError}</p>}
                             {readyLines.length > 0 && <div role='status' className={dialogStyles.notice}>{readyLines.map((line, i) => <div key={i}>{reveal(line)}</div>)}</div>}
                         </details>
                         <details className={dialogStyles.details}>
                             <summary>App 更新與問題回報</summary>
                             <div className={dialogStyles.row}>
-                                <button className={dialogStyles.button} onClick={runUpdateAction} disabled={updateBusy}>
+                                <Button size="compact" variant="outline" className={dialogStyles.button} onClick={runUpdateAction} disabled={updateBusy}>
                                     <RefreshCw size={14} />{updateState.phase === 'ready' ? `重新啟動並更新 v${updateState.version}` : updateState.phase === 'external' ? `前往下載 v${updateState.version}` : updateBusy ? '正在檢查／下載更新…' : '檢查 App 更新'}
-                                </button>
-                                <button className={dialogStyles.button} onClick={() => void copyDiagnostics()}><Clipboard size={14} />複製診斷資訊</button>
+                                </Button>
+                                <Button size="compact" variant="outline" className={dialogStyles.button} onClick={() => void copyDiagnostics()}><Clipboard size={14} />複製診斷資訊</Button>
                             </div>
                             {updateState.phase === 'ready' && <p className={dialogStyles.hint}>更新已下載，按上方按鈕才會安裝並重新啟動 App。</p>}
                             {updateState.phase === 'error' && <p className={dialogStyles.warning}>{updateState.error}</p>}
@@ -1170,8 +1163,8 @@ export function ServerManager({
                         <details className={dialogStyles.details}>
                             <summary>登出這個 App</summary>
                             <p className={dialogStyles.hint}>停止此 App 的 Agent、清除使用中帳號的 API 金鑰與 CA 密碼，並停止此 App 管理的伺服器。其他帳號會保留，登出後回到首次設定。</p>
-                            <button className={confirmLogout ? styles.killBtnOn : styles.killBtnOff} onClick={doLogout}><LogOut size={14} />{confirmLogout ? '確認登出並清除金鑰' : '登出並清除金鑰'}</button>
-                            {confirmLogout && <button className={dialogStyles.button} onClick={() => setConfirmLogout(false)}>取消登出</button>}
+                            <Button size="compact" variant="outline" className={confirmLogout ? styles.killBtnOn : styles.killBtnOff} onClick={doLogout}><LogOut size={14} />{confirmLogout ? '確認登出並清除金鑰' : '登出並清除金鑰'}</Button>
+                            {confirmLogout && <Button size="compact" variant="outline" className={dialogStyles.button} onClick={() => setConfirmLogout(false)}>取消登出</Button>}
                         </details>
                     </ServerSettingsDialog>}
 

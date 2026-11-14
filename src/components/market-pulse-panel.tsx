@@ -1,3 +1,7 @@
+import { FieldSet, FieldLegend } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     sankey,
     type SankeyGraph,
@@ -291,7 +295,7 @@ function ContributionSideColumn({
             </div>
             <div className={styles.sideList}>
                 {entries.map((entry) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={entry.code}
                         className={styles.sideRow[side]}
                         style={
@@ -324,7 +328,7 @@ function ContributionSideColumn({
                             {entry.pct_chg > 0 ? '+' : ''}
                             {entry.pct_chg.toFixed(2)}%
                         </span>
-                    </button>
+                    </Button>
                 ))}
                 {entries.length === 0 && (
                     <div className={styles.empty}>
@@ -1133,7 +1137,7 @@ export function MarketPulsePanel({
                         ) : (
                             (Object.keys(INDICES) as PulseIndexCode[]).map(
                                 (code) => (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={code}
                                     className={
                                         styles.control[
@@ -1143,12 +1147,12 @@ export function MarketPulsePanel({
                                     onClick={() => setIndexCode(code)}
                                 >
                                     {INDEX_LABELS[code]}
-                                </button>
+                                </Button>
                                 ),
                             )
                         )}
                         <span className={styles.controlDivider} />
-                        <button
+                        <Button size="compact" variant="ghost"
                             className={styles.control[
                                 sections.includes('stocks') ? 'on' : 'off'
                             ]}
@@ -1157,8 +1161,8 @@ export function MarketPulsePanel({
                             title="顯示或隱藏成分股貢獻"
                         >
                             <ListOrdered size={12} /> 成分股貢獻
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="ghost"
                             className={styles.control[
                                 sections.includes('flow') ? 'on' : 'off'
                             ]}
@@ -1167,7 +1171,7 @@ export function MarketPulsePanel({
                             title="顯示或隱藏貢獻傳導"
                         >
                             <GitBranch size={12} /> 貢獻傳導
-                        </button>
+                        </Button>
                         <span className={styles.spacer} />
                     </div>
                     <div className={styles.summary}>
@@ -1354,7 +1358,7 @@ export function MarketPulsePanel({
                                                     >
                                                         {STOCKS_VIEWS.map(
                                                             (item) => (
-                                                                <button
+                                                                <Button size="compact" variant="ghost"
                                                                     key={
                                                                         item.value
                                                                     }
@@ -1378,7 +1382,7 @@ export function MarketPulsePanel({
                                                                     }
                                                                 >
                                                                     {item.label}
-                                                                </button>
+                                                                </Button>
                                                             ),
                                                         )}
                                                     </span>
@@ -1451,7 +1455,7 @@ export function MarketPulsePanel({
                                             ) : (
                                             <div className={styles.list}>
                                                 {impactDrivers.map((entry, idx) => (
-                                                    <button
+                                                    <Button size="compact" variant="ghost"
                                                         key={`${entry.code}-${idx}`}
                                                         className={
                                                             styles.impactRow[
@@ -1533,7 +1537,7 @@ export function MarketPulsePanel({
                                                             )}
                                                             %
                                                         </span>
-                                                    </button>
+                                                    </Button>
                                                 ))}
                                                 {impactDrivers.length === 0 && (
                                                     <div
@@ -1563,7 +1567,7 @@ export function MarketPulsePanel({
                                                             styles.headingToggleGroup
                                                         }
                                                     >
-                                                        <button
+                                                        <Button size="compact" variant="ghost"
                                                             className={
                                                                 styles
                                                                     .headingToggle[
@@ -1584,7 +1588,7 @@ export function MarketPulsePanel({
                                                             }
                                                         >
                                                             漲跌幅
-                                                        </button>
+                                                        </Button>
                                                     </span>
                                                 </span>
                                                 <span
@@ -1611,7 +1615,7 @@ export function MarketPulsePanel({
             ) : (
                 <>
                     <div className={styles.controls}>
-                        <button
+                        <Button size="compact" variant="ghost"
                             className={
                                 styles.control[showSignalRules ? 'on' : 'off']
                             }
@@ -1624,8 +1628,8 @@ export function MarketPulsePanel({
                             {' · '}市場 {enabledSignalExchanges.length}/
                             {SIGNAL_EXCHANGES.length}
                             <ChevronDown size={11} />
-                        </button>
-                        <button
+                        </Button>
+                        <Button size="compact" variant="ghost"
                             className={
                                 styles.control[autoFollowSignals ? 'on' : 'off']
                             }
@@ -1636,7 +1640,7 @@ export function MarketPulsePanel({
                             }
                         >
                             <Link2 size={11} /> 自動跟隨
-                        </button>
+                        </Button>
                         <span className={styles.spacer} />
                         <span className={styles.live}>
                             <span
@@ -1658,7 +1662,7 @@ export function MarketPulsePanel({
                     </div>
                     {showSignalRules && (
                         <>
-                            <button
+                            <Button size="compact" variant="ghost"
                                 className={styles.signalRuleBackdrop}
                                 aria-label='關閉訊號多選選單'
                                 onClick={() => setShowSignalRules(false)}
@@ -1681,7 +1685,7 @@ export function MarketPulsePanel({
                                     >
                                         已選 {enabledSignalRules.length} 項
                                     </span>
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         type='button'
                                         className={styles.signalRuleClear}
                                         disabled={
@@ -1691,10 +1695,10 @@ export function MarketPulsePanel({
                                         onClick={clearSignalFilters}
                                     >
                                         全部清除
-                                    </button>
+                                    </Button>
                                 </div>
                                 <section className={styles.signalMarketSection}>
-                                    <button
+                                    <Button size="compact" variant="ghost"
                                         type='button'
                                         className={styles.signalSectionToggle}
                                         aria-expanded={expandedSignalGroups.includes(
@@ -1718,7 +1722,7 @@ export function MarketPulsePanel({
                                             {enabledSignalExchanges.length}/
                                             {SIGNAL_EXCHANGES.length}
                                         </small>
-                                    </button>
+                                    </Button>
                                     {expandedSignalGroups.includes(
                                         'market',
                                     ) && (
@@ -1728,21 +1732,20 @@ export function MarketPulsePanel({
                                             }
                                         >
                                             {SIGNAL_EXCHANGES.map((exchange) => (
-                                                <label
+                                                <Label
                                                     key={exchange}
                                                     className={
                                                         styles.signalRuleOption
                                                     }
                                                 >
-                                                    <input
-                                                        type='checkbox'
+                                                    <Checkbox
                                                         className={
                                                             styles.signalRuleCheckbox
                                                         }
                                                         checked={enabledSignalExchangeSet.has(
                                                             exchange,
                                                         )}
-                                                        onChange={() =>
+                                                        onCheckedChange={() =>
                                                             toggleSignalExchange(
                                                                 exchange,
                                                             )
@@ -1756,7 +1759,7 @@ export function MarketPulsePanel({
                                                         }{' '}
                                                         {exchange}
                                                     </span>
-                                                </label>
+                                                </Label>
                                             ))}
                                         </div>
                                     )}
@@ -1774,18 +1777,18 @@ export function MarketPulsePanel({
                                                 enabledSignalRuleSet.has(rule),
                                         ).length;
                                         return (
-                                            <fieldset
+                                            <FieldSet
                                                 key={family}
                                                 className={
                                                     styles.signalRuleGroup
                                                 }
                                             >
-                                                <legend
+                                                <FieldLegend
                                                     className={
                                                         styles.signalRuleLegend
                                                     }
                                                 >
-                                                    <button
+                                                    <Button size="compact" variant="ghost"
                                                         type='button'
                                                         className={
                                                             styles.signalRuleCollapseToggle
@@ -1825,8 +1828,8 @@ export function MarketPulsePanel({
                                                             {enabledCount}/
                                                             {familyRules.length}
                                                         </small>
-                                                    </button>
-                                                    <button
+                                                    </Button>
+                                                    <Button size="compact" variant="ghost"
                                                         type='button'
                                                         className={
                                                             styles.signalRuleGroupToggle
@@ -1841,8 +1844,8 @@ export function MarketPulsePanel({
                                                         familyRules.length
                                                             ? '清除'
                                                             : '全選'}
-                                                    </button>
-                                                </legend>
+                                                    </Button>
+                                                </FieldLegend>
                                                 {expandedSignalGroups.includes(
                                                     family,
                                                 ) && (
@@ -1853,21 +1856,20 @@ export function MarketPulsePanel({
                                                     >
                                                         {familyRules.map(
                                                             (rule) => (
-                                                                <label
+                                                                <Label
                                                                     key={rule}
                                                                     className={
                                                                         styles.signalRuleOption
                                                                     }
                                                                 >
-                                                                    <input
-                                                                        type='checkbox'
+                                                                    <Checkbox
                                                                         className={
                                                                             styles.signalRuleCheckbox
                                                                         }
                                                                         checked={enabledSignalRuleSet.has(
                                                                             rule,
                                                                         )}
-                                                                        onChange={() =>
+                                                                        onCheckedChange={() =>
                                                                             toggleSignalRule(
                                                                                 rule,
                                                                             )
@@ -1880,12 +1882,12 @@ export function MarketPulsePanel({
                                                                             ]
                                                                         }
                                                                     </span>
-                                                                </label>
+                                                                </Label>
                                                             ),
                                                         )}
                                                     </div>
                                                 )}
-                                            </fieldset>
+                                            </FieldSet>
                                         );
                                     })}
                                 </div>
@@ -1910,7 +1912,7 @@ export function MarketPulsePanel({
                         {visibleSignals.map((signal) => {
                             const close = Number(signal.quote.close ?? 0);
                             return (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={`${signal.exchange}-${signal.scanner}-${signal.quote.code}-${signal.quote.time}`}
                                     className={styles.signalRow}
                                     onClick={() => onPick?.(signal.quote.code)}
@@ -1946,7 +1948,7 @@ export function MarketPulsePanel({
                                             ? close.toLocaleString('en-US')
                                             : '--'}
                                     </span>
-                                </button>
+                                </Button>
                             );
                         })}
                         {visibleSignals.length === 0 && (

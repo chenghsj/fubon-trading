@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/flash-order.css.ts
 
 import { createContainer, globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -115,7 +116,7 @@ export const rowBreak = style({
 });
 
 // wraps so an 8-strip tile (~240px wide) still shows every control
-export const controls = style({
+export const controls = style([controlRow, {
     // the settings popover spans this row (see OrderSettingsButton align='panel')
     position: 'relative',
     display: 'flex',
@@ -125,7 +126,7 @@ export const controls = style({
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const qtyInput = style({
     width: '2.8rem',
@@ -465,7 +466,7 @@ export const orderChip = styleVariants({
             color: vars.color.up,
             borderColor: vars.color.up,
             background: vars.color.upDim,
-            ':hover': { color: '#fff', background: vars.color.up },
+            ':hover': { color: '#fff', background: vars.color.upSolid },
         },
     ],
     sell: [
@@ -474,7 +475,7 @@ export const orderChip = styleVariants({
             color: vars.color.down,
             borderColor: vars.color.down,
             background: vars.color.downDim,
-            ':hover': { color: '#fff', background: vars.color.down },
+            ':hover': { color: '#fff', background: vars.color.downSolid },
         },
     ],
 });
@@ -495,8 +496,8 @@ const fillBase = style({
 });
 
 export const fillBadge = styleVariants({
-    buy: [fillBase, { background: vars.color.up, opacity: 0.85 }],
-    sell: [fillBase, { background: vars.color.down, opacity: 0.85 }],
+    buy: [fillBase, { background: vars.color.upSolid, opacity: 0.85 }],
+    sell: [fillBase, { background: vars.color.downSolid, opacity: 0.85 }],
 });
 
 export const buyCell = style([
@@ -556,12 +557,12 @@ export const priceCell = style([
 
 // limit-up/down rows: price cell filled solid in the limit color
 export const bandUp = style({
-    background: vars.color.up,
+    background: vars.color.upSolid,
     color: '#fff',
     fontWeight: 700,
 });
 export const bandDown = style({
-    background: vars.color.down,
+    background: vars.color.downSolid,
     color: '#fff',
     fontWeight: 700,
 });
@@ -576,7 +577,7 @@ export const lastVol = style({
     fontSize: '0.58rem',
     fontWeight: 400,
     color: 'inherit',
-    opacity: 0.75,
+    opacity: 0.9,
 });
 
 const volBarBase = style({
@@ -595,6 +596,7 @@ export const volBarAsk = style([volBarBase, { left: 0 }]);
 export const cellText = style({
     position: 'relative',
     zIndex: 1,
+    color: vars.color.foreground,
 });
 
 // floating "back to last price" pill when price leaves the window

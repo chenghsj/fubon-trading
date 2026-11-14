@@ -1,3 +1,7 @@
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 // src/components/flash-protect.tsx — 閃電下單的「自動停損停利」列與設定（#216）。
 // 列：目前設定、保護中數量、由誰執行；點開設定：開關、停損／停利檔數、
 // 移動停損。設定屬於這個面板（FlashOrderOpts.protect），換設定解除點價。
@@ -50,7 +54,7 @@ export function FlashProtectStrip({ protect, block, protectedQty, background, un
     if (compact) {
         return (
             <span className={styles.protectChipAnchor}>
-                <button
+                <Button size="compact" variant="ghost"
                     type='button'
                     className={styles.protectChip[tone]}
                     data-testid='flash-protect'
@@ -63,14 +67,14 @@ export function FlashProtectStrip({ protect, block, protectedQty, background, un
                 >
                     <Icon size={11} aria-hidden />
                     <span className={styles.protectChipText}>停損停利{p.on ? (block ? '・不符' : protectedQty ? `・保護 ${protectedQty}` : '・開') : '・關'}</span>
-                </button>
+                </Button>
                 {menu}
             </span>
         );
     }
     return (
         <div className={styles.protectAnchor}>
-            <button
+            <Button size="compact" variant="ghost"
                 type='button'
                 className={styles.protectStrip[tone]}
                 data-testid='flash-protect'
@@ -86,7 +90,7 @@ export function FlashProtectStrip({ protect, block, protectedQty, background, un
                 {p.on && !block && protectedQty && <span className={styles.protectMeta}>保護中 {protectedQty} {unit}</span>}
                 {p.on && !block && background && <span className={styles.protectMeta}>背景執行</span>}
                 <ChevronDown size={9} aria-hidden className={styles.protectChevron} />
-            </button>
+            </Button>
             {menu}
         </div>
     );
@@ -105,7 +109,7 @@ function ProtectMenu({ protect, background, onClose, onSave }: { protect: FlashP
     const result = draftProtect(d);
     const problem = typeof result === 'string' ? result : null;
     const field = (key: 'stop' | 'take' | 'activate' | 'distance' | 'step', label: string, disabled = false) => (
-        <input
+        <Input
             className={styles.protectInput}
             aria-label={label}
             value={d[key]}
@@ -120,7 +124,7 @@ function ProtectMenu({ protect, background, onClose, onSave }: { protect: FlashP
             <div className={styles.protectMenu} role='dialog' aria-label='自動停損停利設定'>
                 <div className={styles.protectHead}>
                     <span>自動停損停利</span>
-                    <button
+                    <Button size="compact" variant="ghost"
                         type='button'
                         role='switch'
                         aria-checked={d.on}
@@ -129,14 +133,14 @@ function ProtectMenu({ protect, background, onClose, onSave }: { protect: FlashP
                         onClick={() => setD({ ...d, on: !d.on })}
                     >
                         {d.on ? '開' : '關'}
-                    </button>
+                    </Button>
                 </div>
                 <div className={styles.protectRow}><span className={styles.menuSegLabel}>停損</span>成交價{' '}{field('stop', '停損檔數')} 檔</div>
                 <div className={styles.protectRow}><span className={styles.menuSegLabel}>停利</span>成交價{' '}{field('take', '停利檔數')} 檔<span className={styles.menuDesc}>留空＝不設</span></div>
-                <label className={styles.protectRow}>
-                    <input type='checkbox' checked={d.trail} onChange={e => setD({ ...d, trail: e.target.checked })} />
+                <Label className={styles.protectRow}>
+                    <Checkbox checked={d.trail} onCheckedChange={e => setD({ ...d, trail: (e === true) })} />
                     移動停損
-                </label>
+                </Label>
                 {d.trail && (
                     <div className={styles.protectSub}>
                         獲利 {field('activate', '啟動檔數')} 檔後啟動，距最高 {field('distance', '距離檔數')} 檔，每 {field('step', '移動檔數')} 檔移動
@@ -149,8 +153,8 @@ function ProtectMenu({ protect, background, onClose, onSave }: { protect: FlashP
                 <div className={styles.menuNote}>{background ? '背景持續執行開啟：保護由背景執行。' : '保護由本視窗（主視窗）執行。'}</div>
                 {problem && <div className={styles.protectError} role='alert'>{problem}</div>}
                 <div className={styles.protectActions}>
-                    <button type='button' className={styles.menuSegBtn.off} onClick={onClose}>取消</button>
-                    <button type='button' className={styles.menuSegBtn.on} disabled={!!problem} onClick={() => { if (typeof result !== 'string') onSave(result); }}>套用</button>
+                    <Button size="compact" variant="ghost" type='button' className={styles.menuSegBtn.off} onClick={onClose}>取消</Button>
+                    <Button size="compact" variant="ghost" type='button' className={styles.menuSegBtn.on} disabled={!!problem} onClick={() => { if (typeof result !== 'string') onSave(result); }}>套用</Button>
                 </div>
                 <div className={styles.menuNote}>套用後自動解除「點價即下單」。</div>
             </div>

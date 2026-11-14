@@ -1,3 +1,7 @@
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
 // src/components/replay-panel.tsx — 行情回放: replay today's ticks at
 // adjustable speed on a self-contained line chart (great for練盤感 in sim).
 
@@ -346,7 +350,7 @@ export function ReplayPanelView(p: ReplayPanelViewProps) {
     return (
         <div className={styles.wrap}>
             <div className={styles.controls}>
-                <input
+                <Input
                     className={styles.dateInput}
                     type='date'
                     value={p.selectedDate || p.today}
@@ -355,15 +359,15 @@ export function ReplayPanelView(p: ReplayPanelViewProps) {
                     aria-label='回放日期'
                     title={p.selectedDate ? '回放日期' : '回放日期（今天，期權含夜盤）'}
                 />
-                <button
+                <Button size="compact" variant="ghost"
                     className={styles.speed.off}
                     onClick={p.onReload}
                     title='重新載入指定日期'
                     aria-label='重新載入指定日期'
                 >
                     <RotateCcw size={11} />
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="outline"
                     className={styles.playBtn}
                     disabled={!p.loaded}
                     onClick={p.onTogglePlay}
@@ -377,24 +381,23 @@ export function ReplayPanelView(p: ReplayPanelViewProps) {
                             <Play size={11} style={{ verticalAlign: '-1px' }} /> 播放
                         </>
                     )}
-                </button>
+                </Button>
                 {SPEEDS.map((sp, i) => (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={sp.label}
                         className={styles.speed[i === p.speedIdx ? 'on' : 'off']}
                         onClick={() => p.onSpeed(i)}
                     >
                         {sp.label}
-                    </button>
+                    </Button>
                 ))}
-                <input
-                    type='range'
+                <Slider
                     className={styles.seek}
                     min={0}
                     max={p.tickCount}
-                    value={p.cursor}
+                    value={[Number(p.cursor)]}
                     disabled={!p.loaded}
-                    onChange={(e) => p.onSeek(Number(e.target.value))}
+                    onValueChange={(e) => p.onSeek(Number(e[0]!))}
                     aria-label='回放進度'
                 />
                 <span className={styles.status}>
@@ -434,9 +437,9 @@ export function ReplayPanelView(p: ReplayPanelViewProps) {
                     </span>
                 </div>
                 <div className={styles.practiceActions}>
-                    <label>
+                    <Label>
                         {unit}數{' '}
-                        <input
+                        <Input
                             type='number'
                             min={1}
                             max={100}
@@ -445,19 +448,19 @@ export function ReplayPanelView(p: ReplayPanelViewProps) {
                                 p.onQuantity(Math.max(1, Math.min(100, Math.floor(Number(e.target.value) || 1))))
                             }
                         />
-                    </label>
-                    <button className={styles.practiceBuy} disabled={!canTrade || !!p.position} onClick={() => p.onOpen('long')}>
+                    </Label>
+                    <Button size="compact" variant="ghost" className={styles.practiceBuy} disabled={!canTrade || !!p.position} onClick={() => p.onOpen('long')}>
                         模擬買進
-                    </button>
-                    <button className={styles.practiceSell} disabled={!canTrade || !!p.position} onClick={() => p.onOpen('short')}>
+                    </Button>
+                    <Button size="compact" variant="ghost" className={styles.practiceSell} disabled={!canTrade || !!p.position} onClick={() => p.onOpen('short')}>
                         模擬賣出
-                    </button>
-                    <button className={styles.practiceFlat} disabled={!canFlatten}
+                    </Button>
+                    <Button size="compact" variant="ghost" className={styles.practiceFlat} disabled={!canFlatten}
                         title={p.position && !canFlatten ? '回放位置在進場之前，無法平倉' : undefined}
                         onClick={p.onClose}
                     >
                         模擬平倉
-                    </button>
+                    </Button>
                 </div>
                 <div className={styles.practiceNote}>
                     僅本機歷史練習，不呼叫下單、撤單或任何券商交易 API。估算乘數{' '}

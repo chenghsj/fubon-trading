@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 import { style, styleVariants } from '@vanilla-extract/css';
 import { vars } from '../theme.css';
 
@@ -8,14 +9,14 @@ export const wrap = style({
     minHeight: 0,
 });
 
-export const toolbar = style({
+export const toolbar = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     gap: vars.space.xs,
     padding: `5px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const picker = style({
     position: 'relative',

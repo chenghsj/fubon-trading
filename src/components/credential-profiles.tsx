@@ -1,3 +1,10 @@
+import { Field, FieldGroup, FieldLabel } from './ui/field';
+import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
+import { Badge } from './ui/badge';
+import { Alert } from './ui/alert';
+import { FieldSet } from '@/components/ui/field';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { AlertTriangle, ArrowLeft, Check, CheckCircle2, Circle, CircleCheck, FileKey, FileUp, FolderOpen, KeyRound, Loader2, Pencil, Play, Plus, RotateCw, ShieldAlert, ShieldCheck, ShieldOff, Trash2, X } from 'lucide-react';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { importEnvCandidate, loadDesktopSettings, pickCaFile, pickEnvFile, type CredentialDraft, type CredentialProfile, type DesktopSettings, type EnvImportResult, type EnvSelection } from '../lib/tauri';
@@ -19,7 +26,7 @@ const PROBLEM: Record<CredentialProfile['secretState'], string> = {
 };
 
 function EnvBadge({ environment }: { environment: Environment }) {
-    return environment === 'production' ? <span className={s.prodBadge}>正式</span> : <span className={s.simBadge}>模擬</span>;
+    return environment === 'production' ? <Badge variant="destructive">正式</Badge> : <Badge variant="outline">模擬</Badge>;
 }
 
 function CaStatus({ profile }: { profile: CredentialProfile }) {
@@ -30,14 +37,14 @@ function CaStatus({ profile }: { profile: CredentialProfile }) {
 }
 
 function Callout({ tone, icon, title, children, actions }: { tone: 'danger' | 'warn'; icon: ReactNode; title?: string; children: ReactNode; actions?: ReactNode }) {
-    return <div className={tone === 'danger' ? s.calloutDanger : s.calloutWarn} role="alert">
+    return <Alert variant={tone === 'danger' ? 'destructive' : 'default'} className={tone === 'danger' ? s.calloutDanger : s.calloutWarn}>
         <span className={s.calloutIcon}>{icon}</span>
         <div className={s.calloutBody}>
             {title && <p className={s.calloutTitle}>{title}</p>}
             <p className={s.calloutText}>{children}</p>
             {actions && <div className={s.calloutActions}>{actions}</div>}
         </div>
-    </div>;
+    </Alert>;
 }
 
 export function CredentialProfiles({ settings, busy, running, applyOnSwitch = false, onSave, onAction, onImported, onStart, onBusyChange, onEditingChange }: {
@@ -176,12 +183,12 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
     };
 
     const confirmButtons = (label: string, onConfirm: () => void, tone: 'danger' | 'primary', cancelLabel: string) => <div className={s.confirmButtons}>
-        <button ref={reg('confirm-cancel')} className={s.smallButton} aria-label={cancelLabel} disabled={locked} onClick={cancelConfirmation}>取消</button>
-        <button className={tone === 'danger' ? s.confirmDanger : s.confirmPrimary} disabled={locked} onClick={onConfirm}>{label}</button>
+        <Button size="compact" variant="outline" ref={reg('confirm-cancel')} className={s.smallButton} aria-label={cancelLabel} disabled={locked} onClick={cancelConfirmation}>取消</Button>
+        <Button size="compact" variant={tone === 'danger' ? 'destructive' : 'default'} className={tone === 'danger' ? s.confirmDanger : s.confirmPrimary} disabled={locked} onClick={onConfirm}>{label}</Button>
     </div>;
 
     const profiles = settings.profiles;
-    const addButton = (className: string) => <button ref={reg('add')} className={className} disabled={locked || migrating} onClick={() => open(emptyDraft(), 'add')}><Plus size={16} />新增帳號</button>;
+    const addButton = (className: string) => <Button size="compact" variant="ghost" ref={reg('add')} className={className} disabled={locked || migrating} onClick={() => open(emptyDraft(), 'add')}><Plus size={16} />新增帳號</Button>;
     const list = <section className={s.section} aria-labelledby={`${ids}-list`}>
         <div className={s.sectionHead}>
             <h3 id={`${ids}-list`} className={s.sectionTitle}><span className={s.heading}>帳號</span>{profiles.length > 1 && <span className={s.count}>{profiles.length} 組</span>}</h3>
@@ -212,9 +219,9 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
                             {problem && <div className={s.profileMeta}><span className={s.metaDanger}><AlertTriangle size={13} />{problem}</span></div>}
                         </div>
                         {!deleting && !switching && <div className={s.profileActions}>
-                            {!active && <button ref={reg(`select:${profile.id}`)} className={s.smallButton} disabled={locked || profile.secretState !== 'stored'} onClick={() => profileAction('select', profile)}>切換使用</button>}
-                            <button ref={reg(`edit:${profile.id}`)} className={s.smallIconButton} aria-label={`編輯 ${profile.name}`} title="編輯" disabled={locked || profile.secretState !== 'stored' || migrating} onClick={() => open(editDraft(profile), `edit:${profile.id}`)}><Pencil size={15} /></button>
-                            <button ref={reg(`delete:${profile.id}`)} className={s.smallDangerIcon} aria-label={`刪除 ${profile.name}`} title="刪除" disabled={locked} onClick={() => profileAction('delete', profile)}><Trash2 size={15} /></button>
+                            {!active && <Button size="compact" variant="outline" ref={reg(`select:${profile.id}`)} className={s.smallButton} disabled={locked || profile.secretState !== 'stored'} onClick={() => profileAction('select', profile)}>切換使用</Button>}
+                            <Button size="compact" variant="ghost" ref={reg(`edit:${profile.id}`)} className={s.smallIconButton} aria-label={`編輯 ${profile.name}`} title="編輯" disabled={locked || profile.secretState !== 'stored' || migrating} onClick={() => open(editDraft(profile), `edit:${profile.id}`)}><Pencil size={15} /></Button>
+                            <Button size="compact" variant="destructive" ref={reg(`delete:${profile.id}`)} className={s.smallDangerIcon} aria-label={`刪除 ${profile.name}`} title="刪除" disabled={locked} onClick={() => profileAction('delete', profile)}><Trash2 size={15} /></Button>
                         </div>}
                     </div>
                     {deleting && <div className={s.confirmStrip}>
@@ -235,7 +242,7 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
                 <p className={s.startText}>{activeProfile
                     ? <>以<span className={s.inlineBadge}><EnvBadge environment={activeProfile.environment} /></span>「{activeProfile.name}」啟動伺服器{ready ? '' : '；這個帳號需要先修復'}</>
                     : '先選一個帳號，按「切換使用」後再啟動。'}</p>
-                <button ref={reg('start')} className={s.primary} disabled={locked || !ready || !!confirmation} onClick={() => void operation(onStart)}><Play size={15} />啟動</button>
+                <Button size="compact" variant="default" ref={reg('start')} className={s.primary} disabled={locked || !ready || !!confirmation} onClick={() => void operation(onStart)}><Play size={15} />啟動</Button>
             </div>;
         })()}
         {profiles.length ? null : <div className={s.empty}>
@@ -253,46 +260,46 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
     const confirmingImport = confirmation.startsWith('import:');
     const importDirectory = confirmation === 'import:directory';
     const applyConfirm = confirmation === 'save:true';
-    const editor = <fieldset className={s.fields} disabled={locked || migrating} aria-labelledby={`${ids}-editor`}>
+    const editor = <FieldSet className={s.fields} disabled={locked || migrating} aria-labelledby={`${ids}-editor`}>
         <div className={s.editorHead}>
-            {!firstRun && <button className={s.iconButton} aria-label="返回帳號列表" title="返回帳號列表" onClick={back}><ArrowLeft size={16} /></button>}
+            {!firstRun && <Button size="compact" variant="ghost" className={s.iconButton} aria-label="返回帳號列表" title="返回帳號列表" onClick={back}><ArrowLeft size={16} /></Button>}
             <h3 id={`${ids}-editor`} className={s.editorTitle}>{isNew ? firstRun ? '新增第一個帳號' : '新增帳號' : `編輯「${selectedProfile?.name ?? draft.name}」`}</h3>
         </div>
-        <section className={s.card} aria-label="帳號">
-            <label className={s.field}><span className={s.label}>帳號名稱</span>
-                <input ref={reg('name')} className={s.input} maxLength={60} placeholder="例如：主帳號、模擬測試" value={draft.name} onChange={e => patch({ name: e.target.value })} />
-            </label>
+        <FieldGroup className={s.card} aria-label="帳號">
+            <Field data-disabled={locked || migrating} className={s.field}><FieldLabel className={s.label} htmlFor={`${ids}-name`}>帳號名稱</FieldLabel>
+                <Input id={`${ids}-name`} ref={reg('name')} className={s.input} maxLength={60} placeholder="例如：主帳號、模擬測試" value={draft.name} onChange={e => patch({ name: e.target.value })} />
+            </Field>
             <div className={s.field}><span className={s.label} id={`${ids}-env`}>環境</span>
-                <div className={s.segmented} role="group" aria-labelledby={`${ids}-env`}>
-                    <button className={production ? s.segment : s.segmentSim} aria-pressed={!production} onClick={() => patch({ environment: 'simulation' })}>{!production && <Check size={14} />}模擬環境</button>
-                    <button className={production ? s.segmentProd : s.segment} aria-pressed={production} onClick={() => patch({ environment: 'production' })}>{production && <Check size={14} />}正式環境</button>
-                </div>
+                <ToggleGroup type="single" size="compact" value={draft.environment} onValueChange={environment => { if (environment) patch({ environment: environment as Environment }); }} className={s.segmented} aria-labelledby={`${ids}-env`}>
+                    <ToggleGroupItem value="simulation" className={production ? s.segment : s.segmentSim}>{!production && <Check size={14} />}模擬環境</ToggleGroupItem>
+                    <ToggleGroupItem value="production" className={production ? s.segmentProd : s.segment}>{production && <Check size={14} />}正式環境</ToggleGroupItem>
+                </ToggleGroup>
                 {production
                     ? <p className={s.fieldNoteDanger}><AlertTriangle size={14} />正式環境的委託會動用真實資金。</p>
                     : <p className={s.fieldNote}>模擬環境不會動用真實資金，適合先試用。</p>}
             </div>
-        </section>
-        <section className={s.card} aria-label="API 金鑰">
+        </FieldGroup>
+        <FieldGroup className={s.card} aria-label="API 金鑰">
             <div className={s.cardHead}><h4 className={s.cardTitle}><KeyRound size={14} />API 金鑰</h4>{!isNew && <span className={s.cardAside}>留空則不變更</span>}</div>
             {isNew && <div className={s.importBox}>
                 <p className={s.importText}>已有 .env 檔？可直接匯入為{production ? '正式' : '模擬'}帳號。</p>
                 <div className={s.importButtons}>
-                    <button ref={reg('import-file')} className={s.smallButton} onClick={() => importFile('file')}><FileUp size={14} />從 .env 匯入</button>
-                    <button ref={reg('import-directory')} className={s.smallButton} onClick={() => importFile('directory')}><FolderOpen size={14} />選資料夾</button>
+                    <Button size="compact" variant="outline" ref={reg('import-file')} className={s.smallButton} onClick={() => importFile('file')}><FileUp size={14} />從 .env 匯入</Button>
+                    <Button size="compact" variant="outline" ref={reg('import-directory')} className={s.smallButton} onClick={() => importFile('directory')}><FolderOpen size={14} />選資料夾</Button>
                 </div>
                 {selection && <div className={s.importChoices} role="group" aria-label="選擇要匯入的檔案">
-                    {selection.candidates.map(name => <button key={name} className={`${s.smallButton} ${s.mono}`} onClick={() => importFile('directory', name)}>{name}</button>)}
+                    {selection.candidates.map(name => <Button size="compact" variant="outline" key={name} className={`${s.smallButton} ${s.mono}`} onClick={() => importFile('directory', name)}>{name}</Button>)}
                 </div>}
             </div>}
-            <label className={s.field}><span className={s.label}>API Key</span>
-                <input className={s.input} type="password" autoComplete="off" spellCheck={false} placeholder={selectedProfile ? `${selectedProfile.apiKeyMasked}（留空保留）` : '貼上 API Key'} value={draft.apiKey ?? ''} onChange={e => patch({ apiKey: e.target.value })} />
-            </label>
-            <label className={s.field}><span className={s.label}>Secret Key</span>
-                <input className={s.input} type="password" autoComplete="off" spellCheck={false} placeholder={isNew ? '貼上 Secret Key' : '留空保留'} value={draft.secretKey ?? ''} onChange={e => patch({ secretKey: e.target.value })} />
-            </label>
+            <Field data-disabled={locked || migrating} className={s.field}><FieldLabel className={s.label} htmlFor={`${ids}-api-key`}>API Key</FieldLabel>
+                <Input id={`${ids}-api-key`} className={s.input} type="password" autoComplete="off" spellCheck={false} placeholder={selectedProfile ? `${selectedProfile.apiKeyMasked}（留空保留）` : '貼上 API Key'} value={draft.apiKey ?? ''} onChange={e => patch({ apiKey: e.target.value })} />
+            </Field>
+            <Field data-disabled={locked || migrating} className={s.field}><FieldLabel className={s.label} htmlFor={`${ids}-secret-key`}>Secret Key</FieldLabel>
+                <Input id={`${ids}-secret-key`} className={s.input} type="password" autoComplete="off" spellCheck={false} placeholder={isNew ? '貼上 Secret Key' : '留空保留'} value={draft.secretKey ?? ''} onChange={e => patch({ secretKey: e.target.value })} />
+            </Field>
             <p className={s.fieldNote}>{isNew ? '支援 name.env、.env、.env.local；隱藏檔請用「選資料夾」。' : ''}金鑰存進系統憑證庫，儲存後不再顯示。</p>
-        </section>
-        <section className={s.card} aria-label="憑證">
+        </FieldGroup>
+        <FieldGroup className={s.card} aria-label="憑證">
             <div className={s.cardHead}>
                 <h4 className={s.cardTitle}><FileKey size={14} />CA 憑證</h4>
                 <span className={production && !draft.caPath ? s.cardAsideWarn : s.cardAside}>正式環境下單需要</span>
@@ -301,14 +308,14 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
                 <span className={draft.caPath ? s.fileNameSet : s.fileName} title={draft.caPath || undefined}>
                     <FileKey size={15} /><span className={s.fileNameText}>{draft.caPath ? fileName(draft.caPath) : '尚未選擇（例如 Sinopac.pfx）'}</span>
                 </span>
-                <button className={s.button} onClick={() => void operation(async () => { const path = await pickCaFile(); if (path) patch({ caPath: path }); })}>{draft.caPath ? '更換' : '選擇檔案'}</button>
-                {draft.caPath && <button className={s.iconButton} aria-label="清除憑證設定" title="清除憑證設定" onClick={() => patch({ caPath: '', caPassword: '' })}><X size={16} /></button>}
+                <Button size="compact" variant="outline" className={s.button} onClick={() => void operation(async () => { const path = await pickCaFile(); if (path) patch({ caPath: path }); })}>{draft.caPath ? '更換' : '選擇檔案'}</Button>
+                {draft.caPath && <Button size="compact" variant="ghost" className={s.iconButton} aria-label="清除憑證設定" title="清除憑證設定" onClick={() => patch({ caPath: '', caPassword: '' })}><X size={16} /></Button>}
             </div>
-            {draft.caPath && <label className={s.field}><span className={s.label}>憑證密碼</span>
-                <input className={s.input} type="password" autoComplete="off" placeholder={isNew ? '下載憑證時設定的密碼' : '留空保留'} value={draft.caPassword ?? ''} onChange={e => patch({ caPassword: e.target.value })} />
-            </label>}
+            {draft.caPath && <Field data-disabled={locked || migrating} className={s.field}><FieldLabel className={s.label} htmlFor={`${ids}-ca-password`}>憑證密碼</FieldLabel>
+                <Input id={`${ids}-ca-password`} className={s.input} type="password" autoComplete="off" placeholder={isNew ? '下載憑證時設定的密碼' : '留空保留'} value={draft.caPassword ?? ''} onChange={e => patch({ caPassword: e.target.value })} />
+            </Field>}
             <p className={s.fieldNote}>憑證檔留在原位置，只記住路徑；密碼存進系統憑證庫。{!isNew && !draft.caPath && selectedProfile?.hasCA ? '儲存後會移除已存的憑證密碼。' : ''}</p>
-        </section>
+        </FieldGroup>
         {confirmingSave || confirmingImport ? <div className={s.saveConfirm}>
             <p className={s.confirmText}>{confirmingImport
                 ? <>接下來選擇{importDirectory ? '資料夾' : ' .env 檔'}，金鑰會存進系統憑證庫，並新增為<span className={s.inlineBadge}><EnvBadge environment={draft.environment} /></span>帳號。</>
@@ -319,16 +326,16 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
                 confirmingImport ? () => importFile(importDirectory ? 'directory' : 'file') : () => save(applyConfirm),
                 'primary', '取消確認')}
         </div> : <div className={s.editorActions}>
-            {!firstRun && <button className={s.button} onClick={back}>取消</button>}
+            {!firstRun && <Button size="compact" variant="outline" className={s.button} onClick={back}>取消</Button>}
             <span className={s.actionsSpacer} />
-            <button ref={reg('save-only')} className={s.button} onClick={() => save(false)}>僅儲存</button>
-            <button ref={reg('save-apply')} className={s.primary} onClick={() => save(true)}>{running ? '儲存並重啟' : '儲存並啟動'}</button>
+            <Button size="compact" variant="outline" ref={reg('save-only')} className={s.button} onClick={() => save(false)}>僅儲存</Button>
+            <Button size="compact" variant="default" ref={reg('save-apply')} className={s.primary} onClick={() => save(true)}>{running ? '儲存並重啟' : '儲存並啟動'}</Button>
         </div>}
-    </fieldset>;
+    </FieldSet>;
 
     return <div className={s.credentials}>
         {settings.migrationError && <Callout tone="warn" icon={<AlertTriangle size={16} />} title="舊的帳號資料尚未轉移完成"
-            actions={<button className={s.smallButton} disabled={locked} onClick={() => void operation(async () => onImported(await loadDesktopSettings()))}><RotateCw size={14} />重試遷移</button>}>
+            actions={<Button size="compact" variant="outline" className={s.smallButton} disabled={locked} onClick={() => void operation(async () => onImported(await loadDesktopSettings()))}><RotateCw size={14} />重試遷移</Button>}>
             {settings.migrationError}
         </Callout>}
         {settings.credentialBackend === 'plaintext-fallback' && <Callout tone="warn" icon={<ShieldAlert size={16} />} title="金鑰以檔案保存">

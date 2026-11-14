@@ -57,7 +57,7 @@ export function rgbCss(c: Rgb): string {
 
 // 與 theme.css.ts 深色／淺色色票一致（canvas 匯出要實際色值）
 const BASE = {
-    dark: { panel: '#0a0c10', fg: '#d5dbe8', red: '#f23645', green: '#16b389' },
+    dark: { panel: '#1b1b1f', fg: '#f4f4f5', red: '#ff8a96', green: '#35d9a7' },
     light: { panel: '#ffffff', fg: '#1c2433', red: '#d6213a', green: '#0a8a66' },
 } as const;
 

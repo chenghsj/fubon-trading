@@ -1,3 +1,24 @@
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 // intraday-chart 日盤/夜盤手動切換（issue #73）元件層測試
 import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
@@ -213,7 +234,7 @@ describe('IntradayChart session toggle', () => {
         // chip button present, auto style
         const chip = () =>
             r.root.find((n) => n.type === 'button' && n.props['aria-haspopup'] === 'menu');
-        expect(chip().props.className).toBe(styles.sessionChipBtn.auto);
+        expect(chip().props.className).toContain(styles.sessionChipBtn.auto);
         act(() => chip().props.onClick());
         const items = r.root.findAll((n) => n.type === 'button' && n.props.role === 'menuitemradio');
         expect(items.map((i) => i.children.join(''))).toEqual(['自動', '日盤', '夜盤']);
@@ -224,7 +245,7 @@ describe('IntradayChart session toggle', () => {
         d = price().last as any[];
         expect(iso(d[0].time)).toBe('2026-09-25T08:46');
         expect(iso(d[d.length - 1].time)).toBe('2026-09-25T13:45');
-        expect(chip().props.className).toBe(styles.sessionChipBtn.manual);
+        expect(chip().props.className).toContain(styles.sessionChipBtn.manual);
         expect(chip().children.join('')).toBe('日盤');
         // night tick: no draw, no reload
         const upd = price().update.mock.calls.length;
@@ -334,7 +355,7 @@ describe('IntradayChart session toggle', () => {
         // load another layout whose same-id block has no intradaySession
         act(() => r.update(createElement(IntradayChart, { contract: fut, sessionMode: undefined, onSessionModeChange: onChange } as any)));
         await flush();
-        expect(chip().props.className).toBe(styles.sessionChipBtn.auto);
+        expect(chip().props.className).toContain(styles.sessionChipBtn.auto);
     });
 
     // 個股期（underlying_kind S）預設停板模式 — 會畫漲跌停線
@@ -382,7 +403,7 @@ describe('IntradayChart session toggle', () => {
         act(() => r.update(createElement(IntradayChart, { contract: fut, sessionMode: mode, onSessionModeChange: onChange } as any)));
         await flush();
         expect(chip().children.join('')).toBe('日盤');
-        expect(chip().props.className).toBe(styles.sessionChipBtn.manual);
+        expect(chip().props.className).toContain(styles.sessionChipBtn.manual);
         // 失敗的載入：仍可切回自動
         fetchMock.mockRejectedValue(new Error('down'));
         const r2 = mount({ contract: fut, sessionMode: 'night', onSessionModeChange: () => {} });
@@ -452,7 +473,7 @@ describe('IntradayChart session toggle', () => {
         const r = mount({ contract: fut, sessionMode: 'foo', onSessionModeChange: () => {} });
         await flush();
         const chip = r.root.find((n) => n.type === 'button' && n.props['aria-haspopup'] === 'menu');
-        expect(chip.props.className).toBe(styles.sessionChipBtn.auto);
+        expect(chip.props.className).toContain(styles.sessionChipBtn.auto);
         expect(iso((price().last as any[])[0].time)).toBe('2026-09-25T15:01');
     });
 

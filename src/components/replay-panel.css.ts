@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/replay-panel.css.ts
 
 import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -10,14 +11,14 @@ export const wrap = style({
     height: '100%',
 });
 
-export const controls = style({
+export const controls = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     gap: vars.space.xs,
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const playBtn = style({
     fontFamily: vars.font.body,
@@ -86,8 +87,8 @@ export const practiceActions = style({ display: 'grid', gridTemplateColumns: '86
 globalStyle(`${practiceActions} label`, { display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.62rem', color: vars.color.mutedForeground });
 globalStyle(`${practiceActions} input`, { width: 42, color: vars.color.foreground, background: vars.color.inset, border: `1px solid ${vars.color.border}`, borderRadius: vars.radius.sm });
 const practiceButton = style({ padding: '4px 7px', borderRadius: vars.radius.sm, cursor: 'pointer', fontWeight: 700, fontSize: '0.64rem', selectors: { '&:disabled': { opacity: 0.4, cursor: 'not-allowed' } } });
-export const practiceBuy = style([practiceButton, { color: '#fff', background: vars.color.up, border: `1px solid ${vars.color.up}` }]);
-export const practiceSell = style([practiceButton, { color: '#fff', background: vars.color.down, border: `1px solid ${vars.color.down}` }]);
+export const practiceBuy = style([practiceButton, { color: '#fff', background: vars.color.upSolid, border: `1px solid ${vars.color.up}` }]);
+export const practiceSell = style([practiceButton, { color: '#fff', background: vars.color.downSolid, border: `1px solid ${vars.color.down}` }]);
 export const practiceFlat = style([practiceButton, { color: vars.color.amber, background: vars.color.inset, border: `1px solid ${vars.color.amber}` }]);
 export const practiceNote = style({ marginTop: 4, color: vars.color.mutedForeground, fontSize: '0.56rem' });
 export const chartArea = style({ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' });

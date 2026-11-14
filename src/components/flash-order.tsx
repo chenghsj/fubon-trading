@@ -1,3 +1,7 @@
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Input } from '@/components/ui/input';
 import { canTrade } from '../lib/account-tradable';
 import { reconcileAfterUnknownOutcome, reportOrderError } from '../lib/order-outcome';
 import { ORDER_CONTEXT_CHANGED_MESSAGE, useOrderContext } from '../hooks/use-order-context';
@@ -131,7 +135,7 @@ function MarkChips({ side, price, marks, dragging, onMarkDown, onMarkClick, inli
     // (quantities stay in the title), so every control stays reachable
     const crowded = inline && [triggers, stops, takes].filter(x => x.length > 0).length > 1;
     const trig = triggers.length > 0 && (
-        <button
+        <Button size="compact" variant="ghost"
             type='button'
             key='t'
             data-testid='flash-trigger-mark'
@@ -144,7 +148,7 @@ function MarkChips({ side, price, marks, dragging, onMarkDown, onMarkClick, inli
         >
             {!crowded && (triggers.some(m => m.protects) ? <ShieldCheck size={8} aria-hidden /> : <Crosshair size={8} aria-hidden />)}
             {markQty(triggers)}
-        </button>
+        </Button>
     );
     const prot = (ms: LadderMark[], kind: 'stop' | 'take') => ms.length > 0 && (
         <span key={kind} data-testid={`flash-${kind}-mark`} className={`${styles.mark[kind]} ${ms.some(m => m.pending) ? styles.markPending : ''}`}
@@ -295,13 +299,13 @@ const FlashRow = memo(function FlashRow({
                     </span>
                 )}
                 {myBuy > 0 && (
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.orderChip.buy}
                         title={`刪除 ${text} 買單 ${myBuy}`}
                         onClick={() => onCancelAt('Buy', price)}
                     >
                         {myBuy}
-                    </button>
+                    </Button>
                 )}
             </div>
             <div
@@ -363,13 +367,13 @@ const FlashRow = memo(function FlashRow({
             </div>
             <div className={styles.chipCell}>
                 {mySell > 0 && (
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.orderChip.sell}
                         title={`刪除 ${text} 賣單 ${mySell}`}
                         onClick={() => onCancelAt('Sell', price)}
                     >
                         {mySell}
-                    </button>
+                    </Button>
                 )}
                 {sellFill > 0 && (
                     <span
@@ -1738,11 +1742,11 @@ export function FlashOrder({
             <div className={styles.controls}>
                 {/* 收合時只顯示精簡帳號（#176）；透明的原生 select 疊在上面，
                     展開的選單才列出帳號＋戶名 */}
-                <label className={styles.accountPick}>
+                <Label className={styles.accountPick}>
                     <span className={styles.accountText}>{accountShort}</span>
                     <ChevronDown size={10} aria-hidden />
-                    <select
-                        className={styles.accountSelect}
+                    <NativeSelect
+                        wrapperClassName="absolute inset-0 size-full" showIcon={false} className={styles.accountSelect}
                         aria-label="閃電下單帳戶"
                         // 透明 select 蓋住標籤，完整帳號＋戶名的 tooltip 要放在 select 上
                         title={`${accountTitle}\n${resolved.following ? '跟隨主畫面帳戶 — 選擇帳戶後此視窗固定使用該帳戶' : '此視窗固定帳戶，不影響其他視窗與主畫面'}`}
@@ -1763,7 +1767,7 @@ export function FlashOrder({
                         }}
                     >
                         {followMain ? (
-                            <option value={FOLLOW_GLOBAL}>
+                            <NativeSelectOption value={FOLLOW_GLOBAL}>
                                 {!resolved.following
                                     ? '跟隨主畫面'
                                     : activeAccount
@@ -1771,21 +1775,21 @@ export function FlashOrder({
                                       : accountsLoading
                                         ? '跟隨主畫面（帳戶載入中）'
                                         : '跟隨主畫面（無可用帳戶）'}
-                            </option>
-                        ) : resolved.unset && <option value=''>請選擇帳戶</option>}
-                        {resolved.missing && <option value={panelKeys[market]}>{accountsLoading ? '帳戶載入中' : '帳戶不可用'}</option>}
-                        {eligible.map(a => <option key={flashAccountKey(a)} value={flashAccountKey(a)}>
+                            </NativeSelectOption>
+                        ) : resolved.unset && <NativeSelectOption value=''>請選擇帳戶</NativeSelectOption>}
+                        {resolved.missing && <NativeSelectOption value={panelKeys[market]}>{accountsLoading ? '帳戶載入中' : '帳戶不可用'}</NativeSelectOption>}
+                        {eligible.map(a => <NativeSelectOption key={flashAccountKey(a)} value={flashAccountKey(a)}>
                             {accountLabels.long(a)}
-                        </option>)}
-                    </select>
-                </label>
-                <button
+                        </NativeSelectOption>)}
+                    </NativeSelect>
+                </Label>
+                <Button size="compact-icon" variant="outline"
                     className={styles.stepBtn}
                     onClick={() => setQty((v) => Math.max(1, v - 1))}
                 >
                     −
-                </button>
-                <input
+                </Button>
+                <Input
                     className={styles.qtyInput}
                     aria-label={odd ? '數量（股）' : '數量'}
                     title={odd ? `零股數量 1～${ODD_LOT_MAX_SHARES} 股` : '數量'}
@@ -1796,14 +1800,14 @@ export function FlashOrder({
                         if (Number.isInteger(v) && v >= 0 && (!odd || v <= ODD_LOT_MAX_SHARES)) setQty(v);
                     }}
                 />
-                <button
+                <Button size="compact-icon" variant="outline"
                     className={styles.stepBtn}
                     onClick={() => setQty((v) => (odd ? clampLotQuantity(v + 1, 'IntradayOdd') : v + 1))}
                 >
                     ＋
-                </button>
+                </Button>
                 <span className={styles.unitAnchor}>
-                    <button
+                    <Button size="compact-icon" variant="ghost"
                         type='button'
                         className={styles.gearBtn[menuShown ? 'open' : 'closed']}
                         aria-label='單位與委託條件'
@@ -1822,7 +1826,7 @@ export function FlashOrder({
                         }}
                     >
                         <Settings size={12} aria-hidden />
-                    </button>
+                    </Button>
                     {menuShown && (
                         <FlashQuickMenu
                             market={market}
@@ -1903,7 +1907,7 @@ export function FlashOrder({
                     openRef={openSettingsRef}
                 />
                 <span className={styles.rowBreak} aria-hidden />
-                <button
+                <Button size="compact" variant="outline"
                     className={styles.armBtn[armedView ? 'on' : 'off']}
                     disabled={!live || !activeAccount || !!paused}
                     onClick={() => { armedAccountKey.current = accountKey; armedKey.current = armKey; armedMemQty.current = rememberedQty; setArmed(!armedView); }}
@@ -1918,10 +1922,10 @@ export function FlashOrder({
                     ) : (
                         '啟用閃電下單'
                     )}
-                </button>
+                </Button>
             </div>
             <div className={styles.actionBar}>
-                <button
+                <Button size="compact" variant="outline"
                     className={`${styles.mktBtn.buy} ${armedView && !odd && !warrantMarketBlock && !buyBlock ? '' : styles.disabledCell} ${warrantMarketBlock ? styles.ruleLocked : ''}`}
                     // 可否融資券的 0 只讓按鈕變淡、仍可點（點下去會重新查）；固定規則才停用
                     disabled={odd || !!warrantMarketBlock || !!ruleBlockRef.current.Buy}
@@ -1931,8 +1935,8 @@ export function FlashOrder({
                 >
                     {warrantMarketBlock && <Lock size={10} aria-hidden className={styles.ruleLockIcon} />}
                     {mktLabel}{buyCredit}買
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="outline"
                     className={`${styles.mktBtn.sell} ${armedView && !odd && !warrantMarketBlock && !sellBlock ? '' : styles.disabledCell} ${warrantMarketBlock ? styles.ruleLocked : ''}`}
                     disabled={odd || !!warrantMarketBlock || !!ruleBlockRef.current.Sell}
                     data-blocked={sellBlock ? true : undefined}
@@ -1941,11 +1945,11 @@ export function FlashOrder({
                 >
                     {warrantMarketBlock && <Lock size={10} aria-hidden className={styles.ruleLockIcon} />}
                     {mktLabel}{sellCredit}賣
-                </button>
+                </Button>
                 {/* #376 平倉／全刪／停損停利固定同一群：有沒有持倉、掛單數多長都不改變市價鈕的位置 */}
                 <div className={styles.actionSecondary} data-testid='flash-action-secondary'>
                 {/* #376 平倉一直占位：有沒有持倉，全刪都在同一個位置，不會按錯 */}
-                <button
+                <Button size="compact" variant="outline"
                     className={`${styles.flatBtn} ${pos && !paused && armedView ? '' : styles.disabledCell}`}
                     title={paused
                         ? paused
@@ -1960,15 +1964,15 @@ export function FlashOrder({
                     onClick={() => void flatten()}
                 >
                     平倉
-                </button>
-                <button
+                </Button>
+                <Button size="compact" variant="destructive"
                     className={styles.cancelAllBtn}
                     disabled={!!paused || (workingCount === 0 && otherLotOrders === 0 && ladder.protectedQty === 0)}
                     title={ladder.protectedQty > 0 ? '刪除這個商品的委託，並取消這個面板的停損停利' : undefined}
                     onClick={() => void cancelSymbol()}
                 >
                     全刪{workingCount > 0 && !paused ? ` ${workingCount}` : ''}
-                </button>
+                </Button>
                 {/* 外國標的權證不能停損停利：關著就不顯示；已開著的仍顯示（不符），讓使用者可以關掉 */}
                 {!paused && (!warrantProtectBlock || protect.on) && (
                     <FlashProtectStrip
@@ -2036,14 +2040,14 @@ export function FlashOrder({
                 {triggerLayout === 'columns' && <span className={styles.headTrigger} title='點這一欄＝在該價掛觸價買單'>觸買</span>}
                 <span>買單</span>
                 <span>買量</span>
-                <button
+                <Button size="compact" variant="ghost"
                     type='button'
                     className={styles.headPrice[follow ? 'on' : 'off']}
                     title={follow ? '自動跟隨現價中 — 點擊固定' : '已固定 — 點擊恢復跟隨'}
                     onClick={() => { if (follow) setFollow(false); else recenter(); }}
                 >
                     {follow ? <LocateFixed size={10} aria-hidden /> : <Locate size={10} aria-hidden />}價格
-                </button>
+                </Button>
                 <span>賣量</span>
                 <span>賣單</span>
                 {triggerLayout === 'columns' && <span className={styles.headTrigger} title='點這一欄＝在該價掛觸價賣單'>觸賣</span>}
@@ -2115,14 +2119,14 @@ export function FlashOrder({
                     );
                 })}
                 {!paused && lastIdx === -1 && last !== null && rows.length > 0 && (
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={
                             styles.jumpBtn[lastAbove ? 'top' : 'bottom']
                         }
                         onClick={recenter}
                     >
                         {lastAbove ? '▲' : '▼'} 現價 {fmtPrice(last)}
-                    </button>
+                    </Button>
                 )}
             </div>
             {!paused && (

@@ -1,9 +1,14 @@
+import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { useEscClose } from '../hooks/use-esc-close';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 // src/components/quote-board-settings.tsx：報價欄自訂欄位的設定面板（每個 K 線面板各一份）。
 // 指數、個股各一組：每一區、每一格可以開關，區塊與格子可以上下移動；面板變窄時照樣依優先度自動收起。
 // 畫在錨點所在文件的 body 上：不放進報價欄，免得被階梯量測當成內容，也不會被看板的 overflow 裁掉
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, Info, Lock, RotateCcw, X } from 'lucide-react';
 import {
     INDEX_SECTIONS,
@@ -28,24 +33,6 @@ export type SettingsAnchor = ({ kind: 'element'; el: HTMLElement } | { kind: 'po
     board?: HTMLElement;
 };
 
-function placeOf(anchor: SettingsAnchor, popW: number, popH: number): CSSProperties {
-    const win = (anchor.kind === 'element' ? anchor.el.ownerDocument : anchor.doc).defaultView;
-    const vw = win?.innerWidth ?? 1024;
-    const vh = win?.innerHeight ?? 768;
-    const r =
-        anchor.kind === 'element'
-            ? anchor.el.getBoundingClientRect()
-            : { left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y };
-    const margin = 8;
-    const v = anchor.board ? anchor.board.getBoundingClientRect() : r;
-    let left = anchor.kind === 'element' ? r.right - popW : r.left;
-    left = Math.min(Math.max(margin, left), vw - popW - margin);
-    // 下方放不下就翻到上方；兩邊都放不下時貼齊視窗、內容捲動
-    let top = v.bottom + 4;
-    if (top + popH > vh - margin) top = v.top - 4 - popH >= margin ? v.top - 4 - popH : Math.max(margin, vh - popH - margin);
-    return { left, top };
-}
-
 export function QuoteBoardSettings({
     anchor,
     fields,
@@ -61,49 +48,32 @@ export function QuoteBoardSettings({
 }) {
     const [kind, setKind] = useState<BoardKind>(currentKind);
     const popRef = useRef<HTMLDivElement>(null);
-    const [pos, setPos] = useState<CSSProperties>({ left: -9999, top: -9999 });
     const doc = anchor.kind === 'element' ? anchor.el.ownerDocument : anchor.doc;
-
-    useLayoutEffect(() => {
-        const pop = popRef.current;
-        if (!pop) return;
-        setPos(placeOf(anchor, pop.offsetWidth, pop.offsetHeight));
-    }, [anchor, kind]);
 
     // 用 X、Esc、點外面關閉時把焦點還給齒輪；用 Tab 離開面板時（非強制對話框）直接關閉，不搶回焦點
     const dismiss = useCallback(() => {
         if (anchor.kind === 'element') anchor.el.focus();
         onClose();
     }, [anchor, onClose]);
-    useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.stopPropagation();
-                dismiss();
-            }
-        };
-        doc.addEventListener('keydown', onKey, true);
-        return () => doc.removeEventListener('keydown', onKey, true);
-    }, [doc, dismiss]);
-
-    // 打開時把焦點移進面板，鍵盤可以直接操作
-    useEffect(() => {
-        popRef.current?.focus();
-    }, []);
-
+    useEscClose(dismiss);
+    const virtualAnchor = {
+        current: {
+            getBoundingClientRect: () => anchor.board?.getBoundingClientRect()
+                ?? (anchor.kind === 'element' ? anchor.el.getBoundingClientRect()
+                    : { x: anchor.x, y: anchor.y, left: anchor.x, right: anchor.x, top: anchor.y, bottom: anchor.y, width: 0, height: 0, toJSON: () => ({}) }),
+        },
+    };
     const metas = (kind === 'index' ? INDEX_SECTIONS : STOCK_SECTIONS) as readonly SectionMeta<string, string>[];
     const layout = fields[kind] as KindLayout<string, string>;
 
-    const body = (
-        <>
-            <div className={styles.backdrop} onMouseDown={dismiss} />
-            <div
-                ref={popRef}
-                className={styles.pop}
-                style={pos}
-                role="dialog"
+    return (
+        <Popover open onOpenChange={open => { if (!open) dismiss(); }}>
+            <PopoverAnchor virtualRef={virtualAnchor} />
+            <PopoverContent ref={popRef} container={doc.body} className={styles.pop} align="end"
                 aria-label="報價欄位設定"
-                tabIndex={-1}
+                onEscapeKeyDown={event => event.preventDefault()}
+                onOpenAutoFocus={event => { event.preventDefault(); popRef.current?.focus(); }}
+                onCloseAutoFocus={event => event.preventDefault()}
                 onBlur={(e) => {
                     const next = e.relatedTarget as Node | null;
                     if (next && !e.currentTarget.contains(next)) onClose();
@@ -114,26 +84,20 @@ export function QuoteBoardSettings({
                         報價欄位
                         <span className={styles.subtitle}>只套用到這個面板，跟版面一起儲存</span>
                     </span>
-                    <button type="button" className={styles.iconBtn} onClick={dismiss} aria-label="關閉" title="關閉">
+                    <Button size="compact-icon" variant="ghost" type="button" className={styles.iconBtn} onClick={dismiss} aria-label="關閉" title="關閉">
                         <X size={13} />
-                    </button>
+                    </Button>
                 </div>
-                <div className={styles.segment} role="tablist" aria-label="報價欄種類">
+                <Tabs value={kind} onValueChange={next => setKind(next as BoardKind)}><TabsList className={styles.segment} aria-label="報價欄種類">
                     {(['index', 'stock'] as const).map((k) => (
-                        <button
-                            key={k}
-                            type="button"
-                            role="tab"
-                            aria-selected={kind === k}
-                            className={styles.segBtn[kind === k ? 'on' : 'off']}
-                            onClick={() => setKind(k)}
+                        <TabsTrigger key={k} value={k}
                             title={k === currentKind ? '目前顯示的報價欄' : undefined}
                         >
                             {KIND_LABEL[k]}
                             {k === currentKind && <span className={styles.currentDot} aria-hidden="true" />}
-                        </button>
+                        </TabsTrigger>
                     ))}
-                </div>
+                </TabsList><TabsContent value={kind}>
                 {layout.sections.map((sectionId, si) => {
                     const meta = metas.find((m) => m.id === sectionId)!;
                     const order = layout.order[sectionId]!;
@@ -142,7 +106,7 @@ export function QuoteBoardSettings({
                             <div className={styles.sectionHead}>
                                 <span className={styles.sectionLabel}>{meta.label}</span>
                                 <span className={styles.moves}>
-                                    <button
+                                    <Button size="compact" variant="outline"
                                         type="button"
                                         className={styles.moveBtn}
                                         disabled={si === 0}
@@ -151,8 +115,8 @@ export function QuoteBoardSettings({
                                         title="整區往前"
                                     >
                                         <ChevronUp size={12} />
-                                    </button>
-                                    <button
+                                    </Button>
+                                    <Button size="compact" variant="outline"
                                         type="button"
                                         className={styles.moveBtn}
                                         disabled={si === layout.sections.length - 1}
@@ -161,7 +125,7 @@ export function QuoteBoardSettings({
                                         title="整區往後"
                                     >
                                         <ChevronDown size={12} />
-                                    </button>
+                                    </Button>
                                 </span>
                             </div>
                             {order.map((fieldId, fi) => {
@@ -171,16 +135,15 @@ export function QuoteBoardSettings({
                                 const nextFixed = meta.fields.find((m) => m.id === next)?.fixed === true;
                                 return (
                                     <div key={fieldId} className={styles.row}>
-                                        <label className={styles.check}>
-                                            <input
-                                                type="checkbox"
+                                        <Label className={styles.check}>
+                                            <Checkbox
                                                 className={styles.checkbox}
                                                 checked={on}
-                                                onChange={() => onChange(toggleField(fields, kind, fieldId))}
+                                                onCheckedChange={() => onChange(toggleField(fields, kind, fieldId))}
                                             />
                                             <span className={on ? styles.fieldLabel : `${styles.fieldLabel} ${styles.fieldOff}`}>{f.label}</span>
                                             {f.hint && <span className={styles.hint}>{f.hint}</span>}
-                                        </label>
+                                        </Label>
                                         <span className={styles.moves}>
                                             {f.fixed ? (
                                                 <span className={styles.pinned} title="位置固定">
@@ -188,7 +151,7 @@ export function QuoteBoardSettings({
                                                 </span>
                                             ) : (
                                                 <>
-                                                    <button
+                                                    <Button size="compact" variant="outline"
                                                         type="button"
                                                         className={styles.moveBtn}
                                                         disabled={fi === 0}
@@ -197,8 +160,8 @@ export function QuoteBoardSettings({
                                                         title="往前"
                                                     >
                                                         <ChevronUp size={12} />
-                                                    </button>
-                                                    <button
+                                                    </Button>
+                                                    <Button size="compact" variant="outline"
                                                         type="button"
                                                         className={styles.moveBtn}
                                                         disabled={next === undefined || nextFixed}
@@ -207,7 +170,7 @@ export function QuoteBoardSettings({
                                                         title="往後"
                                                     >
                                                         <ChevronDown size={12} />
-                                                    </button>
+                                                    </Button>
                                                 </>
                                             )}
                                         </span>
@@ -217,12 +180,13 @@ export function QuoteBoardSettings({
                         </div>
                     );
                 })}
+                </TabsContent></Tabs>
                 <div className={styles.foot}>
                     <span className={styles.footNote}>
                         <Info size={11} aria-hidden="true" />
                         面板變窄時，仍會依序收起次要的格子
                     </span>
-                    <button
+                    <Button size="compact" variant="ghost"
                         type="button"
                         className={styles.reset}
                         disabled={isDefaultLayout(fields, kind)}
@@ -231,11 +195,9 @@ export function QuoteBoardSettings({
                     >
                         <RotateCcw size={11} />
                         恢復預設
-                    </button>
+                    </Button>
                 </div>
-            </div>
-        </>
+            </PopoverContent>
+        </Popover>
     );
-    // 測試（無 DOM）時就地渲染
-    return doc.body ? createPortal(body, doc.body) : body;
 }

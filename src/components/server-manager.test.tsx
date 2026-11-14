@@ -1,3 +1,54 @@
+// This fixture verifies application-managed focus refs, independently of Radix's
+// browser-only roving focus implementation.
+vi.mock('./ui/toggle-group', async () => {
+    const { createElement, createContext, useContext } = await import('react');
+    type State = { value?: string; onValueChange?: (value: string) => void; disabled?: boolean };
+    const Context = createContext<State>({});
+    return {
+        ToggleGroup: ({ children, ...props }: State & { children?: import('react').ReactNode }) =>
+            createElement(Context.Provider, { value: props }, createElement('div', { ...props, role: 'group' }, children)),
+        ToggleGroupItem: ({ value, ...props }: { value: string; disabled?: boolean }) => {
+            const group = useContext(Context);
+            return createElement('button', { ...props, value, disabled: props.disabled || group.disabled,
+                'aria-pressed': group.value === value, onClick: () => group.onValueChange?.(value) });
+        },
+    };
+});
+
+// react-test-renderer has no portal DOM. Keep the modal's child contracts and
+// Escape stack here; real focus/portal behavior is covered by DOM acceptance.
+vi.mock('./terminal-dialog', async () => {
+    const { createElement } = await import('react');
+    const { useEscClose } = await import('../hooks/use-esc-close');
+    return { TerminalDialog: ({ children, onClose, locked, open = true, title, canClose, ...props }: {
+        children?: import('react').ReactNode; onClose?: () => void; locked?: boolean; open?: boolean;
+        title?: string; canClose?: () => boolean; [key: string]: unknown;
+    }) => {
+        useEscClose(() => { if (!locked && (canClose?.() ?? true)) onClose?.(); });
+        return open ? createElement('div', { ...props, role: 'dialog', 'aria-label': title }, children) : null;
+    } };
+});
+
+vi.mock('./ui/switch', async () => {
+    const { createElement } = await import('react');
+    return { Switch: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'switch', 'aria-checked': !!checked,
+        onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/checkbox', async () => {
+    const { createElement } = await import('react');
+    return { Checkbox: ({ checked, onCheckedChange, ...props }: {
+        checked?: boolean; onCheckedChange?: (value: boolean) => void; [key: string]: unknown;
+    }) => createElement('button', { ...props, role: 'checkbox', 'aria-checked': !!checked,
+        onCheckedChange, onClick: () => onCheckedChange?.(!checked) }) };
+});
+
+vi.mock('./ui/slider', async () => {
+    const { createElement } = await import('react');
+    return { Slider: (props: { [key: string]: unknown }) => createElement('span', { ...props, role: 'slider' }) };
+});
 import { createElement, type ReactElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

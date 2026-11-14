@@ -244,21 +244,13 @@ const optBase = style({
     fontWeight: 500,
     padding: '5px 0',
     cursor: 'pointer',
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
-    transition: 'all 0.12s',
 });
 
 export const opt = styleVariants({
-    off: [optBase, { ':hover': { color: vars.color.foreground } }],
+    off: [optBase],
     on: [
         optBase,
         {
-            color: vars.color.accent,
-            borderColor: vars.color.accent,
-            background: vars.color.accentDim,
             fontWeight: 600,
         },
     ],
@@ -270,9 +262,6 @@ const killBase = style({
     fontWeight: 700,
     padding: '8px 0',
     cursor: 'pointer',
-    borderRadius: vars.radius.sm,
-    border: '1px solid',
-    transition: 'all 0.12s',
 });
 
 export const killBtnOff = style([
@@ -331,16 +320,8 @@ export const menuItem = style({
     textAlign: 'left',
     padding: '5px 8px',
     cursor: 'pointer',
-    background: 'transparent',
-    border: `1px solid transparent`,
-    borderRadius: vars.radius.sm,
-    color: vars.color.foreground,
-    transition: 'background 0.12s',
-    ':hover': { background: vars.color.muted },
     ':disabled': {
-        color: vars.color.mutedForeground,
         cursor: 'not-allowed',
-        background: 'transparent',
     },
 });
 
@@ -408,14 +389,7 @@ export const saveInput = style({
     minWidth: 0,
     fontFamily: vars.font.body,
     fontSize: '0.72rem',
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '3px 8px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
-    '::placeholder': { color: vars.color.mutedForeground },
 });
 
 export const profileRow = style({
@@ -430,12 +404,7 @@ export const profileDelete = style({
     width: '20px',
     height: '20px',
     cursor: 'pointer',
-    background: 'transparent',
-    border: 'none',
-    borderRadius: vars.radius.sm,
-    color: vars.color.mutedForeground,
     flexShrink: 0,
-    ':hover': { color: vars.color.danger, background: vars.color.muted },
 });
 
 export const updateBtn = style({
@@ -448,20 +417,8 @@ export const updateBtn = style({
     fontWeight: 600,
     padding: '7px 0',
     cursor: 'pointer',
-    borderRadius: vars.radius.sm,
-    border: `1px solid ${vars.color.border}`,
-    background: vars.color.inset,
-    color: vars.color.accent,
-    transition: 'all 0.12s',
-    ':hover': {
-        borderColor: vars.color.accent,
-        background: vars.color.accentDim,
-    },
     ':disabled': {
         cursor: 'wait',
-        color: vars.color.mutedForeground,
-        borderColor: vars.color.border,
-        background: vars.color.inset,
     },
 });
 
@@ -483,10 +440,6 @@ export const resetBtn = style({
     fontFamily: vars.font.display,
     fontSize: '0.66rem',
     fontWeight: 500,
-    color: vars.color.mutedForeground,
-    background: 'transparent',
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '0 10px',
     height: '25px',
     boxSizing: 'border-box',
@@ -495,11 +448,6 @@ export const resetBtn = style({
     gap: '4px',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
-    transition: 'all 0.12s',
-    ':hover': {
-        color: vars.color.foreground,
-        borderColor: vars.color.borderBright,
-    },
 });
 
 export const clock = style({
@@ -559,10 +507,6 @@ export const srvChip = style({
     fontSize: '0.66rem',
     fontVariantNumeric: 'tabular-nums',
     padding: '2px 7px',
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    background: vars.color.inset,
-    color: vars.color.foreground,
     whiteSpace: 'nowrap',
 });
 
@@ -727,10 +671,6 @@ export const foreignChipAction = style({
     fontFamily: vars.font.display,
     fontSize: '0.64rem',
     fontWeight: 600,
-    color: vars.color.foreground,
-    background: vars.color.inset,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
     padding: '0 8px',
     height: '19px',
     cursor: 'pointer',

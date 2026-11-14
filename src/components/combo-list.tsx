@@ -1,3 +1,5 @@
+import { NativeSelect, NativeSelectOption, NativeSelectOptGroup } from '@/components/ui/native-select';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { RefreshButton } from './refresh-button';
 import { useLiveSnapshots } from '../hooks/use-live-snapshots';
 // src/components/combo-list.tsx — 交易所組合商品列表（issue #32）
@@ -174,7 +176,7 @@ export function ComboListPanel({
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
                 {quotesError && <span role="status">{quotesError}；保留上次報價</span>}
-                <select
+                <NativeSelect
                     className={styles.select}
                     value={root}
                     onChange={(e) => {
@@ -185,23 +187,23 @@ export function ComboListPanel({
                 >
                     {/* 清單未載入或存的 root 已下市 → 補現值選項不留空白 */}
                     {!roots.some((r) => r.root === root) && (
-                        <option value={root}>{root}</option>
+                        <NativeSelectOption value={root}>{root}</NativeSelectOption>
                     )}
-                    <optgroup label='常用指數'>
+                    <NativeSelectOptGroup label='常用指數'>
                         {pinned.map((r) => (
-                            <option key={r.root} value={r.root}>
+                            <NativeSelectOption key={r.root} value={r.root}>
                                 {stripMonth(r.name)}（{r.root}）
-                            </option>
+                            </NativeSelectOption>
                         ))}
-                    </optgroup>
-                    <optgroup label='全部家族（含個股期）'>
+                    </NativeSelectOptGroup>
+                    <NativeSelectOptGroup label='全部家族（含個股期）'>
                         {rest.map((r) => (
-                            <option key={r.root} value={r.root}>
+                            <NativeSelectOption key={r.root} value={r.root}>
                                 {stripMonth(r.name)}（{r.root}）
-                            </option>
+                            </NativeSelectOption>
                         ))}
-                    </optgroup>
-                </select>
+                    </NativeSelectOptGroup>
+                </NativeSelect>
                 <RefreshButton label="更新報價" loading={quotesLoading} onClick={() => void refreshQuotes()} />
             </div>
             <div className={styles.toolbar}>
@@ -232,7 +234,7 @@ export function ComboListPanel({
                 </div>
             ) : (
                 <div className={styles.scroll}>
-                    <table className={styles.table}>
+                    <Table containerClassName="contents" className={styles.table}>
                         <colgroup>
                             <col style={{ width: '30%' }} />
                             <col style={{ width: '21%' }} />
@@ -240,16 +242,16 @@ export function ComboListPanel({
                             <col style={{ width: '15%' }} />
                             <col style={{ width: '13%' }} />
                         </colgroup>
-                        <thead>
-                            <tr>
-                                <th className={styles.thLeft}>組合（近/遠）</th>
-                                <th className={styles.th}>委買</th>
-                                <th className={styles.th}>委賣</th>
-                                <th className={styles.th}>成交</th>
-                                <th className={styles.th}>總量</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className={styles.thLeft}>組合（近/遠）</TableHead>
+                                <TableHead className={styles.th}>委買</TableHead>
+                                <TableHead className={styles.th}>委賣</TableHead>
+                                <TableHead className={styles.th}>成交</TableHead>
+                                <TableHead className={styles.th}>總量</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
                             {sorted.map((combo) => {
                                 const q = snapshots.get(combo.code);
                                 const hasBid =
@@ -259,7 +261,7 @@ export function ComboListPanel({
                                 const traded = (q?.total_volume ?? 0) > 0;
                                 const months = comboMonthsLabel(combo.code);
                                 return (
-                                    <tr
+                                    <TableRow
                                         key={combo.code}
                                         className={styles.row}
                                         title={`${rootLabel} ${months ?? combo.code}｜帶入組合單`}
@@ -283,7 +285,7 @@ export function ComboListPanel({
                                             });
                                         }}
                                     >
-                                        <td className={styles.tdLeft}>
+                                        <TableCell className={styles.tdLeft}>
                                             <strong>
                                                 {months ?? combo.code}
                                             </strong>
@@ -296,28 +298,28 @@ export function ComboListPanel({
                                                     {combo.code}
                                                 </span>
                                             )}
-                                        </td>
-                                        <td className={`${styles.td} ${panel.dirText.up}`}>
+                                        </TableCell>
+                                        <TableCell className={`${styles.td} ${panel.dirText.up}`}>
                                             {hasBid
                                                 ? `${fmtPrice(q!.buy_price)}×${q!.buy_volume}`
                                                 : '—'}
-                                        </td>
-                                        <td className={`${styles.td} ${panel.dirText.down}`}>
+                                        </TableCell>
+                                        <TableCell className={`${styles.td} ${panel.dirText.down}`}>
                                             {hasAsk
                                                 ? `${fmtPrice(q!.sell_price)}×${q!.sell_volume}`
                                                 : '—'}
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {traded ? fmtPrice(q!.close) : '—'}
-                                        </td>
-                                        <td className={styles.td}>
+                                        </TableCell>
+                                        <TableCell className={styles.td}>
                                             {traded ? q!.total_volume : '—'}
-                                        </td>
-                                    </tr>
+                                        </TableCell>
+                                    </TableRow>
                                 );
                             })}
-                        </tbody>
-                    </table>
+                        </TableBody>
+                    </Table>
                 </div>
             )}
         </div>

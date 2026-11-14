@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button';
 import { RefreshButton } from './refresh-button';
 // src/components/tray-panel.tsx — compact menu-bar dropdown panel.
 // Sections are user-configurable (gear): 持倉損益 / 自選清單 / 排行榜.
@@ -85,7 +86,7 @@ function WatchMini({ item, spark }: { item: WatchItem; spark: boolean }) {
             : (item.snapshot?.change_rate ?? 0);
     const dir = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
     return (
-        <button
+        <Button size="compact" variant="ghost"
             className={spark ? styles.rowSpark : styles.row}
             onClick={() => void pickCode(item.contract.code)}
         >
@@ -106,7 +107,7 @@ function WatchMini({ item, spark }: { item: WatchItem; spark: boolean }) {
             <span className={`${styles.numSm} ${panel.dirText[dir]}`}>
                 {fmtPct(pct)}
             </span>
-        </button>
+        </Button>
     );
 }
 
@@ -180,26 +181,26 @@ export function TrayPanel() {
                         : ''}
                 </span>
                 <RefreshButton label="更新排行" loading={moversPoll.loading} onClick={() => void moversPoll.refresh()} />
-                <button
+                <Button size="compact-icon" variant="outline"
                     className={styles.gearBtn}
                     title='自訂顯示內容'
                     onClick={() => setGearOpen((o) => !o)}
                 >
                     <Settings2 size={13} />
-                </button>
-                <button
+                </Button>
+                <Button size="compact-icon" variant="outline"
                     className={styles.gearBtn}
                     title='開啟主視窗'
                     onClick={() => void pickCode('')}
                 >
                     <Maximize2 size={13} />
-                </button>
+                </Button>
             </div>
 
             {gearOpen && (
                 <div className={styles.gearRow}>
                     {SECTIONS.map((s) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={s.key}
                             className={
                                 styles.gearOpt[
@@ -210,9 +211,9 @@ export function TrayPanel() {
                         >
                             {sections.has(s.key) ? '✓ ' : ''}
                             {s.label}
-                        </button>
+                        </Button>
                     ))}
-                    <button
+                    <Button size="compact" variant="ghost"
                         className={styles.gearOpt[spark ? 'on' : 'off']}
                         onClick={() =>
                             setSpark((v) => {
@@ -222,7 +223,7 @@ export function TrayPanel() {
                         }
                     >
                         {spark ? '✓ ' : ''}小線圖
-                    </button>
+                    </Button>
                 </div>
             )}
 
@@ -244,7 +245,7 @@ export function TrayPanel() {
                             const dir =
                                 p.pnl > 0 ? 'up' : p.pnl < 0 ? 'down' : 'flat';
                             return (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={`${p.code}-${p.id}`}
                                     className={styles.row}
                                     onClick={() =>
@@ -274,7 +275,7 @@ export function TrayPanel() {
                                             privMoney,
                                         )}
                                     </span>
-                                </button>
+                                </Button>
                             );
                         })}
                     </>
@@ -320,7 +321,7 @@ export function TrayPanel() {
                                       ? 'down'
                                       : 'flat';
                             return (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={it.code}
                                     className={styles.row}
                                     onClick={() => void pickCode(it.code)}
@@ -341,7 +342,7 @@ export function TrayPanel() {
                                     >
                                         {fmtPct(pct)}
                                     </span>
-                                </button>
+                                </Button>
                             );
                         })}
                         {(moversPoll.data?.length ?? 0) === 0 && (

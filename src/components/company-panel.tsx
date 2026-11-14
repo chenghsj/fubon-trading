@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 // src/components/company-panel.tsx — 公司資料面板（#337）
 //
 // Follows the panel's contract (selection / link group / pin). Shows who the
@@ -228,7 +230,7 @@ function CompanyView({
                 <Kpis view={view} live={live} />
                 <div className={s.tabs} role='tablist' aria-label='公司資料分頁'>
                     {tabs.map((t) => (
-                        <button
+                        <Button size="compact" variant="ghost"
                             key={t.id}
                             type='button'
                             role='tab'
@@ -238,7 +240,7 @@ function CompanyView({
                         >
                             {t.label}
                             {t.count !== undefined && <span className={s.tabCount}>{t.count}</span>}
-                        </button>
+                        </Button>
                     ))}
                 </div>
                 <div role='tabpanel'>
@@ -470,7 +472,7 @@ function Overview({
                                         const pressed =
                                             focus?.themeId === chainTheme?.id && focus?.stageIds?.[0] === st.id;
                                         return (
-                                            <button
+                                            <Button size="compact" variant="ghost"
                                                 key={st.id}
                                                 type='button'
                                                 className={`${s.stage} ${s.stageTone[tone]}`}
@@ -487,7 +489,7 @@ function Overview({
                                                 }
                                             >
                                                 <span className={s.stageLabel}>{st.name}</span>
-                                            </button>
+                                            </Button>
                                         );
                                     })}
                                 </div>
@@ -515,7 +517,7 @@ function Overview({
                             const theme = themes?.find((t) => t.id === ref.theme);
                             const pressed = focus?.themeId === ref.theme;
                             return (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     key={`${ref.theme}:${ref.stage}`}
                                     type='button'
                                     className={s.themeChip}
@@ -531,7 +533,7 @@ function Overview({
                                     <span className={s.themeStage}>
                                         {theme ? stageName(theme, ref.stage) : ref.stage} · {tierLabel(ref.tier)}
                                     </span>
-                                </button>
+                                </Button>
                             );
                         })}
                     </div>
@@ -624,15 +626,15 @@ function MemberList({
             <div className={s.membersHead}>
                 {focus.title}
                 <span className={s.groupCount}>{members.length}</span>
-                <button type='button' className={s.close} onClick={onClose} aria-label='收合'>
+                <Button size="compact" variant="ghost" type='button' className={s.close} onClick={onClose} aria-label='收合'>
                     <X size={12} />
-                </button>
+                </Button>
             </div>
             {shown.map((m) => {
                 const code = twCodeOf(m.id);
                 const self = code === view.code;
                 return (
-                    <button
+                    <Button size="compact" variant="ghost"
                         key={`${m.id}:${m.stage}`}
                         type='button'
                         className={`${s.row} ${code && !self && onPick ? s.rowLink : ''}`}
@@ -647,13 +649,13 @@ function MemberList({
                             {focus.stageIds ? m.detail : `${stageName(theme, m.stage)} · ${m.detail ?? ''}`}
                         </span>
                         <span className={s.rowEnd}>{fmtTwd(cap(m.id) || null)}</span>
-                    </button>
+                    </Button>
                 );
             })}
             {members.length > 8 && (
-                <button type='button' className={s.more} onClick={() => setAll((v) => !v)}>
+                <Button size="compact" variant="ghost" type='button' className={s.more} onClick={() => setAll((v) => !v)}>
                     {all ? '收合' : `顯示全部 ${members.length} 家`}
-                </button>
+                </Button>
             )}
         </div>
     );
@@ -821,28 +823,28 @@ function FinancialsTab({ view }: { view: CompanyDataView }) {
                             </span>
                         </div>
                         <div className={s.tableWrap}>
-                            <table className={s.table}>
-                                <thead>
-                                    <tr>
-                                        <th>月份</th>
-                                        <th>營收</th>
-                                        <th>月增</th>
-                                        <th>年增</th>
-                                        <th>累計年增</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
+                            <Table containerClassName="contents" className={s.table}>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>月份</TableHead>
+                                        <TableHead>營收</TableHead>
+                                        <TableHead>月增</TableHead>
+                                        <TableHead>年增</TableHead>
+                                        <TableHead>累計年增</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                     {months.map((m) => (
-                                        <tr key={m.period}>
-                                            <td>{m.period}</td>
-                                            <td>{fmtK(m.revenue_thousand_twd)}</td>
-                                            <td>{fmtGrowth(m.mom_pct)}</td>
-                                            <td>{fmtGrowth(m.yoy_pct)}</td>
-                                            <td>{fmtGrowth(m.ytd_yoy_pct)}</td>
-                                        </tr>
+                                        <TableRow key={m.period}>
+                                            <TableCell>{m.period}</TableCell>
+                                            <TableCell>{fmtK(m.revenue_thousand_twd)}</TableCell>
+                                            <TableCell>{fmtGrowth(m.mom_pct)}</TableCell>
+                                            <TableCell>{fmtGrowth(m.yoy_pct)}</TableCell>
+                                            <TableCell>{fmtGrowth(m.ytd_yoy_pct)}</TableCell>
+                                        </TableRow>
                                     ))}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     </>
                 ) : (
@@ -858,30 +860,30 @@ function FinancialsTab({ view }: { view: CompanyDataView }) {
                 </div>
                 {quarters.length > 0 ? (
                     <div className={s.tableWrap}>
-                        <table className={s.table}>
-                            <thead>
-                                <tr>
-                                    <th>季別</th>
-                                    <th>營收</th>
-                                    {general && <th>毛利率</th>}
-                                    {general && <th>營益率</th>}
-                                    <th>淨利率</th>
-                                    <th>EPS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <Table containerClassName="contents" className={s.table}>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>季別</TableHead>
+                                    <TableHead>營收</TableHead>
+                                    {general && <TableHead>毛利率</TableHead>}
+                                    {general && <TableHead>營益率</TableHead>}
+                                    <TableHead>淨利率</TableHead>
+                                    <TableHead>EPS</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
                                 {quarters.map((q) => (
-                                    <tr key={q.period}>
-                                        <td>{q.period}</td>
-                                        <td>{fmtK(q.revenue)}</td>
-                                        {general && <td>{fmtRatio(q.grossMarginPct)}</td>}
-                                        {general && <td>{fmtRatio(q.operatingMarginPct)}</td>}
-                                        <td>{fmtRatio(q.netMarginPct)}</td>
-                                        <td>{q.eps !== null ? q.eps.toFixed(2) : '—'}</td>
-                                    </tr>
+                                    <TableRow key={q.period}>
+                                        <TableCell>{q.period}</TableCell>
+                                        <TableCell>{fmtK(q.revenue)}</TableCell>
+                                        {general && <TableCell>{fmtRatio(q.grossMarginPct)}</TableCell>}
+                                        {general && <TableCell>{fmtRatio(q.operatingMarginPct)}</TableCell>}
+                                        <TableCell>{fmtRatio(q.netMarginPct)}</TableCell>
+                                        <TableCell>{q.eps !== null ? q.eps.toFixed(2) : '—'}</TableCell>
+                                    </TableRow>
                                 ))}
-                            </tbody>
-                        </table>
+                            </TableBody>
+                        </Table>
                     </div>
                 ) : (
                     <span className={s.muted}>沒有季報資料</span>
@@ -986,13 +988,13 @@ function RelationsTab({
                                 />
                             ))}
                             {g.rows.length > GROUP_PREVIEW && (
-                                <button
+                                <Button size="compact" variant="ghost"
                                     type='button'
                                     className={s.more}
                                     onClick={() => setExpanded((e) => ({ ...e, [g.key]: !open }))}
                                 >
                                     {open ? '收合' : `顯示全部 ${g.rows.length} 筆`}
-                                </button>
+                                </Button>
                             )}
                         </div>
                     </div>
@@ -1015,7 +1017,7 @@ function RelationLine({
     const clickable = Boolean(code && onPick);
     const detail = [row.amount, row.detail].filter(Boolean).join(' · ');
     return (
-        <button
+        <Button size="compact" variant="ghost"
             type='button'
             className={`${s.row} ${clickable ? s.rowLink : ''}`}
             disabled={!clickable}
@@ -1042,7 +1044,7 @@ function RelationLine({
                     <span className={s.muted}>{row.as_of ?? ''}</span>
                 )}
             </span>
-        </button>
+        </Button>
     );
 }
 
@@ -1109,9 +1111,9 @@ function SourcesTab({ view, researched }: { view: CompanyDataView; researched: b
                         ))}
                     </ul>
                     {evidence.length > 12 && (
-                        <button type='button' className={s.more} style={{ borderTop: 'none', padding: 0 }} onClick={() => setAll((v) => !v)}>
+                        <Button size="compact" variant="ghost" type='button' className={s.more} style={{ borderTop: 'none', padding: 0 }} onClick={() => setAll((v) => !v)}>
                             {all ? '收合' : `顯示全部 ${evidence.length} 筆`}
-                        </button>
+                        </Button>
                     )}
                 </div>
             )}

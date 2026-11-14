@@ -1,3 +1,6 @@
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 // src/components/flash-link-host.tsx — 閃電下單的「對應商品」
 // 把面板收到的來源商品（自選選取、群組代碼、鎖定代碼）依面板設定換成要下單的
 // 合約：照選取／現股／個股期（規格、月份）。換不到就暫停並說明，絕不保留上一檔。
@@ -141,11 +144,11 @@ export function FlashLinkHost({ source, link, group, onLinkChange, render, targe
                     options={[['near', '近月', months[0] && monthLabel(months[0])], ['next', '次月', months[1] && monthLabel(months[1])]]}
                     onPick={month => set({ month })}
                     extra={(
-                        <select className={`${settingsSelectClass} ${hostStyles.monthSelect}`} aria-label='指定月份'
+                        <NativeSelect wrapperClassName="flex-1" className={`${settingsSelectClass} ${hostStyles.monthSelect}`} aria-label='指定月份'
                             value={/^\d{6}$/.test(link.month) ? link.month : ''} onChange={e => { if (e.target.value) set({ month: e.target.value }); }}>
-                            <option value=''>指定月份</option>
-                            {months.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
-                        </select>
+                            <NativeSelectOption value=''>指定月份</NativeSelectOption>
+                            {months.map(m => <NativeSelectOption key={m} value={m}>{monthLabel(m)}</NativeSelectOption>)}
+                        </NativeSelect>
                     )} />
             )}
             <SettingsSegRow label='價差對照' value={link.ref ? 'on' : 'off'}
@@ -171,7 +174,7 @@ export function FlashLinkHost({ source, link, group, onLinkChange, render, targe
         );
     };
     const button = (label: ReactNode, onClick: () => void) => (
-        <button type='button' className={hostStyles.emptyBtn} onClick={onClick}>{label}</button>
+        <Button size="compact" variant="outline" type='button' className={hostStyles.emptyBtn} onClick={onClick}>{label}</Button>
     );
 
     if (pending) return loading('載入商品…');
@@ -228,15 +231,15 @@ export function FlashLinkHost({ source, link, group, onLinkChange, render, targe
     const monthText = link.month === 'near' ? '近月' : link.month === 'next' ? '次月' : monthLabel(link.month);
     const symbolExtra = (
         <>
-            <label className={styles.monthPick} title='個股期月份'>
+            <Label className={styles.monthPick} title='個股期月份'>
                 {monthText}
                 <ChevronDown size={9} aria-hidden />
-                <select className={styles.monthSelect} aria-label='個股期月份' value={link.month} onChange={e => set({ month: e.target.value })}>
-                    <option value='near'>近月</option>
-                    <option value='next'>次月</option>
-                    {months.map(m => <option key={m} value={m}>{monthLabel(m)}</option>)}
-                </select>
-            </label>
+                <NativeSelect wrapperClassName="absolute inset-0 w-full" showIcon={false} className={styles.monthSelect} aria-label='個股期月份' value={link.month} onChange={e => set({ month: e.target.value })}>
+                    <NativeSelectOption value='near'>近月</NativeSelectOption>
+                    <NativeSelectOption value='next'>次月</NativeSelectOption>
+                    {months.map(m => <NativeSelectOption key={m} value={m}>{monthLabel(m)}</NativeSelectOption>)}
+                </NativeSelect>
+            </Label>
             {pick.expiresToday && <span className={styles.expiryTag}>今日到期</span>}
         </>
     );
