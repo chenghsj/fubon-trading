@@ -1,12 +1,12 @@
 import argparse
 import secrets
-from urllib.parse import urlparse
 import webbrowser
 
 import uvicorn
 from .app import create_app
 from .config import Config
 from .keychain import KeychainError
+from .origins import localhost_ui_origin
 
 
 def main():
@@ -18,10 +18,10 @@ def main():
         config = Config.from_env()
     except (ValueError, KeychainError):
         parser.exit(1, "啟動失敗：請檢查模式設定與 Keychain；明文登入欄位已停用，請執行 pnpm credentials set\n")
-    target = args.ui_url or f"http://localhost:{config.port}"
-    parsed = urlparse(target)
-    if parsed.scheme != "http" or parsed.hostname != "localhost" or parsed.port not in {config.port, 5179} or parsed.path not in {"", "/"} or parsed.query or parsed.fragment or parsed.username:
-        parser.error("只允許預設本機介面網址")
+    try:
+        target = localhost_ui_origin(args.ui_url or f"http://localhost:{config.port}")
+    except ValueError as error:
+        parser.error(str(error))
     launch_token = secrets.token_urlsafe(32)
 
     def open_terminal():

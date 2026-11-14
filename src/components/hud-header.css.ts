@@ -6,8 +6,8 @@ import { vars } from '../theme.css';
 export const header = style({
     display: 'flex',
     alignItems: 'center',
-    gap: vars.space.md,
-    padding: `8px ${vars.space.md}`,
+    gap: vars.space.sm,
+    padding: `6px ${vars.space.md}`,
     background: vars.color.panel,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
@@ -68,7 +68,7 @@ export const spacer = style({ flex: 1 });
 
 // 頂欄所有 chip/按鈕的統一高度 — 字級與 padding 各異會造成 23/25px
 // 混排，邊框線上下參差（使用者回報的「水平不齊」）
-const HEADER_ITEM_H = '25px';
+const HEADER_ITEM_H = 'max(25px, 1.5rem)';
 
 export const chip = style({
     display: 'inline-flex',
@@ -166,7 +166,7 @@ export const simBadge = style({
     background: 'rgba(224, 164, 60, 0.08)',
     borderRadius: vars.radius.sm,
     padding: '0 10px',
-    height: '25px',
+    height: HEADER_ITEM_H,
     boxSizing: 'border-box',
     display: 'inline-flex',
     alignItems: 'center',
@@ -184,7 +184,7 @@ export const prodBadge = style({
     border: `1px solid ${vars.color.dangerSolid}`,
     borderRadius: vars.radius.sm,
     padding: '0 10px',
-    height: '25px',
+    height: HEADER_ITEM_H,
     boxSizing: 'border-box',
     display: 'inline-flex',
     alignItems: 'center',
@@ -295,7 +295,7 @@ export const killHeaderOn = style({
     border: `1px solid ${vars.color.dangerSolid}`,
     borderRadius: vars.radius.sm,
     padding: '0 10px',
-    height: '25px',
+    height: HEADER_ITEM_H,
     boxSizing: 'border-box',
     display: 'inline-flex',
     alignItems: 'center',
@@ -303,6 +303,13 @@ export const killHeaderOn = style({
     cursor: 'pointer',
     whiteSpace: 'nowrap',
     animation: 'pulse-glow 1.2s infinite',
+    selectors: {
+        '&[data-slot="button"]': {
+            height: HEADER_ITEM_H,
+            minHeight: HEADER_ITEM_H,
+            padding: '0 10px',
+        },
+    },
 });
 
 export const riskLabel = style({
@@ -441,13 +448,23 @@ export const resetBtn = style({
     fontSize: '0.66rem',
     fontWeight: 500,
     padding: '0 10px',
-    height: '25px',
+    height: HEADER_ITEM_H,
     boxSizing: 'border-box',
     display: 'inline-flex',
     alignItems: 'center',
     gap: '4px',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
+    // Keep the toolbar's geometry when utility CSS loads after panel styles.
+    selectors: {
+        '&[data-slot="button"]': {
+            height: HEADER_ITEM_H,
+            minHeight: HEADER_ITEM_H,
+            padding: '0 10px',
+            gap: '4px',
+            fontSize: '0.66rem',
+        },
+    },
 });
 
 export const clock = style({
@@ -458,7 +475,7 @@ export const clock = style({
     fontVariantNumeric: 'tabular-nums',
     // 與 chip/按鈕同一個 25px 盒模型垂直置中 — 純文字 span 的
     // baseline 定位在 WKWebView 與 Chromium 不同，會上下漂
-    height: '25px',
+    height: HEADER_ITEM_H,
     display: 'inline-flex',
     alignItems: 'center',
     whiteSpace: 'nowrap',
@@ -645,7 +662,7 @@ export const foreignChip = style({
     background: 'rgba(224, 164, 60, 0.08)',
     borderRadius: vars.radius.sm,
     padding: '0 4px 0 8px',
-    height: '25px',
+    height: HEADER_ITEM_H,
     boxSizing: 'border-box',
     whiteSpace: 'nowrap',
     '@media': {
@@ -654,7 +671,7 @@ export const foreignChip = style({
             whiteSpace: 'normal',
             maxWidth: '100%',
             height: 'auto',
-            minHeight: '25px',
+            minHeight: HEADER_ITEM_H,
         },
     },
 });

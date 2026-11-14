@@ -5,6 +5,7 @@ import { style, styleVariants } from '@vanilla-extract/css';
 import { vars } from '../theme.css';
 
 export const dock = style({
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     minHeight: 0,
@@ -15,10 +16,35 @@ export const tabBar = style([controlRow, {
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: vars.space.xs,
-    padding: `0 ${vars.space.sm}`,
+    padding: `${vars.space.xs} ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
 }]);
+
+export const tabGroup = style({
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: vars.space.xs,
+    minWidth: 0,
+});
+
+export const filters = style([controlRow, {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: vars.space.sm,
+    padding: `${vars.space.xs} ${vars.space.sm}`,
+    borderBottom: `1px solid ${vars.color.border}`,
+    flexShrink: 0,
+}]);
+
+export const queryStatus = style({
+    fontSize: '0.66rem',
+    color: vars.color.mutedForeground,
+    minWidth: 0,
+    overflowWrap: 'anywhere',
+});
 
 const tabBase = style({
     fontFamily: vars.font.display,
@@ -32,6 +58,12 @@ const tabBase = style({
     color: vars.color.mutedForeground,
     transition: 'all 0.12s',
     ':hover': { color: vars.color.foreground },
+    selectors: {
+        '&[data-slot="button"]': {
+            padding: `0 ${vars.space.sm}`,
+            fontSize: '0.7rem',
+        },
+    },
 });
 
 export const tab = styleVariants({
@@ -57,7 +89,6 @@ export const accountSelect = style({
     border: `1px solid ${vars.color.border}`,
     borderRadius: vars.radius.sm,
     padding: '2px 4px',
-    marginRight: '6px',
     outline: 'none',
     maxWidth: '11rem',
     ':focus': { borderColor: vars.color.accent },
@@ -537,7 +568,6 @@ export const ctrlGroup = style({
     display: 'flex',
     gap: '2px',
     alignSelf: 'center',
-    marginRight: '6px',
 });
 
 const ctrlOptBase = style({
@@ -552,6 +582,12 @@ const ctrlOptBase = style({
     color: vars.color.mutedForeground,
     whiteSpace: 'nowrap',
     transition: 'all 0.12s',
+    selectors: {
+        '&[data-slot="button"]': {
+            padding: `0 ${vars.space.sm}`,
+            fontSize: '0.64rem',
+        },
+    },
 });
 
 // 兩態/三態切換（合併｜分帳戶、全部｜證券｜期貨）— hud-header opt 語彙

@@ -2,6 +2,7 @@
 import hashlib
 import json
 import secrets
+import sys
 from unittest.mock import Mock
 
 import cbor2
@@ -155,6 +156,64 @@ def test_sync_passkey_zero_counter_is_supported(setup):
     for _ in range(2):
         opts = options(client, 'authenticate')
         assert verify(client, 'authenticate', opts, auth.credential(opts, counter=0)).status_code == 200
+
+
+def test_existing_passkey_works_across_worktree_origins_without_reenrollment(setup, monkeypatch, tmp_path):
+    import fubon_bridge.passkeys as passkey_module
+
+    client, app, store, auth = setup
+    register(client, auth)
+    owner = store.owner()
+    # Every checkout uses the same application-data store, regardless of cwd.
+    monkeypatch.setattr(passkey_module, 'default_database', lambda: store.path)
+    previous_token = None
+    for index, port in enumerate([5189, 5191]):
+        worktree = tmp_path / f'worktree-{index}'
+        worktree.mkdir()
+        monkeypatch.chdir(worktree)
+        origin = f'http://localhost:{port}'
+        worktree_app = create_app(Config(port=21429 + index), public_origin=origin)
+        with TestClient(worktree_app, base_url=origin) as preview:
+            assert preview.get('/api/v1/passkeys/status').json() == {'enrolled': True, 'origin': origin}
+            assert preview.get('/api/v1/info').status_code == 401
+            if previous_token:
+                assert preview.get('/api/v1/info', headers={'Authorization': f'Bearer {previous_token}'}).status_code == 401
+            opts = options(preview, 'authenticate', {'Origin': origin})
+            assert opts['public_key']['allowCredentials'][0]['id'] == b64(auth.id)
+            result = verify(preview, 'authenticate', opts, auth.credential(opts, origin=origin, counter=index + 2), {'Origin': origin})
+            assert result.status_code == 200, result.text
+            previous_token = result.json()['access_token']
+            assert preview.get('/api/v1/info', headers={'Authorization': f'Bearer {previous_token}', 'Origin': origin}).status_code == 200
+            for foreign in [ORIGIN, f'http://localhost:{port + 1}', f'http://127.0.0.1:{port}', 'https://evil.example']:
+                assert preview.post('/api/v1/passkeys/authenticate/options', json={}, headers={'Origin': foreign}).status_code == 403
+    assert store.owner() == owner
+    assert store.credential()[0] == auth.id
+
+
+def test_cli_accepts_explicit_localhost_worktree_ui_port(monkeypatch):
+    import fubon_bridge.__main__ as cli
+
+    monkeypatch.setattr(sys, 'argv', ['fubon-bridge', '--ui-url', 'http://localhost:5189/', '--no-browser'])
+    monkeypatch.setattr(cli.Config, 'from_env', lambda: Config(port=21429))
+    factory, run = Mock(), Mock()
+    monkeypatch.setattr(cli, 'create_app', factory)
+    monkeypatch.setattr(cli.uvicorn, 'run', run)
+    cli.main()
+    assert factory.call_args.kwargs['public_origin'] == 'http://localhost:5189'
+    assert run.call_args.kwargs['port'] == 21429
+
+
+@pytest.mark.parametrize('origin', [
+    'https://localhost:5189', 'http://127.0.0.1:5189', 'http://localhost.evil.example:5189',
+    'http://localhost:5189@evil.example', 'http://user:password@localhost:5189',
+    'http://localhost:5189/path', 'http://localhost:5189/?origin=other', 'http://localhost:5189/#other',
+    'http://localhost:80', 'http://localhost:70000', 'http://localhost:invalid', 'http://localhost',
+    'http://local\nhost:5189',
+])
+def test_worktree_ui_origin_stays_explicit_and_local(origin):
+    from fubon_bridge.origins import localhost_ui_origin
+    with pytest.raises(ValueError, match='localhost'):
+        localhost_ui_origin(origin)
 
 
 def test_broker_and_keychain_are_not_touched_before_passkey(setup, monkeypatch):

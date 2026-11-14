@@ -107,7 +107,7 @@ export const searchRow = style({
     display: 'flex',
     alignItems: 'center',
     gap: vars.space.sm,
-    padding: `${vars.space.sm} ${vars.space.md}`,
+    padding: vars.space.sm,
     borderBottom: `1px solid ${vars.color.border}`,
     color: vars.color.mutedForeground,
 });
@@ -115,7 +115,7 @@ export const searchRow = style({
 export const searchInput = style({
     flex: 1,
     minWidth: 0,
-    padding: '6px 0',
+    padding: `6px ${vars.space.sm}`,
     fontFamily: vars.font.body,
     fontSize: '0.82rem',
 });

@@ -41,9 +41,11 @@ it('header 放不下時換行容納全部控制，未以裁切或橫捲掩蓋溢
     for (const name of ['header', 'resetBtn', 'chip', 'killHeaderOn', 'simBadge', 'prodBadge']) {
         expect(cssText(styleObject(name), 'display')).not.toBe("'none'");
     }
-    // Wide windows keep the original spacing and dimensions.
-    expect(cssText(styleObject('header'), 'gap')).toBe('vars.space.md');
-    expect(cssText(styleObject('resetBtn'), 'height')).toBe("'25px'");
+    // Toolbar items keep one rhythm and scale together with the chosen font size.
+    expect(cssText(styleObject('header'), 'gap')).toBe('vars.space.sm');
+    for (const name of ['resetBtn', 'chip', 'clock', 'killHeaderOn', 'simBadge', 'prodBadge']) {
+        expect(cssText(styleObject(name), 'height')).toBe('HEADER_ITEM_H');
+    }
 });
 
 it('品牌／build identity 與外部伺服器警示可折行，popover 維持按鈕錨定的桌面設計', () => {

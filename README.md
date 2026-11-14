@@ -24,6 +24,22 @@ pnpm start
 
 僅綁定本機，API 使用 `21323` 埠；埠被占用時停止啟動，不會接手其他交易服務。
 
+### 在 worktree 開發
+
+在新 worktree 執行同一個 `pnpm start` 即可。啟動器會依 worktree 路徑選擇固定的一組前端／API 埠，印出網址並用預設瀏覽器開啟；主 checkout 仍使用 `5179`／`21323`。不會因其他服務占用而接手或停止它。
+
+所有 worktree 都沿用本機應用程式資料夾中的同一份 Passkey 公開驗證資料，因此使用原本的 Passkey 解鎖即可，**不需複製資料庫、重設或重新註冊**。前端網址固定使用 `localhost`；每個服務仍只接受自己指定的精確 Origin，登入工作階段各自獨立。
+
+需要自行指定埠時：
+
+```sh
+pnpm start --ui-port 5189 --api-port 21429
+# 僅啟動服務、不開啟瀏覽器：
+pnpm start --no-browser
+```
+
+新 worktree 沒有 `.env` 時使用展示模式；需要富邦行情時再按下節設定 `paper`。供人試用請使用正常啟動流程與平常的瀏覽器；`test:ui` 的臨時資料庫和虛擬 Passkey 只供自動測試，無法用你的既有 Passkey 解鎖。
+
 預設為 **展示模式**：合成行情、模擬帳戶與本機撮合，不需券商帳號、不登入券商；本機介面仍要求 Passkey。頂端持續標示模式。
 
 pnpm 12 若阻擋 esbuild 安裝腳本，可執行 `pnpm approve-builds esbuild --yes`；專案只允許該項建置依賴。

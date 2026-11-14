@@ -149,6 +149,18 @@ test coverage 門檻、quality metrics 等。落地時更新本節。
 
 ## 每次開發交付：備妥可試用的 dev App
 
+### Fubon fork 的 Web worktree（優先適用）
+
+本 fork 交付 Web 終端，不包含上游私有 Tauri shell；此處 dev App 指可操作的 Web 介面。
+
+- 主 checkout 的 `pnpm start` 使用 `localhost:5179`／API `21323`。linked worktree 使用路徑雜湊決定的固定 UI 埠（5200–6199）與 API 埠（22000–22999），直接啟動該組端點，不先探測或接手 `21323`。明確覆寫使用 `--ui-port`／`--api-port`；占用時停止並保留原有程序，不掃描 fallback。
+- REST、SSE 與 Passkey Origin 都由同一啟動設定產生。服務僅接受指定 UI Origin 與自己的本機 API 埠；WebAuthn 簽章仍驗證精確 UI Origin、`localhost` RP、challenge 和使用者驗證。
+- 真人試用一律沿用預設 `PasskeyStore()` 的作業系統應用程式資料夾，透過預設瀏覽器使用既有 Passkey。新 worktree 不重設、不複製公開驗證資料，也不重新註冊。
+- 自動測試使用臨時資料庫／虛擬 authenticator，與真人試用分開；不得把其臨時瀏覽器或驗收服務當作使用者可登入的 dev 交付。
+- 新 worktree 未設定模式時使用 demo；保留使用者既有 paper/live 程序。交付前驗證既有 Passkey 可取得驗證選項、SSE 與 build identity，實體 Touch ID／安全金鑰結果須與自動測試分開回報。
+
+以下原生 dev shell／sidecar 規則適用於包含相應私有 overlay 的上游桌面開發。
+
 - 同機已有正式 sidecar 時，隔離 dev App 設定 `VITE_DEV_SERVER_PORT=21323`。
   此設定只在 development 生效，將原生服務管理、REST 與直接 SSE 鎖定到指定埠；
   不可因 `21323` 停機或占用而探測、接手或啟動到 `21322`、`8080` 或其他 fallback 埠。
