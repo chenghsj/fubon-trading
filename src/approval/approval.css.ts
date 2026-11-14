@@ -183,7 +183,7 @@ export const approveBtn = style({
     fontFamily: vars.font.display,
     fontSize: '0.8rem',
     fontWeight: 700,
-    color: 'var(--primary-foreground)',
+    color: vars.color.onAccent,
     background: vars.color.accent,
     border: 'none',
     borderRadius: vars.radius.sm,

@@ -121,7 +121,7 @@ function HandledButton({ item, envNow }: { item: PendingConfirmItem; envNow: str
     if (!asking) {
         return (
             // 「我已自行處理」 as an icon; the next step still explains and asks once
-            <Button size="compact" variant="ghost" type='button' className={styles.iconButton} disabled={busy} data-testid='pending-handled'
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton} disabled={busy} data-testid='pending-handled'
                 title={HANDLED_TEXT} aria-label={HANDLED_TEXT} onClick={() => setAsking(true)}>
                 <Trash2 size={13} aria-hidden />
             </Button>
@@ -159,7 +159,7 @@ function ConfirmCard({ item, envNow, handled }: { item: PendingConfirmItem; envN
             <div className={styles.cardTitle}>
                 <TriangleAlert size={13} aria-hidden />
                 <span className={styles.grow}>送出結果不明，請核對委託</span>
-                <Button size="compact" variant="ghost" type='button' className={styles.iconButton} aria-label='為什麼要確認'
+                <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton} aria-label='為什麼要確認'
                     aria-expanded={why} onClick={() => setWhy(w => !w)}>
                     <CircleHelp size={13} aria-hidden />
                 </Button>

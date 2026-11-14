@@ -1,3 +1,4 @@
+import { controlRow, rowControlHeight } from './ui/control-row.css';
 // src/components/order-ticket.css.ts
 
 import { style, styleVariants } from '@vanilla-extract/css';
@@ -42,11 +43,12 @@ export const sellTab = styleVariants({
     on: [sideBase],
 });
 
-export const fieldRow = style({
+export const fieldRow = style([controlRow, {
+    vars: { [rowControlHeight]: 'max(30px, 1.75rem)' },
     display: 'flex',
     alignItems: 'center',
     gap: vars.space.xs,
-});
+}]);
 
 export const fieldLabel = style({
     width: '3.4rem',

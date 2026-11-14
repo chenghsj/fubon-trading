@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { canTrade } from '../lib/account-tradable';
 import { remainingWorkingOrderQuantity } from '../lib/working-order-quantity';
@@ -211,7 +212,7 @@ export function BottomDock({
                 {tabs.map((t) => (
                     <Button size="compact" variant="ghost"
                         key={t.key}
-                        className={styles.tab[tab === t.key ? 'on' : 'off']}
+                        className={cn('rounded-none', styles.tab[tab === t.key ? 'on' : 'off'])}
                         onClick={() => setTab(t.key)}
                     >
                         {t.label}

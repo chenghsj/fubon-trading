@@ -357,7 +357,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
         const armed = api.tool === t;
         const blocked = full && t !== 'measure' && !armed;
         return (
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 key={key ?? t}
                 className={styles.railBtn[armed ? 'armed' : blocked ? 'disabled' : 'normal']}
                 aria-pressed={armed}
@@ -372,7 +372,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
 
     return (
         <div className={styles.rail} {...drawingCapture(api.onInteraction)} onMouseDown={keepChartFocus(api)} onScroll={hideTip}>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.tool === null ? 'active' : 'normal']}
                 aria-pressed={api.tool === null}
                 {...tipProps('游標 — 瀏覽模式：選取、拖曳既有物件；Shift 點選可多選（Esc 退出畫圖工具）', '游標')}
@@ -393,7 +393,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                 const blocked = full && shown !== 'measure' && !armed;
                 return (
                     <span key={g.group} className={styles.groupWrap}>
-                        <Button size="compact" variant="outline"
+                        <Button size="compact-icon" variant="outline"
                             className={styles.railBtn[armed ? 'armed' : blocked ? 'disabled' : 'normal']}
                             aria-pressed={armed}
                             {...tipProps(
@@ -406,7 +406,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
                             <Icon size={13} />
                         </Button>
                         {tools.length > 1 && (
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 className={styles.caret}
                                 aria-label={`${g.label}：更多工具`}
                                 aria-expanded={flyout?.group === g.group}
@@ -427,7 +427,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             <span className={styles.railSpacer} />
             <span className={styles.railDivider} />
 
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.magnet ? 'on' : 'normal']}
                 aria-pressed={api.magnet}
                 {...tipProps(`磁吸 — 畫點與拖曳控制點時貼齊 K 棒開高低收（${api.magnet ? '開' : '關'}）`, '磁吸')}
@@ -435,7 +435,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             >
                 <Magnet size={13} />
             </Button>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.allLocked ? 'on' : api.drawings.length ? 'normal' : 'disabled']}
                 aria-pressed={api.allLocked}
                 disabled={!api.drawings.length}
@@ -444,7 +444,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             >
                 {api.allLocked ? <Lock size={13} /> : <LockOpen size={13} />}
             </Button>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[anyHidden ? 'normal' : 'disabled']}
                 disabled={!anyHidden}
                 {...tipProps('全部顯示 — 把隱藏的物件顯示回來', '全部顯示')}
@@ -452,7 +452,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             >
                 <Eye size={13} />
             </Button>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.canUndo ? 'normal' : 'disabled']}
                 disabled={!api.canUndo}
                 {...tipProps('復原（Ctrl/Cmd+Z）', '復原')}
@@ -460,7 +460,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             >
                 <Undo2 size={13} />
             </Button>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.canRedo ? 'normal' : 'disabled']}
                 disabled={!api.canRedo}
                 {...tipProps('重做（Ctrl/Cmd+Shift+Z 或 Ctrl+Y）', '重做')}
@@ -468,7 +468,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             >
                 <Redo2 size={13} />
             </Button>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.objectListOpen ? 'on' : 'normal']}
                 aria-pressed={api.objectListOpen}
                 {...tipProps('物件列表 — 顯示／隱藏、鎖定、改名、調整圖層', '物件列表')}
@@ -476,7 +476,7 @@ export function ChartDrawingTools({ api }: { api: ChartDrawingsApi }) {
             >
                 <Layers size={13} />
             </Button>
-            <Button size="compact" variant="outline"
+            <Button size="compact-icon" variant="outline"
                 className={styles.railBtn[api.drawings.some((d) => !d.locked) ? 'normal' : 'disabled']}
                 disabled={!api.drawings.some((d) => !d.locked)}
                 {...tipProps('清除全部 — 刪除目前商品的畫圖（鎖定的保留，可復原）', '清除全部')}
@@ -656,7 +656,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                     </Button>
                     <span className={styles.floatSep} />
                     {sel.length === 1 && (
-                        <Button size="compact" variant="outline"
+                        <Button size="compact-icon" variant="outline"
                             className={styles.railBtn.normal}
                             {...tipProps('設定 — 樣式與座標', '設定')}
                             onClick={() => setSettingsOpen(true)}
@@ -665,7 +665,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                         </Button>
                     )}
                     {layerable.length > 0 && (
-                        <Button size="compact" variant="outline"
+                        <Button size="compact-icon" variant="outline"
                             className={styles.railBtn[allBehind ? 'on' : 'normal']}
                             aria-pressed={allBehind}
                             {...tipProps(
@@ -677,7 +677,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                             {allBehind ? <SendToBack size={13} /> : <BringToFront size={13} />}
                         </Button>
                     )}
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.railBtn[locked ? 'on' : 'normal']}
                         aria-pressed={locked}
                         {...tipProps(locked ? '解鎖' : '鎖定 — 不可拖曳、刪除', locked ? '解鎖' : '鎖定')}
@@ -685,14 +685,14 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                     >
                         {locked ? <Lock size={13} /> : <LockOpen size={13} />}
                     </Button>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.railBtn.normal}
                         {...tipProps('隱藏 — 可從物件列表或「全部顯示」找回', '隱藏')}
                         onClick={api.toggleHidden}
                     >
                         <EyeOff size={13} />
                     </Button>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.railBtn[full ? 'disabled' : 'normal']}
                         disabled={full}
                         {...tipProps('複製', '複製')}
@@ -700,7 +700,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                     >
                         <Copy size={13} />
                     </Button>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.railBtn[anyUnlocked ? 'normal' : 'disabled']}
                         disabled={!anyUnlocked}
                         {...tipProps(anyUnlocked ? '刪除（Delete／Backspace）' : '刪除 — 已鎖定，請先解鎖', '刪除')}
@@ -715,7 +715,7 @@ export function ChartDrawingOverlays({ api }: { api: ChartDrawingsApi }) {
                 <Popover anchor={menu.anchor} label='顏色' onClose={() => setMenu(null)} onInteraction={api.onInteraction}>
                     <span className={styles.palette}>
                         {DRAWING_PALETTE.map((c) => (
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 key={c}
                                 className={styles.swatch[style.color === c ? 'active' : 'normal']}
                                 style={{ background: c }}
@@ -931,7 +931,7 @@ export function DrawingSettingsDialog({
             style={d.tool === 'fib' ? { width: 'min(30rem, 94vw)' } : undefined}>
                 <div className={styles.dialogHeader}>
                     <span>{drawingLabel(d)}</span>
-                    <Button size="compact" variant="ghost" className={styles.iconBtn} aria-label='關閉' onClick={onClose}>
+                    <Button size="compact-icon" variant="ghost" className={styles.iconBtn} aria-label='關閉' onClick={onClose}>
                         <X size={14} />
                     </Button>
                 </div>
@@ -950,7 +950,7 @@ export function DrawingSettingsDialog({
                                 <span className={styles.label}>顏色</span>
                                 <span className={styles.palette}>
                                     {DRAWING_PALETTE.map((c) => (
-                                        <Button size="compact" variant="ghost"
+                                        <Button size="compact-icon" variant="ghost"
                                             key={c}
                                             className={styles.swatch[style.color === c ? 'active' : 'normal']}
                                             style={{ background: c }}
@@ -1143,7 +1143,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                                     }}
                                     onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
                                 />
-                                <Button size="compact" variant="ghost"
+                                <Button size="compact-icon" variant="ghost"
                                     className={styles.swatch.normal}
                                     style={{ background: color, opacity: fib.singleColor ? 0.4 : 1 }}
                                     aria-label={`比例 ${l.value} 的顏色`}
@@ -1153,7 +1153,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                                         setColorFor((c) => (c?.index === i ? null : { index: i, anchor }));
                                     }}
                                 />
-                                <Button size="compact" variant="ghost"
+                                <Button size="compact-icon" variant="ghost"
                                     className={styles.iconBtn}
                                     aria-label={`移除比例 ${l.value}`}
                                     disabled={locked || fib.levels.length <= 1}
@@ -1261,7 +1261,7 @@ function FibSection({ api, drawing }: { api: ChartDrawingsApi; drawing: Drawing 
                 <Popover anchor={colorFor.anchor} label='比例顏色' onClose={() => setColorFor(null)} onInteraction={api.onInteraction}>
                     <span className={styles.palette}>
                         {FIB_COLOR_CHOICES[api.themeMode].map((c) => (
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 key={c}
                                 className={styles.swatch[fibLevelColor(fib.levels[colorFor.index]!, fib, drawing.style.color, api.themeMode) === c ? 'active' : 'normal']}
                                 style={{ background: c }}
@@ -1312,7 +1312,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                 <span>
                     物件列表 <span className={styles.listCount}>{api.drawings.length}</span>
                 </span>
-                <Button size="compact" variant="ghost" className={styles.iconBtn} aria-label='收起物件列表' onClick={() => api.setObjectListOpen(false)}>
+                <Button size="compact-icon" variant="ghost" className={styles.iconBtn} aria-label='收起物件列表' onClick={() => api.setObjectListOpen(false)}>
                     <X size={12} />
                 </Button>
             </div>
@@ -1382,7 +1382,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                     {drawingLabel(d)}
                                 </span>
                             )}
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 className={styles.iconBtn}
                                 aria-label={d.hidden ? `顯示 ${drawingLabel(d)}` : `隱藏 ${drawingLabel(d)}`}
                                 aria-pressed={d.hidden}
@@ -1394,7 +1394,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                                 {d.hidden ? <EyeOff size={11} /> : <Eye size={11} />}
                             </Button>
                             {canSendBehind(d) && (
-                                <Button size="compact" variant="ghost"
+                                <Button size="compact-icon" variant="ghost"
                                     className={isBehindCandles(d) ? styles.iconBtnOn : styles.iconBtn}
                                     aria-label={isBehindCandles(d) ? `${drawingLabel(d)} 移到 K 棒前方` : `${drawingLabel(d)} 移到 K 棒後方`}
                                     title={isBehindCandles(d) ? 'K 棒後方（點一下移到前方）' : 'K 棒前方（點一下移到後方）'}
@@ -1409,7 +1409,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                             )}
                             {/* 文字註記沒有前後可選：留同寬的空位，各列按鈕才對齊 */}
                             {!canSendBehind(d) && <span className={styles.iconBtn} aria-hidden style={{ visibility: 'hidden' }} />}
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 className={styles.iconBtn}
                                 aria-label={d.locked ? `解鎖 ${drawingLabel(d)}` : `鎖定 ${drawingLabel(d)}`}
                                 aria-pressed={d.locked}
@@ -1420,7 +1420,7 @@ export function ChartObjectList({ api }: { api: ChartDrawingsApi }) {
                             >
                                 {d.locked ? <Lock size={11} /> : <LockOpen size={11} />}
                             </Button>
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 className={styles.iconBtn}
                                 aria-label={`刪除 ${drawingLabel(d)}`}
                                 disabled={d.locked}

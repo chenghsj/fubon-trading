@@ -876,7 +876,7 @@ export function OrderTicket({
 
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>價格</span>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => {
                             priceTouched.current = true;
@@ -912,7 +912,7 @@ export function OrderTicket({
                         }}
                         inputMode='decimal'
                     />
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => {
                             priceTouched.current = true;
@@ -931,7 +931,7 @@ export function OrderTicket({
 
                 <div className={styles.fieldRow}>
                     <span className={styles.fieldLabel}>數量{qtyUnit}</span>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => setQty((q) => Math.max(1, q - 1))}
                     >
@@ -947,7 +947,7 @@ export function OrderTicket({
                         }}
                         inputMode='numeric'
                     />
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.stepBtn}
                         onClick={() => setQty((q) => (odd ? clampLotQuantity(q + 1, orderLot) : q + 1))}
                     >

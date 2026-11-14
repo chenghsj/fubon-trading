@@ -439,7 +439,7 @@ export function CustomIndicatorEditor({
                             {outputs.map((o) => (
                                 <div key={o.key}>
                                     <div className={styles.outputRow}>
-                                        <Button size="compact" variant="outline"
+                                        <Button size="compact-icon" variant="outline"
                                             className={styles.swatchBtn}
                                             style={{ background: o.color }}
                                             title='顏色'
@@ -493,7 +493,7 @@ export function CustomIndicatorEditor({
                                     {colorFor === o.key && (
                                         <div className={styles.swatchPop}>
                                             {COLOR_GRID.flat().map((c) => (
-                                                <Button size="compact" variant="ghost"
+                                                <Button size="compact-icon" variant="ghost"
                                                     key={c}
                                                     className={styles.swatch}
                                                     style={{ background: c }}

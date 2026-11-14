@@ -1,5 +1,6 @@
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
-import { Field } from '@/components/ui/field';
+import { Field, FieldGroup, FieldSet, FieldLegend } from '@/components/ui/field';
+import { Separator } from './ui/separator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { TerminalDialog } from './terminal-dialog';
 import { Button } from '@/components/ui/button';
@@ -14,14 +15,16 @@ import { canTrade } from '../lib/account-tradable';
 import {
     Bot,
     LayoutGrid,
+    Moon,
     Palette,
+    Sun,
     RefreshCw,
     ShieldAlert,
     UserRound,
     Volume2,
     X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { AsyncStatus } from './async-status';
 import {
     ensureAccounts,
@@ -127,6 +130,27 @@ const TABS: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
     { key: 'layout', label: '版面', icon: <LayoutGrid size={13} /> },
 ];
 
+function PreferenceRow({
+    label,
+    caption,
+    children,
+}: {
+    label: string;
+    caption: string;
+    children: (labelId: string) => ReactNode;
+}) {
+    const labelId = useId();
+    return (
+        <Field orientation="horizontal" className={styles.preferenceRow}>
+            <div id={labelId} className={styles.preferenceLabel}>
+                <span className={styles.preferenceTitle}>{label}</span>
+                <span className={styles.preferenceCaption}>{caption}</span>
+            </div>
+            <div className={styles.preferenceControl}>{children(labelId)}</div>
+        </Field>
+    );
+}
+
 function AppearanceSection() {
     const settings = useThemeSettings();
     const limitStyle = useLimitStyle();
@@ -134,111 +158,100 @@ function AppearanceSection() {
     const headerItems = useHeaderItems();
     return (
         <>
-            <span className={hud.settingLabel}>主題 Theme</span>
-            <ToggleGroup type="single" value={String(settings.mode)} className={hud.settingGroup}>
-                {MODE_OPTIONS.map((m) => (
-                    <ToggleGroupItem value={String(m.key)}
-                        key={m.key}
-                        onClick={() =>
-                            setThemeSettings(
-                                m.key === 'custom'
-                                    ? { mode: 'custom', custom: settings.custom ?? CUSTOM_BASES[baseMode(settings)] }
-                                    : { mode: m.key },
-                            )
-                        }
-                    >
-                        {m.label}
-                    </ToggleGroupItem>
-                ))}
-            </ToggleGroup>
-            {settings.mode === 'custom' && <CustomThemeEditor />}
-            <span className={hud.settingLabel}>漲跌顏色 Price Colors</span>
-            <ToggleGroup type="single" value={String(settings.convention)} className={hud.settingGroup}>
-                {CONVENTION_OPTIONS.map((c) => (
-                    <ToggleGroupItem value={String(c.key)}
-                        key={c.key}
-                        onClick={() => setThemeSettings({ convention: c.key })}
-                    >
-                        {c.label}
-                    </ToggleGroupItem>
-                ))}
-            </ToggleGroup>
-            <div className={hud.convPreview}>
-                <span className={panel.dirText.up}>▲ +1.25 上漲</span>
-                <span className={panel.dirText.down}>▼ -1.25 下跌</span>
-            </div>
-            <span className={hud.settingLabel} id='limit-style-label'>
-                自選清單漲跌停 Limit Highlight
-            </span>
-            <ToggleGroup type="single" value={String(limitStyle)}
-                className={hud.settingGroup}
-                role='group'
-                aria-labelledby='limit-style-label'
-            >
-                {LIMIT_STYLE_OPTIONS.map((o) => (
-                    <ToggleGroupItem value={String(o.key)}
-                        key={o.key}
-                        title={o.title}
-                        onClick={() => setLimitStyle(o.key)}
-                    >
-                        {o.label}
-                    </ToggleGroupItem>
-                ))}
-            </ToggleGroup>
-            <span className={hud.settingLabel}>字級 Font Size</span>
-            <ToggleGroup type="single" value={String(settings.fontScale)} className={hud.settingGroup}>
-                {(
-                    [
-                        [1, '小'],
-                        [1.15, '標準'],
-                        [1.3, '大'],
-                    ] as [FontScale, string][]
-                ).map(([scale, label]) => (
-                    <ToggleGroupItem value={String(scale)}
-                        key={scale}
-                        onClick={() => setThemeSettings({ fontScale: scale })}
-                    >
-                        {label}
-                    </ToggleGroupItem>
-                ))}
-            </ToggleGroup>
-            <span className={hud.settingLabel}>通知大小 Toast Size</span>
-            <ToggleGroup type="single" value={String(toastScale)} className={hud.settingGroup}>
-                {(
-                    [
-                        [0.9, '小'],
-                        [1, '標準'],
-                        [1.25, '大'],
-                    ] as [ToastScale, string][]
-                ).map(([scale, label]) => (
-                    <ToggleGroupItem value={String(scale)}
-                        key={scale}
-                        onClick={() => setToastScale(scale)}
-                    >
-                        {label}
-                    </ToggleGroupItem>
-                ))}
-            </ToggleGroup>
-            <span className={hud.settingLabel}>頂欄顯示 Header Items</span>
-            {HEADER_ITEMS.map((item) => (
-                <Field orientation="horizontal" key={item.key} className={hud.switchRow}>
-                    <span className={hud.switchLabel}>{item.label}</span>
-                    <Switch  checked={headerItems[item.key]}  aria-label={item.label}
-                        title={
-                            headerItems[item.key]
-                                ? `隱藏頂欄「${item.label}」`
-                                : `顯示頂欄「${item.label}」`
-                        }
-                        onCheckedChange={() =>
-                            setHeaderItem(item.key, !headerItems[item.key])
-                        }
-                    />
-                </Field>
-            ))}
-            <span className={hud.emptyHint}>
-                logo、環境徽章、伺服器、風控、新增面板與設定為固定項目，
-                無法隱藏。
-            </span>
+            <FieldGroup className={styles.preferenceList}>
+                <PreferenceRow label="主題" caption="Theme">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline"
+                        value={settings.mode} aria-labelledby={labelId} className={styles.optionGroup}>
+                        {MODE_OPTIONS.map(m => (
+                            <ToggleGroupItem value={m.key} key={m.key} className={styles.option}
+                                onClick={() => setThemeSettings(
+                                    m.key === 'custom'
+                                        ? { mode: 'custom', custom: settings.custom ?? CUSTOM_BASES[baseMode(settings)] }
+                                        : { mode: m.key },
+                                )}>
+                                {m.key === 'dark' ? <Moon /> : m.key === 'light' ? <Sun /> : <Palette />}
+                                {m.label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+                {settings.mode === 'custom' && <div className={styles.customEditor}><CustomThemeEditor /></div>}
+                <Separator />
+                <PreferenceRow label="漲跌顏色" caption="Price Colors">
+                    {labelId => <>
+                        <ToggleGroup type="single" size="compact" variant="outline" value={settings.convention}
+                            aria-labelledby={labelId} className={styles.optionGroup}>
+                            {CONVENTION_OPTIONS.map(c => (
+                                <ToggleGroupItem value={c.key} key={c.key} className={styles.option}
+                                    onClick={() => setThemeSettings({ convention: c.key })}>
+                                    {c.label}
+                                </ToggleGroupItem>
+                            ))}
+                        </ToggleGroup>
+                        <div className={cn(hud.convPreview, styles.pricePreview)}>
+                            <span className={panel.dirText.up}>▲ +1.25 上漲</span>
+                            <span className={panel.dirText.down}>▼ -1.25 下跌</span>
+                        </div>
+                    </>}
+                </PreferenceRow>
+                <Separator />
+                <PreferenceRow label="自選清單漲跌停" caption="Limit Highlight">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline" value={limitStyle}
+                        aria-labelledby={labelId} className={cn(styles.optionGroup, styles.limitOptions)}>
+                        {LIMIT_STYLE_OPTIONS.map(o => (
+                            <ToggleGroupItem value={o.key} key={o.key} title={o.title} className={styles.option}
+                                onClick={() => setLimitStyle(o.key)}>
+                                {o.label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+                <Separator />
+                <PreferenceRow label="字級" caption="Font Size">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline" value={String(settings.fontScale)}
+                        aria-labelledby={labelId} className={styles.optionGroup}>
+                        {([[1, '小'], [1.15, '標準'], [1.3, '大']] as [FontScale, string][]).map(([scale, label]) => (
+                            <ToggleGroupItem value={String(scale)} key={scale} className={styles.option}
+                                onClick={() => setThemeSettings({ fontScale: scale })}>
+                                {label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+                <Separator />
+                <PreferenceRow label="通知大小" caption="Toast Size">
+                    {labelId => <ToggleGroup type="single" size="compact" variant="outline" value={String(toastScale)}
+                        aria-labelledby={labelId} className={styles.optionGroup}>
+                        {([[0.9, '小'], [1, '標準'], [1.25, '大']] as [ToastScale, string][]).map(([scale, label]) => (
+                            <ToggleGroupItem value={String(scale)} key={scale} className={styles.option}
+                                onClick={() => setToastScale(scale)}>
+                                {label}
+                            </ToggleGroupItem>
+                        ))}
+                    </ToggleGroup>}
+                </PreferenceRow>
+            </FieldGroup>
+            <Separator />
+            <FieldSet className={styles.headerSettings}>
+                <FieldLegend className={styles.headerLegend}>
+                    <span className={styles.preferenceTitle}>頂欄顯示</span>
+                    <span className={styles.preferenceCaption}>Header Items</span>
+                </FieldLegend>
+                <FieldGroup className={styles.headerItems}>
+                    {HEADER_ITEMS.map(item => (
+                        <Field orientation="horizontal" key={item.key} className={styles.headerItem}>
+                            <label htmlFor={`header-item-${item.key}`} className={hud.switchLabel}>{item.label}</label>
+                            <Switch id={`header-item-${item.key}`} checked={headerItems[item.key]} aria-label={item.label}
+                                title={headerItems[item.key] ? `隱藏頂欄「${item.label}」` : `顯示頂欄「${item.label}」`}
+                                onCheckedChange={() => setHeaderItem(item.key, !headerItems[item.key])}
+                            />
+                        </Field>
+                    ))}
+                </FieldGroup>
+                <span className={hud.emptyHint}>
+                    logo、環境徽章、伺服器、風控、新增面板與設定為固定項目，無法隱藏。
+                </span>
+            </FieldSet>
         </>
     );
 }
@@ -676,27 +689,41 @@ export function SettingsDialog({
     onClose: () => void;
 }) {
     const [tab, setTab] = useState<SettingsTab>('appearance');
+    const [narrow, setNarrow] = useState(false);
 
+    useEffect(() => {
+        const media = window.matchMedia('(max-width: 640px)');
+        const update = () => setNarrow(media.matches);
+        update();
+        if (typeof media.addEventListener === 'function') {
+            media.addEventListener('change', update);
+            return () => media.removeEventListener('change', update);
+        }
+        // Older desktop WebViews expose the original MediaQueryList API.
+        media.addListener(update);
+        return () => media.removeListener(update);
+    }, []);
 
     if (!open) return null;
 
     return (
         <TerminalDialog title="設定" onClose={onClose} layout="custom" className={styles.dialog}>
-                <div className={hud.srvDialogTitle}>
+                <div className={cn(hud.srvDialogTitle, styles.title)}>
                     設定
                     <Button size="compact" variant="ghost"
-                        className={hud.profileDelete}
+                        className={cn(hud.profileDelete, styles.closeButton)}
                         title='關閉（Esc）'
+                        aria-label='關閉設定'
                         onClick={onClose}
                     >
                         <X size={12} />
                     </Button>
                 </div>
-                <Tabs value={tab} onValueChange={value => setTab(value as SettingsTab)} className={styles.body} orientation="vertical">
-                    <TabsList className={cn(styles.nav, 'h-auto items-stretch justify-start')} aria-label="設定分類">
-                        {TABS.map(t => <TabsTrigger key={t.key} value={t.key}>{t.icon}{t.label}</TabsTrigger>)}
+                <Tabs value={tab} onValueChange={value => setTab(value as SettingsTab)} className={styles.body} orientation={narrow ? 'horizontal' : 'vertical'}>
+                    <TabsList className={styles.nav} aria-label="設定分類">
+                        {TABS.map(t => <TabsTrigger key={t.key} value={t.key} className={styles.navItem}>{t.icon}{t.label}</TabsTrigger>)}
                     </TabsList>
-                    <TabsContent value={tab} className={styles.content}>
+                    <TabsContent key={tab} value={tab} className={styles.content}>
                         {tab === 'appearance' && <AppearanceSection />}
                         {tab === 'soundPrivacy' && <SoundPrivacySection />}
                         {tab === 'accounts' && <AccountsSection />}

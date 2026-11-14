@@ -228,7 +228,7 @@ export function StockFuturesPanel({
                                             {contract.multiplier?.toLocaleString() ?? '—'}
                                         </TableCell>
                                         <TableCell className={styles.td}>
-                                            <Button size="compact" variant="ghost"
+                                            <Button size="compact-icon" variant="ghost"
                                                 className={styles.iconButton}
                                                 title='加入目前自選清單'
                                                 aria-label={`將 ${contract.code} 加入自選`}

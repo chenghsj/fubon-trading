@@ -730,7 +730,7 @@ export function OptionChain({
                         '中位數置中'
                     )}
                 </span>
-                <Button size="compact" variant="outline"
+                <Button size="compact-icon" variant="outline"
                     type="button"
                     className={styles.atmBtn}
                     aria-label="回到價平"

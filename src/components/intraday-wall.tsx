@@ -1130,7 +1130,7 @@ export function IntradayWallPanel({
                                         className={styles.popRow}
                                     >
                                         {label}
-                                        <Button size="compact" variant="outline"
+                                        <Button size="compact-icon" variant="outline"
                                             className={styles.stepBtn}
                                             disabled={value <= WALL_DIM_MIN}
                                             onClick={() => set(value - 1)}
@@ -1140,7 +1140,7 @@ export function IntradayWallPanel({
                                         <span className={styles.stepVal}>
                                             {value}
                                         </span>
-                                        <Button size="compact" variant="outline"
+                                        <Button size="compact-icon" variant="outline"
                                             className={styles.stepBtn}
                                             disabled={value >= max}
                                             onClick={() => set(value + 1)}

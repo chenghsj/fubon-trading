@@ -67,7 +67,7 @@ export const priceBid = style({
     width: '100%',
     textAlign: 'right',
     paddingRight: '6px',
-    color: vars.color.up,
+    color: vars.color.upControl,
     fontWeight: 600,
 });
 
@@ -77,7 +77,7 @@ export const priceAsk = style({
     width: '100%',
     textAlign: 'left',
     paddingLeft: '6px',
-    color: vars.color.down,
+    color: vars.color.downControl,
     fontWeight: 600,
 });
 

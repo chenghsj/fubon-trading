@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/panel-chrome.css.ts
 
 import {
@@ -24,10 +25,10 @@ import { vars } from '../theme.css';
 // 已實測 135 / 200 / 265 / 320px 面板寬。
 const titleBarContainer = createContainer();
 
-export const titleBar = style({
+export const titleBar = style([controlRow, {
     containerName: titleBarContainer,
     containerType: 'inline-size',
-});
+}]);
 
 const bar = (maxContent: number) =>
     `${titleBarContainer} (max-width: ${maxContent}px)`;

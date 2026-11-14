@@ -371,7 +371,7 @@ function ColorPanel({
                 {COLOR_GRID.map((row, ri) => (
                     <div key={ri} className={styles.colorGridRow}>
                         {row.map((c) => (
-                            <Button size="compact" variant="ghost"
+                            <Button size="compact-icon" variant="ghost"
                                 key={c}
                                 className={
                                     styles.gridSwatch[
@@ -424,7 +424,7 @@ function ColorPanel({
                 <div className={styles.colorTools}>
                     <span className={styles.colorToolLabel}>粗細</span>
                     {WIDTHS.map((w) => (
-                        <Button size="compact" variant="outline"
+                        <Button size="compact-icon" variant="outline"
                             key={w}
                             className={
                                 styles.widthBtn[

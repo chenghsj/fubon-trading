@@ -27,7 +27,9 @@ const buttonVariants = cva(
         sm: "h-8 rounded-md px-3 text-xs",
         lg: "h-10 rounded-md px-8",
         icon: "size-9",
-        compact: "h-auto min-h-6 gap-1 px-2 py-1 text-xs [&_svg]:size-3",
+        compact: "h-auto min-h-6 gap-1 px-1.5 py-0.5 text-xs [&_svg]:size-3",
+        // Panel CSS owns the dimensions of these fixed-size controls.
+        "compact-icon": "min-h-0 shrink-0 gap-0 p-0 text-xs leading-none [&_svg]:size-3",
       },
     },
     defaultVariants: {

@@ -8,91 +8,10 @@ import {
     globalStyle,
 } from '@vanilla-extract/css';
 
-interface Palette {
-    background: string;
-    panel: string;
-    panelRaised: string;
-    inset: string;
-    foreground: string;
-    muted: string;
-    mutedForeground: string;
-    border: string;
-    borderBright: string;
-    accent: string;
-    accentDim: string;
-    amber: string;
-    red: string;
-    redDim: string;
-    redFlash: string;
-    green: string;
-    greenDim: string;
-    greenFlash: string;
-    // 狀態錯誤色（斷線、錯誤、破壞性動作）：朱紅，和漲跌紅分開，與 mobile 一致
-    danger: string;
-    dangerDim: string;
-    // 白字實心底（按鈕、徽章）：深色朱紅太亮，白字不足 4.5:1，改用較深的朱紅
-    dangerSolid: string;
-    // 日內區間軌的引線（影線）：漲跌色往 wickBase 混到 wickShare，霧面淡色但對背景仍過 3:1
-    wickBase: string;
-    wickShare: string;
-}
+import { mix } from './lib/custom-theme';
+import { THEME_PALETTES, solidPriceColor, type Palette } from './lib/theme-palette';
 
-// Layered neutral surfaces keep dense controls and small labels readable.
-const dark: Palette = {
-    background: '#111113',
-    panel: '#1b1b1f',
-    panelRaised: '#26262b',
-    inset: '#141417',
-    foreground: '#f4f4f5',
-    muted: '#303036',
-    mutedForeground: '#c4c4cc',
-    border: '#4b4b55',
-    borderBright: '#7e7e8c',
-    accent: '#f4f4f5',
-    accentDim: 'rgba(244, 244, 245, 0.1)',
-    amber: '#e0a43c',
-    red: '#ff8a96',
-    redDim: 'rgba(255, 138, 150, 0.13)',
-    redFlash: 'rgba(255, 138, 150, 0.2)',
-    green: '#35d9a7',
-    greenDim: 'rgba(53, 217, 167, 0.13)',
-    greenFlash: 'rgba(53, 217, 167, 0.18)',
-    // Bright error text and a separate solid fill for white-label buttons.
-    danger: '#ff6a4d',
-    dangerDim: 'rgba(255, 106, 77, 0.13)',
-    dangerSolid: '#b83220',
-    // Wick colors remain quieter than candle bodies, above the grid.
-    wickBase: '#c4c4cc',
-    wickShare: '50%',
-};
-
-const light: Palette = {
-    background: '#ffffff',
-    panel: '#ffffff',
-    panelRaised: '#ffffff',
-    inset: '#fafafa',
-    foreground: '#0a0a0a',
-    muted: '#f5f5f5',
-    mutedForeground: '#737373',
-    border: '#e5e5e5',
-    borderBright: '#d4d4d4',
-    accent: '#171717',
-    accentDim: 'rgba(23, 23, 23, 0.05)',
-    amber: '#b97f14',
-    red: '#d6213a',
-    redDim: 'rgba(214, 33, 58, 0.10)',
-    redFlash: 'rgba(214, 33, 58, 0.16)',
-    green: '#0a8a66',
-    greenDim: 'rgba(10, 138, 102, 0.10)',
-    greenFlash: 'rgba(10, 138, 102, 0.14)',
-    // 對 panel 5.41:1、對 background 4.74:1；白字對 dangerSolid 5.41:1
-    danger: '#c5341a',
-    dangerDim: 'rgba(197, 52, 26, 0.10)',
-    dangerSolid: '#c5341a',
-    // 淺色的灰比實體深，往灰混會比實體還搶眼，改往白混：紅 #de4d61 3.93:1、綠 #3ba185 3.17:1
-    wickBase: '#ffffff',
-    wickShare: '80%',
-};
+const { dark, light } = THEME_PALETTES;
 
 // tw: red = up (台股慣例); intl: green = up
 function makeTokens(p: Palette, convention: 'tw' | 'intl') {
@@ -114,19 +33,18 @@ function makeTokens(p: Palette, convention: 'tw' | 'intl') {
             border: p.border,
             borderBright: p.borderBright,
             accent: p.accent,
+            onAccent: p.onAccent,
             accentDim: p.accentDim,
             magenta: p.mutedForeground,
             amber: p.amber,
             up,
+            upSolid: solidPriceColor(up),
             upDim,
             upFlash,
             down,
-            // White labels need a darker fill than small price text in dark mode.
-            upSolid: p === dark ? (convention === 'tw' ? '#b93347' : '#087a5b') : up,
-            downSolid: p === dark ? (convention === 'tw' ? '#087a5b' : '#b93347') : down,
-            // Small colored control labels need stronger contrast on a light tint.
-            upControl: p === light ? (convention === 'tw' ? '#be123c' : '#047857') : up,
-            downControl: p === light ? (convention === 'tw' ? '#047857' : '#be123c') : down,
+            downSolid: solidPriceColor(down),
+            upControl: p === light ? (convention === 'tw' ? '#be123c' : '#047857') : mix(up, '#ffffff', 0.26),
+            downControl: p === light ? (convention === 'tw' ? '#047857' : '#be123c') : mix(down, '#ffffff', 0.26),
             downDim,
             downFlash,
             wickUp: `color-mix(in srgb, ${up} ${p.wickShare}, ${p.wickBase})`,
@@ -136,7 +54,7 @@ function makeTokens(p: Palette, convention: 'tw' | 'intl') {
             // 錯誤用朱紅 danger，不沿用漲跌紅，避免台股配色下錯誤和「漲」同色。
             // 價格、買賣方向才用 up／down
             success: p.green,
-            successSolid: p === dark ? '#087a5b' : p.green,
+            successSolid: solidPriceColor(p.green),
             successDim: p.greenDim,
             danger: p.danger,
             dangerDim: p.dangerDim,
@@ -223,7 +141,7 @@ globalStyle(':root', {
         '--popover-foreground': vars.color.foreground,
         '--primary': vars.color.accent,
         '--primary-soft': vars.color.accentDim,
-        '--primary-foreground': vars.color.background,
+        '--primary-foreground': vars.color.onAccent,
         '--secondary': vars.color.muted,
         '--secondary-foreground': vars.color.foreground,
         '--muted': vars.color.muted,

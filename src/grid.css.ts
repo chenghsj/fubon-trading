@@ -54,7 +54,7 @@ globalStyle(`${gridWrap} .react-grid-item.react-draggable-dragging, ${gridWrap} 
     boxShadow: '0 12px 32px rgba(0, 0, 0, 0.55)',
 });
 
-// subtle corner resize handle
+// Show resize affordances when the panel is hovered.
 globalStyle('.react-grid-item > .react-resizable-handle', {
     opacity: 0,
     transition: 'opacity 0.15s',
@@ -78,4 +78,37 @@ globalStyle('.react-grid-item > .react-resizable-handle-se::after', {
     borderBottomRightRadius: '0.375rem',
     borderRightWidth: '1.5px',
     borderBottomWidth: '1.5px',
+});
+
+// Use the panel gap and border for edge targets, keeping scrollbars and corners clear.
+const rightHandle = `${gridWrap} .react-grid-item > .react-resizable-handle-e`;
+const bottomHandle = `${gridWrap} .react-grid-item > .react-resizable-handle-s`;
+
+globalStyle(rightHandle, {
+    top: '20px',
+    right: '-5px',
+    bottom: '20px',
+    width: '6px',
+    height: 'auto',
+    marginTop: 0,
+    transform: 'none',
+    cursor: 'ew-resize',
+    zIndex: 1,
+});
+
+globalStyle(bottomHandle, {
+    left: '20px',
+    right: '20px',
+    bottom: '-5px',
+    width: 'auto',
+    height: '6px',
+    marginLeft: 0,
+    transform: 'none',
+    cursor: 'ns-resize',
+    zIndex: 1,
+});
+
+// Keep edge resizing available without visible grips.
+globalStyle(`${rightHandle}::after, ${bottomHandle}::after`, {
+    display: 'none',
 });

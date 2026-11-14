@@ -181,14 +181,14 @@ export function TrayPanel() {
                         : ''}
                 </span>
                 <RefreshButton label="更新排行" loading={moversPoll.loading} onClick={() => void moversPoll.refresh()} />
-                <Button size="compact" variant="outline"
+                <Button size="compact-icon" variant="outline"
                     className={styles.gearBtn}
                     title='自訂顯示內容'
                     onClick={() => setGearOpen((o) => !o)}
                 >
                     <Settings2 size={13} />
                 </Button>
-                <Button size="compact" variant="outline"
+                <Button size="compact-icon" variant="outline"
                     className={styles.gearBtn}
                     title='開啟主視窗'
                     onClick={() => void pickCode('')}

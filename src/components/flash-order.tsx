@@ -1783,7 +1783,7 @@ export function FlashOrder({
                         </NativeSelectOption>)}
                     </NativeSelect>
                 </Label>
-                <Button size="compact" variant="outline"
+                <Button size="compact-icon" variant="outline"
                     className={styles.stepBtn}
                     onClick={() => setQty((v) => Math.max(1, v - 1))}
                 >
@@ -1800,14 +1800,14 @@ export function FlashOrder({
                         if (Number.isInteger(v) && v >= 0 && (!odd || v <= ODD_LOT_MAX_SHARES)) setQty(v);
                     }}
                 />
-                <Button size="compact" variant="outline"
+                <Button size="compact-icon" variant="outline"
                     className={styles.stepBtn}
                     onClick={() => setQty((v) => (odd ? clampLotQuantity(v + 1, 'IntradayOdd') : v + 1))}
                 >
                     ＋
                 </Button>
                 <span className={styles.unitAnchor}>
-                    <Button size="compact" variant="ghost"
+                    <Button size="compact-icon" variant="ghost"
                         type='button'
                         className={styles.gearBtn[menuShown ? 'open' : 'closed']}
                         aria-label='單位與委託條件'

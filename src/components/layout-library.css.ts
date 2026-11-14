@@ -105,9 +105,14 @@ export const thumbFrame = style({
 });
 
 export const thumbSvg = style({
-    display: 'block',
-    width: '100%',
-    height: '100%',
+    // Layout previews are full illustrations, rather than button-sized icons.
+    selectors: {
+        '&&': {
+            display: 'block',
+            width: '100%',
+            height: '100%',
+        },
+    },
 });
 
 export const cardName = style({

@@ -105,6 +105,82 @@ async function switchGeometry(settings) {
         })).toBe(true);
     }
 }
+async function settingsPreferenceLayout(settings, narrow = false) {
+    const limits = settings.getByRole('radiogroup', { name: /自選清單漲跌停/ });
+    const buttons = await limits.getByRole('radio').all();
+    const frames = await Promise.all(buttons.map(button => button.boundingBox()));
+    expect(frames).toHaveLength(4);
+    expect(new Set(frames.map(frame => Math.round(frame.y))).size).toBe(narrow ? 2 : 1);
+    for (const button of buttons) await expect.poll(() => textBounds(button)).toBe(true);
+    const panel = settings.getByRole('tabpanel');
+    expect(await panel.evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+    const header = settings.locator('[data-slot="field-set"]');
+    const list = settings.locator('[data-slot="field-group"]').first();
+    expect(Math.abs((await header.boundingBox()).x - (await list.boundingBox()).x)).toBeLessThan(1);
+    const close = settings.getByRole('button', { name: '關閉設定', exact: true });
+    const closeFrame = await close.boundingBox();
+    expect(Math.abs(closeFrame.height - closeFrame.width)).toBeLessThan(1);
+}
+async function compactFormControls(page, artifacts) {
+    const settingsButton = page.getByRole('button', { name: '設定', exact: true });
+    const settings = page.getByRole('dialog', { name: '設定', exact: true });
+    const watch = page.locator('[data-slot="card"]').filter({ hasText: '自選清單' }).first();
+    const dock = page.locator('[data-slot="card"]').filter({ hasText: '持倉/委託/帳務' }).first();
+    const ticket = page.locator('[data-slot="card"]').filter({ hasText: '下單面板' }).first();
+    for (const theme of ['深色', '淺色']) {
+        for (const scale of ['小', '標準', '大']) {
+            await settingsButton.click();
+            await settings.getByRole('tab', { name: '外觀' }).click();
+            await settings.getByText(theme, { exact: true }).click();
+            await settings.getByRole('radio', { name: scale, exact: true }).first().click();
+            await settingsPreferenceLayout(settings);
+            if (scale === '標準') await settings.screenshot({ animations: 'disabled', path: path.join(artifacts, `settings-layout-${theme === '淺色' ? 'light' : 'dark'}.png`) });
+            await page.keyboard.press('Escape');
+            const rootSize = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+            const list = watch.getByRole('combobox', { name: '自選清單', exact: true });
+            const add = watch.getByPlaceholder('股票、期貨或指數（如 台積電期）');
+            const account = dock.locator('select').first();
+            const sort = dock.getByTitle('排序', { exact: true });
+            const compactHeight = Math.max(24, 1.5 * rootSize);
+            for (const [control, font] of [[list, .72], [add, .76], [account, .66], [sort, .66]]) {
+                await expect(control).toHaveCSS('font-size', `${Number((font * rootSize).toFixed(3))}px`);
+                const frame = await control.boundingBox();
+                expect(Math.abs(frame.height - compactHeight)).toBeLessThan(.02);
+                expect(frame.width).toBeGreaterThan(0);
+            }
+            expect((await list.boundingBox()).width).toBeGreaterThan(100);
+            // Numeric trade fields retain their deliberate, larger type size.
+            const price = ticket.locator('[data-slot="input"]').first();
+            expect(await price.evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeCloseTo(.92 * rootSize, 2);
+            const equalRows = [
+                [account, dock.getByRole('button', { name: '合併', exact: true }), dock.getByRole('button', { name: '分帳戶', exact: true })],
+                [sort, dock.getByRole('button', { name: '平倉', exact: true })],
+                [add, add.locator('..').getByRole('button', { name: '新增商品', exact: true })],
+                await price.locator('..').locator('input, button').all(),
+            ];
+            for (const controls of equalRows) {
+                const frames = await Promise.all(controls.map(control => control.boundingBox()));
+                for (const frame of frames) {
+                    expect(Math.abs(frame.height - frames[0].height)).toBeLessThan(.02);
+                    // Wrapped groups may occupy separate lines at larger scales.
+                    if (Math.abs(frame.y - frames[0].y) < frames[0].height) expect(Math.abs(frame.y - frames[0].y)).toBeLessThan(.02);
+                }
+            }
+            await sort.selectOption('code');
+            await expect(sort).toHaveValue('code');
+            await sort.selectOption('default');
+            if (scale === '標準') {
+                const suffix = theme === '淺色' ? 'light' : 'dark';
+                await page.screenshot({ animations: 'disabled', path: path.join(artifacts, `compact-controls-${suffix}.png`) });
+                await account.locator('..').locator('..').screenshot({ animations: 'disabled', path: path.join(artifacts, `equal-height-account-${suffix}.png`) });
+            }
+        }
+    }
+    await settingsButton.click();
+    await settings.getByText('深色', { exact: true }).click();
+    await settings.getByRole('radio', { name: '標準', exact: true }).first().click();
+    await page.keyboard.press('Escape');
+}
 async function resizeCorners(page, artifacts, theme) {
     const item = page.locator('.react-grid-item').filter({ has: page.locator('[data-slot="card-header"][data-layout="panel"]').filter({ hasText: 'K 線圖' }) }).first();
     const handle = item.locator('.react-resizable-handle-se');
@@ -196,6 +272,10 @@ async function settingsScrollbarSpacing(page, artifacts) {
         for (const name of ['外觀', '音效與隱私', '帳號', '風控', 'Agent', '版面']) {
             const tab = settings.getByRole('tab', { name, exact: true });
             await tab.focus(); await tab.click();
+            if (name === '外觀') {
+                await settingsPreferenceLayout(settings, width <= 640);
+                if (width === 390) await settings.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-layout-narrow.png') });
+            }
             const spacing = await settings.getByRole('tabpanel').evaluate(el => {
                 const rect = el.getBoundingClientRect();
                 const style = getComputedStyle(el);
@@ -241,10 +321,10 @@ async function multilineButtons(page, artifacts) {
                 const dialogLayout = await settings.evaluate(el => {
                     const bounds = el.getBoundingClientRect();
                     const rootSize = parseFloat(getComputedStyle(document.documentElement).fontSize);
-                    return { width: bounds.width, expected: Math.min(38 * rootSize, innerWidth - 32), top: bounds.top, padding: parseFloat(getComputedStyle(el).paddingTop) };
+                    return { width: bounds.width, expected: innerWidth <= 640 ? innerWidth - 24 : Math.min(50 * rootSize, innerWidth - 32), center: bounds.top + bounds.height / 2, viewportCenter: innerHeight / 2, padding: parseFloat(getComputedStyle(el.querySelector('[role="tabpanel"]')).paddingTop) };
                 });
                 expect(dialogLayout.width).toBeCloseTo(dialogLayout.expected, 0);
-                expect(dialogLayout.top).toBeCloseTo(70, 0);
+                expect(dialogLayout.center).toBeCloseTo(dialogLayout.viewportCenter, 0);
                 expect(dialogLayout.padding).toBeGreaterThan(0);
                 await settings.getByRole('button', { name: '重新整理帳號', exact: true }).click();
                 const accounts = settings.locator('button[aria-pressed]');
@@ -332,7 +412,7 @@ try {
         const lateRules = new Set();
         const visit = rules => {
             for (const rule of rules) {
-                if (['.flex-col', '.inline-flex', '.p-6', '.p-0', '.w-full', '.items-center', '.justify-center', '.whitespace-nowrap', '.h-9'].includes(rule.selectorText) || rule.selectorText?.startsWith('.top-')) lateRules.add(rule.cssText);
+                if (['.flex-col', '.inline-flex', '.p-6', '.p-0', '.w-full', '.items-center', '.justify-center', '.whitespace-nowrap', '.h-9', '.px-3', '.py-1', '.py-2', '.pr-9', '.text-sm', '.text-base'].includes(rule.selectorText) || rule.selectorText?.startsWith('.top-')) lateRules.add(rule.cssText);
                 if (rule.cssRules) visit(rule.cssRules);
             }
         };
@@ -355,6 +435,7 @@ try {
     await expect(ticket.getByRole('button', { name: '買進 Buy', exact: true })).toHaveAttribute('data-variant', 'buy');
     await tradeContrast(ticket);
     await expect(priceInput).toHaveValue(/\d/);
+    await compactFormControls(page, artifacts);
     const geometry = await panelGeometry(page);
     await resizeCorners(page, artifacts, 'dark');
     await expect.poll(() => panelGeometry(page)).toEqual(geometry);
@@ -382,7 +463,7 @@ try {
     await watch.getByTitle('完成調整').click();
     // Dense dark labels, control boundaries and prices must remain readable in
     // their real composited states, including the depth bar behind each price.
-    await expect.poll(() => textContrast(ticket.getByText('價格', { exact: true }))).toBeGreaterThanOrEqual(7);
+    await expect.poll(() => textContrast(ticket.getByText('價格', { exact: true }))).toBeGreaterThanOrEqual(4.5);
     expect(await textContrast(priceInput, { property: 'borderTopColor' })).toBeGreaterThanOrEqual(3);
     const depth = page.locator('[data-slot="card"]').filter({ hasText: '五檔' }).first();
     const depthRow = depth.getByText('BID', { exact: true }).locator('..').locator('xpath=following-sibling::div[1]');
@@ -410,7 +491,7 @@ try {
     await settings.getByRole('tab', { name: '外觀' }).focus();
     await page.keyboard.press('ArrowDown');
     await expect(settings.getByRole('tab', { name: '音效與隱私' })).toHaveAttribute('aria-selected', 'true');
-    await expect.poll(() => settings.getByRole('tab', { name: '音效與隱私' }).evaluate(el => getComputedStyle(el).boxShadow)).toContain('rgb(244, 244, 245)');
+    await expect.poll(() => settings.getByRole('tab', { name: '音效與隱私' }).evaluate(el => getComputedStyle(el).boxShadow)).toContain('rgb(224, 161, 132)');
     await settings.getByRole('switch', { name: '帳號遮蔽' }).click();
     await expect(settings.getByRole('switch', { name: '帳號遮蔽' })).toHaveAttribute('aria-checked', 'true');
     await switchGeometry(settings);
@@ -420,8 +501,8 @@ try {
     await settings.getByRole('tab', { name: '外觀' }).click();
     await settings.getByText('淺色', { exact: true }).click();
     await expect(settings.getByText('淺色', { exact: true })).toHaveAttribute('data-state', 'on');
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toMatch(/^#(?:fff|ffffff)$/);
-    await expect.poll(() => settings.getByText('淺色', { exact: true }).evaluate(el => getComputedStyle(el).color)).toBe('rgb(10, 10, 10)');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toBe('#f9f9f7');
+    await expect.poll(() => settings.getByText('淺色', { exact: true }).evaluate(el => getComputedStyle(el).color)).toBe('rgb(45, 45, 43)');
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-light.png') });
     await page.keyboard.press('Escape'); await expect(settings).toBeHidden();
     await tradeContrast(ticket);

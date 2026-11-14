@@ -203,7 +203,7 @@ export function PanelChrome({
                     </>
                 ))}
             {onPopout && (
-                <Button size="compact" variant="ghost"
+                <Button size="compact-icon" variant="ghost"
                     className={`${styles.closeBtn} ${styles.popoutBtn}`}
                     title='彈出為獨立視窗（多螢幕）'
                     onClick={onPopout}
@@ -212,7 +212,7 @@ export function PanelChrome({
                 </Button>
             )}
             {onRemove && (
-                <Button size="compact" variant="ghost"
+                <Button size="compact-icon" variant="ghost"
                     className={styles.closeBtn}
                     title='移除此面板'
                     onClick={onRemove}

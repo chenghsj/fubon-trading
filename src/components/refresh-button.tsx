@@ -13,7 +13,7 @@ type Props = Pick<ComponentProps<'button'>, 'onClick' | 'disabled' | 'className'
 /** Manual refresh for the current panel; accessible text stays in the tooltip. */
 export function RefreshButton({ label, loading = false, disabled = false, className, onClick, iconSize = 14 }: Props) {
     return (
-        <Button size="compact" variant="outline"
+        <Button size="compact-icon" variant="outline"
             type='button'
             className={[styles.refreshButton, className].filter(Boolean).join(' ')}
             aria-label={label}

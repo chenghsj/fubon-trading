@@ -1,9 +1,9 @@
 import { createElement } from 'react';
-import { readFileSync } from 'node:fs';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PRODUCT_BADGES, PRODUCT_BADGE_ALPHA, PRODUCT_SEARCH_ACTIVE, productBadgeType, productDetailText } from '../lib/product-badge-presentation';
 import { CUSTOM_PRESETS, customTokens } from '../lib/custom-theme';
+import { THEME_PALETTES } from '../lib/theme-palette';
 import { ProductBadge } from './product-badge';
 
 let view: ReactTestRenderer | undefined;
@@ -36,14 +36,9 @@ function contrast(first: RGB, second: RGB) {
 
 // Read the actual base palettes, then apply the same custom overrides as theme-store.
 // Custom themes inherit amber from their base; price convention must not affect badge tones.
-const themeSource = readFileSync(new URL('../theme.css.ts', import.meta.url), 'utf8');
-const basePalette = (mode: 'dark' | 'light'): Record<string, string> => Object.fromEntries(
-    [...themeSource.match(new RegExp(`const ${mode}: Palette = \\{([\\s\\S]*?)\\n\\};`))![1]!.matchAll(/(\w+): '([^']+)'/g)]
-        .map(match => [match[1]!, match[2]!]),
-);
-const themes = (['tw', 'intl'] as const).flatMap(convention => [
-    ...(['dark', 'light'] as const).map(mode => ({ name: `${mode}-${convention}`, palette: basePalette(mode) })),
-    ...CUSTOM_PRESETS.map(preset => ({ name: `${preset.name}-${convention}`, palette: { ...basePalette(preset.theme.base), ...customTokens(preset.theme, convention) } })),
+const themes: { name: string; palette: Record<string, string> }[] = (['tw', 'intl'] as const).flatMap(convention => [
+    ...(['dark', 'light'] as const).map(mode => ({ name: `${mode}-${convention}`, palette: { ...THEME_PALETTES[mode] } })),
+    ...CUSTOM_PRESETS.map(preset => ({ name: `${preset.name}-${convention}`, palette: { ...THEME_PALETTES[preset.theme.base], ...customTokens(preset.theme, convention) } })),
 ]);
 
 describe('純顯示商品標籤', () => {

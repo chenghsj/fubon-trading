@@ -84,7 +84,7 @@ export function QuoteBoardSettings({
                         報價欄位
                         <span className={styles.subtitle}>只套用到這個面板，跟版面一起儲存</span>
                     </span>
-                    <Button size="compact" variant="ghost" type="button" className={styles.iconBtn} onClick={dismiss} aria-label="關閉" title="關閉">
+                    <Button size="compact-icon" variant="ghost" type="button" className={styles.iconBtn} onClick={dismiss} aria-label="關閉" title="關閉">
                         <X size={13} />
                     </Button>
                 </div>

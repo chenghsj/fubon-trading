@@ -159,7 +159,7 @@ function Seg<T extends string>({ value, options, onChange, tone, label }: {
     label: string;
 }) {
     return (
-        <ToggleGroup type="single" value={value} onValueChange={next => { if (next) onChange(next as T); }} className={styles.seg} aria-label={label}>
+        <ToggleGroup type="single" size="compact" value={value} onValueChange={next => { if (next) onChange(next as T); }} className={styles.seg} aria-label={label}>
             {options.map(o => <ToggleGroupItem key={o.id} value={o.id} disabled={o.disabled} title={o.title}
                 className={value === o.id ? styles.segItem[tone ? tone(o.id) : 'on'] : styles.segItem.off}>
                 {o.label}
@@ -651,7 +651,7 @@ function BracketForm({ target, onClose, defaults }: { target: Target; onClose: (
                             移動停損
                         </Label>
                         {tiers.length > 1 && (
-                            <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} aria-label={`刪除第 ${i + 1} 層`}
+                            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} aria-label={`刪除第 ${i + 1} 層`}
                                 onClick={() => setTiers(ts => ts.filter((_, j) => j !== i))}>
                                 <X size={12} aria-hidden />
                             </Button>

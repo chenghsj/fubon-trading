@@ -245,7 +245,7 @@ const WatchRow = memo(function WatchRow({
             </span>
             {arrange ? (
                 <span className={styles.moveCol}>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.moveBtn}
                         title='上移'
                         disabled={!canUp}
@@ -256,7 +256,7 @@ const WatchRow = memo(function WatchRow({
                     >
                         <ChevronUp size={11} />
                     </Button>
-                    <Button size="compact" variant="outline"
+                    <Button size="compact-icon" variant="outline"
                         className={styles.moveBtn}
                         title='下移'
                         disabled={!canDown}
@@ -269,7 +269,7 @@ const WatchRow = memo(function WatchRow({
                     </Button>
                 </span>
             ) : (
-                <Button size="compact" variant="destructive"
+                <Button size="compact-icon" variant="destructive"
                     className={styles.rowRemove}
                     title='從清單移除'
                     disabled={!canRemove}
@@ -602,7 +602,8 @@ export function Watchlist({
                 ) : (
                     <>
                         <NativeSelect
-                            wrapperClassName="flex-1" className={styles.listSelect}
+                            wrapperClassName="flex-[1_0_8rem]" className={styles.listSelect}
+                            aria-label="自選清單"
                             value={activeListId}
                             disabled={structureBusy}
                             onChange={(e) => {
@@ -616,134 +617,136 @@ export function Watchlist({
                                 </NativeSelectOption>
                             ))}
                         </NativeSelect>
-                        {onReload && (
-                            <RefreshButton
-                                label='重新讀取清單'
-                                iconSize={12}
-                                className={styles.reloadBtn}
-                                loading={reloading}
-                                disabled={structureBusy || arrange}
-                                onClick={() => {
-                                    setConfirmDelete(false);
-                                    void onReload();
-                                }}
-                            />
-                        )}
-                        <Button size="compact" variant="outline"
-                            className={styles.listBtn}
-                            title='重新命名清單'
-                            onClick={startRename}
-                        >
-                            <Pencil size={12} />
-                        </Button>
-                        <Button size="compact" variant={arrange ? 'secondary' : 'outline'}
-                            className={`${styles.listBtn} ${
-                                arrange ? styles.listBtnOn : ''
-                            }`}
-                            disabled={!arrange && (sortMode !== 'custom' || loading || loadError)}
-                            title={
-                                arrange
-                                    ? '完成調整'
-                                    : loading || loadError
-                                      ? '清單尚未完整載入，請先重試'
-                                    : sortMode !== 'custom'
-                                      ? '依漲跌幅排序中無法調整順序 — 先切回自訂順序'
-                                      : '調整順序（拖曳或上下移，存回伺服器）'
-                            }
-                            onClick={() => {
-                                // 進入排序模式一律回到自訂順序（互斥）
-                                if (!arrange) setSortMode('custom');
-                                clearDragState();
-                                setArrange((v) => !v);
-                            }}
-                        >
-                            {arrange ? (
-                                <Check size={12} />
-                            ) : (
-                                <GripVertical size={12} />
+                        <div className={styles.listActions} role="group" aria-label="清單操作">
+                            {onReload && (
+                                <RefreshButton
+                                    label='重新讀取清單'
+                                    iconSize={12}
+                                    className={styles.reloadBtn}
+                                    loading={reloading}
+                                    disabled={structureBusy || arrange}
+                                    onClick={() => {
+                                        setConfirmDelete(false);
+                                        void onReload();
+                                    }}
+                                />
                             )}
-                        </Button>
-                        <Button size="compact" variant={sortMode !== 'custom' ? 'secondary' : 'outline'}
-                            className={`${styles.listBtn} ${
-                                sortMode !== 'custom' ? styles.listBtnOn : ''
-                            }`}
-                            disabled={arrange}
-                            title={
-                                arrange
-                                    ? '調整順序中 — 先按完成'
-                                    : sortMode === 'custom'
-                                      ? '依漲跌幅排序'
-                                      : sortMode === 'desc'
-                                        ? '漲幅在前 — 點擊改跌幅在前'
-                                        : '跌幅在前 — 點擊回自訂順序'
-                            }
-                            onClick={() =>
-                                setSortMode((m) =>
-                                    m === 'custom'
-                                        ? 'desc'
-                                        : m === 'desc'
-                                          ? 'asc'
-                                          : 'custom',
-                                )
-                            }
-                        >
-                            {sortMode === 'custom' ? (
-                                <ArrowDownUp size={12} />
-                            ) : sortMode === 'desc' ? (
-                                <ArrowDown size={12} />
-                            ) : (
-                                <ArrowUp size={12} />
-                            )}
-                        </Button>
-                        <Button size="compact" variant={spark ? 'secondary' : 'outline'}
-                            className={`${styles.listBtn} ${
-                                spark ? styles.listBtnOn : ''
-                            }`}
-                            title={spark ? '關閉小線圖' : '顯示小線圖'}
-                            onClick={() =>
-                                setSpark((v) => {
-                                    localStorage.setItem(
-                                        SPARK_KEY,
-                                        v ? '0' : '1',
-                                    );
-                                    return !v;
-                                })
-                            }
-                        >
-                            <TrendingUp size={12} />
-                        </Button>
-                        <Button size="compact" variant="outline"
-                            className={styles.listBtn}
-                            title='建立新清單'
-                            disabled={loading || loadError}
-                            onClick={() => setCreating(true)}
-                        >
-                            <Plus size={12} />
-                        </Button>
-                        <Button size="compact" variant="destructive"
-                            className={`${styles.listBtn} ${
-                                confirmDelete ? styles.listBtnDanger : ''
-                            }`}
-                            title={
-                                confirmDelete
-                                    ? '再按一次確認刪除整個清單'
-                                    : '刪除目前清單'
-                            }
-                            onClick={() => {
-                                if (confirmDelete) {
-                                    setConfirmDelete(false);
-                                    void onDeleteList();
-                                } else {
-                                    setConfirmDelete(true);
-                                    setTimeout(
-                                        () => setConfirmDelete(false),
-                                        2500,
-                                    );
+                            <Button size="compact-icon" variant="outline"
+                                className={styles.listBtn}
+                                title='重新命名清單'
+                                onClick={startRename}
+                            >
+                                <Pencil size={12} />
+                            </Button>
+                            <Button size="compact-icon" variant={arrange ? 'secondary' : 'outline'}
+                                className={`${styles.listBtn} ${
+                                    arrange ? styles.listBtnOn : ''
+                                }`}
+                                disabled={!arrange && (sortMode !== 'custom' || loading || loadError)}
+                                title={
+                                    arrange
+                                        ? '完成調整'
+                                        : loading || loadError
+                                          ? '清單尚未完整載入，請先重試'
+                                        : sortMode !== 'custom'
+                                          ? '依漲跌幅排序中無法調整順序 — 先切回自訂順序'
+                                          : '調整順序（拖曳或上下移，存回伺服器）'
                                 }
-                            }}
-                        >
-                            {confirmDelete ? '確認?' : <Trash2 size={12} />}
-                        </Button>
+                                onClick={() => {
+                                    // 進入排序模式一律回到自訂順序（互斥）
+                                    if (!arrange) setSortMode('custom');
+                                    clearDragState();
+                                    setArrange((v) => !v);
+                                }}
+                            >
+                                {arrange ? (
+                                    <Check size={12} />
+                                ) : (
+                                    <GripVertical size={12} />
+                                )}
+                            </Button>
+                            <Button size="compact-icon" variant={sortMode !== 'custom' ? 'secondary' : 'outline'}
+                                className={`${styles.listBtn} ${
+                                    sortMode !== 'custom' ? styles.listBtnOn : ''
+                                }`}
+                                disabled={arrange}
+                                title={
+                                    arrange
+                                        ? '調整順序中 — 先按完成'
+                                        : sortMode === 'custom'
+                                          ? '依漲跌幅排序'
+                                          : sortMode === 'desc'
+                                            ? '漲幅在前 — 點擊改跌幅在前'
+                                            : '跌幅在前 — 點擊回自訂順序'
+                                }
+                                onClick={() =>
+                                    setSortMode((m) =>
+                                        m === 'custom'
+                                            ? 'desc'
+                                            : m === 'desc'
+                                              ? 'asc'
+                                              : 'custom',
+                                    )
+                                }
+                            >
+                                {sortMode === 'custom' ? (
+                                    <ArrowDownUp size={12} />
+                                ) : sortMode === 'desc' ? (
+                                    <ArrowDown size={12} />
+                                ) : (
+                                    <ArrowUp size={12} />
+                                )}
+                            </Button>
+                            <Button size="compact-icon" variant={spark ? 'secondary' : 'outline'}
+                                className={`${styles.listBtn} ${
+                                    spark ? styles.listBtnOn : ''
+                                }`}
+                                title={spark ? '關閉小線圖' : '顯示小線圖'}
+                                onClick={() =>
+                                    setSpark((v) => {
+                                        localStorage.setItem(
+                                            SPARK_KEY,
+                                            v ? '0' : '1',
+                                        );
+                                        return !v;
+                                    })
+                                }
+                            >
+                                <TrendingUp size={12} />
+                            </Button>
+                            <Button size="compact-icon" variant="outline"
+                                className={styles.listBtn}
+                                title='建立新清單'
+                                disabled={loading || loadError}
+                                onClick={() => setCreating(true)}
+                            >
+                                <Plus size={12} />
+                            </Button>
+                            <Button size="compact-icon" variant="destructive"
+                                className={`${styles.listBtn} ${
+                                    confirmDelete ? styles.listBtnDanger : ''
+                                }`}
+                                title={
+                                    confirmDelete
+                                        ? '再按一次確認刪除整個清單'
+                                        : '刪除目前清單'
+                                }
+                                onClick={() => {
+                                    if (confirmDelete) {
+                                        setConfirmDelete(false);
+                                        void onDeleteList();
+                                    } else {
+                                        setConfirmDelete(true);
+                                        setTimeout(
+                                            () => setConfirmDelete(false),
+                                            2500,
+                                        );
+                                    }
+                                }}
+                            >
+                                {confirmDelete ? '確認?' : <Trash2 size={12} />}
+                            </Button>
+                        </div>
                     </>
                 )}
             </div>
@@ -899,7 +902,7 @@ export function Watchlist({
                         }
                     }}
                 />
-                <Button size="compact" variant="outline" ref={addButtonRef} className={panel.btn} onClick={() => void submit()} disabled={busy || loading || !activeListId}>
+                <Button size="compact-icon" variant="outline" ref={addButtonRef} className={`${panel.btn} ${styles.addButton}`} aria-label="新增商品" onClick={() => void submit()} disabled={busy || loading || !activeListId}>
                     {busy ? '…' : '+'}
                 </Button>
             </div>

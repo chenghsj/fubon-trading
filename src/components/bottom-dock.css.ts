@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/bottom-dock.css.ts
 
 import { style, styleVariants } from '@vanilla-extract/css';
@@ -9,7 +10,7 @@ export const dock = style({
     minHeight: 0,
 });
 
-export const tabBar = style({
+export const tabBar = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
@@ -17,7 +18,7 @@ export const tabBar = style({
     padding: `0 ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 const tabBase = style({
     fontFamily: vars.font.display,
@@ -620,7 +621,7 @@ export const paneScroll = style({
     overflow: 'auto',
 });
 
-export const batchBar = style({
+export const batchBar = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
@@ -632,7 +633,7 @@ export const batchBar = style({
     fontSize: '0.66rem',
     color: vars.color.mutedForeground,
     flexShrink: 0,
-});
+}]);
 
 export const batchCount = style({
     fontFamily: vars.font.mono,
@@ -733,14 +734,14 @@ export const groupSpacer = style({ flex: 1 });
 
 // ---- 委託：狀態篩選 chips 列 ----
 
-export const filterRow = style({
+export const filterRow = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: '4px',
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
-});
+}]);
 
 // ---- 窄版兩行卡片式 row ----
 

@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/conditional-panel.css.ts — 條件單管理面板 (#226), design v4.
 
 import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -78,7 +79,7 @@ export const button = styleVariants({
     primary: [buttonBase, {
         background: vars.color.accent,
         borderColor: vars.color.accent,
-        color: 'var(--primary-foreground)',
+        color: vars.color.onAccent,
         fontWeight: 600,
         selectors: { '&:hover:not(:disabled)': { background: vars.color.accent, borderColor: vars.color.accent, filter: 'brightness(1.08)' } },
     }],
@@ -243,13 +244,13 @@ export const paneTitle = style({
     marginBottom: '6px',
 });
 
-export const formRow = style({
+export const formRow = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: '8px',
     margin: '7px 0',
-});
+}]);
 
 export const label = style({ width: '64px', flex: 'none', color: vars.color.mutedForeground });
 
@@ -295,7 +296,7 @@ const segBase = style({
 
 export const segItem = styleVariants({
     off: [segBase],
-    on: [segBase, { background: vars.color.accent, color: 'var(--primary-foreground)', fontWeight: 600 }],
+    on: [segBase, { background: vars.color.accent, color: vars.color.onAccent, fontWeight: 600 }],
     buy: [segBase, { background: vars.color.upSolid, color: '#fff', fontWeight: 600 }],
     sell: [segBase, { background: vars.color.downSolid, color: '#fff', fontWeight: 600 }],
 });
@@ -557,7 +558,7 @@ const opButtonBase = style({
 });
 export const opButton = styleVariants({
     plain: [opButtonBase, { selectors: { '&:hover:not(:disabled)': { background: vars.color.muted } } }],
-    primary: [opButtonBase, { background: vars.color.accent, borderColor: vars.color.accent, color: 'var(--primary-foreground)', fontWeight: 600 }],
+    primary: [opButtonBase, { background: vars.color.accent, borderColor: vars.color.accent, color: vars.color.onAccent, fontWeight: 600 }],
     danger: [opButtonBase, { borderColor: vars.color.danger, color: vars.color.danger, fontWeight: 600 }],
 });
 const opsNoteBase = style({ fontSize: '0.64rem', maxWidth: '212px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' });

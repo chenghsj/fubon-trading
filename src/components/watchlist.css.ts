@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/watchlist.css.ts
 
 import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -204,13 +205,23 @@ export const removeBtn = style({
     display: 'none',
 });
 
-export const listPicker = style({
+export const listPicker = style([controlRow, {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: vars.space.xs,
-    padding: `4px ${vars.space.sm}`,
+    gap: '6px',
+    padding: '6px 4px',
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
+}]);
+
+// Keep list actions together; allow another line in very narrow panels.
+export const listActions = style({
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '4px',
+    minWidth: 0,
 });
 
 export const listSelect = style({
@@ -248,6 +259,8 @@ export const listBtnOn = style({
 });
 
 export const listBtnDanger = style({
+    minWidth: '3rem',
+    width: 'auto',
     fontSize: '0.6rem',
 });
 
@@ -280,14 +293,14 @@ export const loadingHint = style({
     color: vars.color.mutedForeground,
 });
 
-export const addRow = style({
+export const addRow = style([controlRow, {
     position: 'relative',
     display: 'flex',
     gap: vars.space.xs,
     padding: vars.space.sm,
     borderTop: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 // Name-search suggestions float above the add input. The popup is portaled to the
 // body and placed by useAnchoredPopup; the margins keep the add row's inset.
@@ -412,3 +425,17 @@ export const limitSolid = styleVariants({
 });
 globalStyle(`${limitSolidBase} span`, { color: '#fff' });
 globalStyle(`${limitSolidBase} ${name}`, { color: 'rgba(255, 255, 255, 0.85)' });
+
+// The add control must not stretch to the neighbouring input's default height.
+export const addButton = style({
+    selectors: {
+        '&&': {
+            width: '1.5rem',
+            height: '1.5rem',
+            minHeight: '1.5rem',
+            padding: 0,
+            flexShrink: 0,
+            alignSelf: 'center',
+        },
+    },
+});

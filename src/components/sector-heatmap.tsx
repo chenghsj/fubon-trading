@@ -1113,7 +1113,7 @@ export function SectorHeatmap({
                         {isSimtrade && (
                             <span className={styles.simtrade}>試撮</span>
                         )}
-                        <Button size="compact" variant="ghost"
+                        <Button size="compact-icon" variant="ghost"
                             className={styles.iconBtn}
                             onClick={() => void exportPng()}
                             disabled={exporting || panoramaTiles.length === 0}

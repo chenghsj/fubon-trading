@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/flash-order.css.ts
 
 import { createContainer, globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -115,7 +116,7 @@ export const rowBreak = style({
 });
 
 // wraps so an 8-strip tile (~240px wide) still shows every control
-export const controls = style({
+export const controls = style([controlRow, {
     // the settings popover spans this row (see OrderSettingsButton align='panel')
     position: 'relative',
     display: 'flex',
@@ -125,7 +126,7 @@ export const controls = style({
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const qtyInput = style({
     width: '2.8rem',

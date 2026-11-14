@@ -1,3 +1,4 @@
+import { controlRow } from './ui/control-row.css';
 // src/components/replay-panel.css.ts
 
 import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
@@ -10,14 +11,14 @@ export const wrap = style({
     height: '100%',
 });
 
-export const controls = style({
+export const controls = style([controlRow, {
     display: 'flex',
     alignItems: 'center',
     gap: vars.space.xs,
     padding: `4px ${vars.space.sm}`,
     borderBottom: `1px solid ${vars.color.border}`,
     flexShrink: 0,
-});
+}]);
 
 export const playBtn = style({
     fontFamily: vars.font.body,

@@ -270,7 +270,7 @@ export function CredentialProfiles({ settings, busy, running, applyOnSwitch = fa
                 <Input id={`${ids}-name`} ref={reg('name')} className={s.input} maxLength={60} placeholder="例如：主帳號、模擬測試" value={draft.name} onChange={e => patch({ name: e.target.value })} />
             </Field>
             <div className={s.field}><span className={s.label} id={`${ids}-env`}>環境</span>
-                <ToggleGroup type="single" value={draft.environment} onValueChange={environment => { if (environment) patch({ environment: environment as Environment }); }} className={s.segmented} aria-labelledby={`${ids}-env`}>
+                <ToggleGroup type="single" size="compact" value={draft.environment} onValueChange={environment => { if (environment) patch({ environment: environment as Environment }); }} className={s.segmented} aria-labelledby={`${ids}-env`}>
                     <ToggleGroupItem value="simulation" className={production ? s.segment : s.segmentSim}>{!production && <Check size={14} />}模擬環境</ToggleGroupItem>
                     <ToggleGroupItem value="production" className={production ? s.segmentProd : s.segment}>{production && <Check size={14} />}正式環境</ToggleGroupItem>
                 </ToggleGroup>

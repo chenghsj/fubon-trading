@@ -317,24 +317,24 @@ function RowActions({ row, expanded, onToggle, compact }: {
                         ) : null],
                     ['more', more.length > 0 ? <MoreMenu items={more} busy={busy} /> : null],
                     ['edit', a.modify ? (
-                        <Button size="compact" variant="ghost" type='button' className={expanded ? styles.iconButton.active : styles.iconButton.plain}
+                        <Button size="compact-icon" variant="ghost" type='button' className={expanded ? styles.iconButton.active : styles.iconButton.plain}
                             title='修改' aria-label='修改' aria-expanded={expanded} onClick={onToggle}>
                             <Pencil size={13} aria-hidden />
                         </Button>
                     ) : null],
                     ['pause', a.pause ? (
-                        <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy} title='暫停（不再盯價，之後可恢復）'
+                        <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy} title='暫停（不再盯價，之後可恢復）'
                             aria-label='暫停' onClick={() => pause(true)}>
                             <Pause size={13} aria-hidden />
                         </Button>
                     ) : a.resume ? (
-                        <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy}
+                        <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy}
                             title='恢復盯價；若暫停期間已穿價，會先等你確認，不會直接送出' aria-label='恢復' onClick={() => pause(false)}>
                             <Play size={13} aria-hidden />
                         </Button>
                     ) : null],
                     ['delete', del ? (
-                        <Button size="compact" variant="destructive" type='button' className={deleting ? styles.iconButton.dangerSolid : styles.iconButton.danger} disabled={busy}
+                        <Button size="compact-icon" variant="destructive" type='button' className={deleting ? styles.iconButton.dangerSolid : styles.iconButton.danger} disabled={busy}
                             title={deleting ? `再按一次確認：${HANDLED_TEXT}` : HANDLED_TEXT}
                             aria-label={deleting ? `再按一次確認：${HANDLED_TEXT}` : HANDLED_TEXT}
                             data-testid='cond-delete' onClick={del}>
@@ -364,7 +364,7 @@ function MoreMenu({ items, busy }: { items: { key: string; label: string; title:
     const [open, setOpen] = useState(false);
     return (
         <span className={styles.moreAnchor}>
-            <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy} title='其他動作' aria-label='其他動作'
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} disabled={busy} title='其他動作' aria-label='其他動作'
                 aria-haspopup='menu' aria-expanded={open} onClick={() => setOpen(!open)}>
                 <ChevronDown size={13} aria-hidden />
             </Button>
@@ -763,10 +763,10 @@ export function ConditionalPanel({ contract }: { contract?: ContractInfo | null 
             <span className={styles.title}><Crosshair size={14} aria-hidden />條件單</span>
             {view.counts.attention > 0 && <span className={styles.pill.err}>待確認 {view.counts.attention}</span>}
             <span className={styles.grow} />
-            <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} title='新增條件單' aria-label='新增條件單' onClick={() => setCreating(true)}>
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} title='新增條件單' aria-label='新增條件單' onClick={() => setCreating(true)}>
                 <Plus size={13} aria-hidden />
             </Button>
-            <Button size="compact" variant="ghost" type='button' className={styles.iconButton.plain} title='設定' aria-label='設定' onClick={() => setDialog('settings')}>
+            <Button size="compact-icon" variant="ghost" type='button' className={styles.iconButton.plain} title='設定' aria-label='設定' onClick={() => setDialog('settings')}>
                 <Settings2 size={13} aria-hidden />
             </Button>
         </div>
