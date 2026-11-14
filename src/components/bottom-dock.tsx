@@ -209,20 +209,25 @@ export function BottomDock({
     return (
         <div className={styles.dock}>
             <div className={styles.tabBar}>
-                {tabs.map((t) => (
-                    <Button size="compact" variant="ghost"
-                        key={t.key}
-                        className={cn('rounded-none', styles.tab[tab === t.key ? 'on' : 'off'])}
-                        onClick={() => setTab(t.key)}
-                    >
-                        {t.label}
-                    </Button>
-                ))}
-                <span style={{ fontSize: 11, whiteSpace: 'nowrap' }} title={queryStatus.error ?? (tab === 'positions' ? '持倉依成交與行情在本機估算' : tab === 'orders' ? '委託依主動回報更新' : '帳務為上次查詢快照')}>
+                <div className={styles.tabGroup}>
+                    {tabs.map((t) => (
+                        <Button size="compact" variant="ghost"
+                            key={t.key}
+                            className={cn('rounded-none', styles.tab[tab === t.key ? 'on' : 'off'])}
+                            onClick={() => setTab(t.key)}
+                        >
+                            {t.label}
+                        </Button>
+                    ))}
+                </div>
+                <span className={styles.queryStatus} title={queryStatus.error ?? (tab === 'positions' ? '持倉依成交與行情在本機估算' : tab === 'orders' ? '委託依主動回報更新' : '帳務為上次查詢快照')}>
                     {queryStatus.needsReconcile || (tab === 'account' && accountRefresh?.error) ? reconcileLabel(queryStatus.reasons) : tab === 'positions' ? '即時估算' : tab === 'orders' ? '即時回報' : '帳務快照'}
                     {queryStatus.updatedAt ? ` · 查詢 ${new Date(queryStatus.updatedAt).toLocaleTimeString()}` : ' · 尚未查詢'}
                 </span>
                 <span className={styles.tabSpacer} />
+                <RefreshButton label={`更新${tabLabel}`} loading={refreshing} onClick={refreshTab} />
+            </div>
+            <div className={styles.filters}>
                 <NativeSelect
                     className={styles.accountSelect}
                     title='帳戶範圍（選個別帳戶會同步下單面板）'
@@ -298,7 +303,6 @@ export function BottomDock({
                         </Button>
                     ))}
                 </span>
-                <RefreshButton label={`更新${tabLabel}`} loading={refreshing} onClick={refreshTab} />
             </div>
             <div className={styles.summaryRow}>
                 <span className={styles.sumItem}>
