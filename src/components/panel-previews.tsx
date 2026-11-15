@@ -770,6 +770,16 @@ export const PANEL_PREVIEWS: Record<BlockType, ReactNode> = {
             <Ln x={62} y={10} w={16} />
         </Frame>
     ),
+    autotrade: (
+        <Frame>
+            <rect x='8' y='8' width='104' height='14' rx='2' fill={accent} fillOpacity='.25' />
+            <Ln x={14} y={15} w={30} color={accent} />
+            <rect x='8' y='30' width='28' height='16' rx='2' fill={muted} fillOpacity='.2' />
+            <rect x='46' y='30' width='28' height='16' rx='2' fill={muted} fillOpacity='.2' />
+            <rect x='84' y='30' width='28' height='16' rx='2' fill={muted} fillOpacity='.2' />
+            <Ln x={8} y={58} w={82} /><Ln x={8} y={70} w={60} />
+        </Frame>
+    ),
     assistant: (
         <Frame>
             <rect x='8' y='10' width='64' height='16' rx='5' fill={muted} fillOpacity='0.2' />

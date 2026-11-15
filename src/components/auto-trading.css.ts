@@ -1,0 +1,26 @@
+import { globalStyle, style } from '@vanilla-extract/css';
+import { vars } from '../theme.css';
+
+export const wrap = style({ height: '100%', overflow: 'auto', padding: 12, fontSize: '.75rem', color: vars.color.foreground });
+export const header = style({ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between' });
+export const title = style({ margin: 0, fontSize: '.9rem' });
+export const status = style({ border: `1px solid ${vars.color.borderBright}`, borderRadius: vars.radius.sm, padding: '6px 10px', fontWeight: 650 });
+export const warning = style({ color: vars.color.danger });
+export const muted = style({ color: vars.color.mutedForeground, lineHeight: 1.7, margin: '6px 0' });
+export const notice = style({ border: `1px solid ${vars.color.border}`, background: vars.color.inset, padding: 10, borderRadius: vars.radius.sm, lineHeight: 1.7, margin: '10px 0' });
+export const fieldset = style({ margin: '12px 0', padding: 0, border: 0, minWidth: 0 });
+export const grid = style({ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,170px),1fr))', gap: 10, margin: '10px 0' });
+export const field = style({ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 });
+export const control = style({ width: '100%', minWidth: 0, minHeight: 44, border: `1px solid ${vars.color.border}`, borderRadius: vars.radius.sm, background: vars.color.inset, color: vars.color.foreground, padding: '8px 10px' });
+export const actions = style({ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '12px 0' });
+globalStyle(`${actions} button`, { minHeight: 44 });
+export const metrics = style({ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,145px),1fr))', borderTop: `1px solid ${vars.color.border}`, borderBottom: `1px solid ${vars.color.border}`, margin: '12px 0' });
+export const metric = style({ padding: '10px 8px', minWidth: 0 });
+export const number = style({ display: 'block', marginTop: 6, fontSize: '1rem', fontFamily: vars.font.mono, overflowWrap: 'anywhere' });
+export const heading = style({ fontSize: '.8rem', margin: '16px 0 8px' });
+export const scroll = style({ overflowX: 'auto' });
+export const table = style({ width: '100%', borderCollapse: 'collapse', whiteSpace: 'nowrap', fontFamily: vars.font.mono, fontSize: '.7rem' });
+globalStyle(`${table} th,${table} td`, { padding: '9px 8px', textAlign: 'left', borderBottom: `1px solid ${vars.color.border}` });
+export const log = style({ padding: 0, margin: '8px 0', listStyle: 'none' });
+globalStyle(`${log} li`, { padding: '8px 0', borderBottom: `1px solid ${vars.color.border}`, lineHeight: 1.6, overflowWrap: 'anywhere' });
+globalStyle(`${control}:focus-visible`, { outline: `2px solid ${vars.color.accent}`, outlineOffset: 2 });

@@ -77,6 +77,7 @@ export type BlockType =
     | 'signals'
     | 'optpnl'
     | 'backtest'
+    | 'autotrade'
     | 'assistant';
 
 // 'industries' 區塊已移出市場脈動（產業地圖歸產業全景面板）— 舊存檔的
@@ -605,6 +606,14 @@ export const BLOCK_META: Record<
         pinnable: false,
         singleton: true,
         defaultSize: { w: 12, h: 14, minW: 8, minH: 8 },
+    },
+    autotrade: {
+        label: '自動交易',
+        description: 'Sandbox 策略啟停、測試委託與風控狀態',
+        category: 'trading',
+        pinnable: false,
+        singleton: true,
+        defaultSize: { w: 12, h: 16, minW: 6, minH: 10 },
     },
     assistant: {
         label: 'AI Agent',

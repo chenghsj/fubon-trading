@@ -2,7 +2,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { apiGet, apiPost } from '../lib/api';
+import { apiGet } from '../lib/api';
+import { fubonPost as researchPost } from '../lib/fubon-api-detail';
 import { DEFAULT_RESEARCH_CONFIG, researchTradeStats, type ResearchComparison, type ResearchConfig, type ResearchDataset, type ResearchRun } from '../lib/intraday-research';
 import * as s from './intraday-research.css';
 
@@ -13,20 +14,6 @@ const day = (offset = 0) => new Date(Date.now() + 8 * 3600000 - offset * 8640000
 const cash = (n: number) => n.toLocaleString('zh-TW', { maximumFractionDigits: 0 });
 const dateTime = (t: number) => new Date(t * 1000).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
 const message = (error: unknown) => error instanceof Error ? error.message : String(error);
-
-// Keep FastAPI research validation messages without changing order-API error semantics.
-async function researchPost<T>(path: string, body: unknown, timeoutMs?: number): Promise<T> {
-    let detail: Promise<string> | undefined;
-    try {
-        return await apiPost<T>(path, body, { timeoutMs, onResponse: response => {
-            if (!response.ok) detail = response.clone().json().then(data => {
-                if (typeof data.detail === 'string') return data.detail;
-                if (Array.isArray(data.detail)) return data.detail.map((item: { loc?: string[]; msg?: string }) => `${item.loc?.slice(1).join('.') ?? ''}：${item.msg ?? '格式無效'}`).join('；');
-                return typeof data.message === 'string' ? data.message : '';
-            }).catch(() => '');
-        } });
-    } catch (error) { throw new Error((await detail) || message(error)); }
-}
 
 function parseBasket(text: string) {
     return text.trim().split('\n').filter(l => l.trim()).map(line => {

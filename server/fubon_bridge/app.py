@@ -17,9 +17,27 @@ from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
 from .research import HistoryRequest, ResearchStore, load_history
+from .auto_gateway import SandboxGateway
+from .auto_store import AutoStore
+from .auto_trading import AutoConfig, SandboxAutoTrader
+from pydantic import BaseModel
+from typing import Literal
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None):
+class AutoControl(BaseModel):
+    run_id: str
+    command: Literal["pause", "stop", "reconcile", "archive"]
+    acknowledgement: str = ""
+    execution_allowed: bool = False
+
+
+class AutoHeartbeat(BaseModel):
+    run_id: str
+    entries_allowed: bool
+    execution_allowed: bool
+
+
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
     public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
@@ -45,6 +63,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             loop.call_soon_threadsafe(deliver)
 
     broker = Broker(cfg, publish, sdk_factory)
+    research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
+    automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(SandboxGateway(broker), AutoStore(research), session.authorize)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -55,24 +75,36 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             while True:
                 broker.demo_events()
                 await asyncio.sleep(1)
+        async def automation_clock():
+            while True:
+                await asyncio.to_thread(automation.tick)
+                await asyncio.sleep(5)
         if on_ready:
             loop.call_later(0.5, on_ready)
         task = asyncio.create_task(demo_clock())
-        yield
-        task.cancel()
+        auto_task = asyncio.create_task(automation_clock())
         try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        await asyncio.to_thread(broker.close)
+            yield
+        finally:
+            automation.closing.set()
+            await asyncio.to_thread(automation.shutdown)
+            for pending in (task, auto_task):
+                pending.cancel()
+                try:
+                    await pending
+                except asyncio.CancelledError:
+                    pass
+            await asyncio.to_thread(broker.close)
 
     app = FastAPI(title="Fubon Trading local bridge", lifespan=lifespan)
-    research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
     app.state.broker = broker
     app.state.session = session
+    app.state.automation = automation
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
+        if request.url.path=="/api/v1/automation/heartbeat":
+            request.state.automation_received_at = automation.monotonic()
         host = request.url.hostname
         origin = request.headers.get("origin")
         if host not in {"127.0.0.1", "localhost", "testserver"}:
@@ -242,6 +274,22 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.post("/api/v1/research/history")
     def research_history(body: HistoryRequest):
         return load_history(broker, research, body)
+
+    @app.get("/api/v1/automation/state")
+    def automation_state(request: Request):
+        return automation.snapshot(request.headers.get("authorization", ""))
+
+    @app.post("/api/v1/automation/start")
+    def automation_start(request: Request, body: AutoConfig):
+        return automation.start(body, request.headers.get("authorization", ""))
+
+    @app.post("/api/v1/automation/heartbeat")
+    def automation_heartbeat(request: Request, body: AutoHeartbeat):
+        return automation.heartbeat(request.headers.get("authorization", ""), body.run_id, body.entries_allowed,body.execution_allowed,request.state.automation_received_at)
+
+    @app.post("/api/v1/automation/control")
+    def automation_control(request: Request, body: AutoControl):
+        return automation.control(body.command, request.headers.get("authorization", ""), body.run_id, body.acknowledgement,body.execution_allowed)
 
     @app.get("/api/v1/research/database")
     def research_database():

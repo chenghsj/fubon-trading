@@ -108,7 +108,7 @@ async function setTheme(name) {
 
 try {
     await free(uiPort); await free(apiPort);
-    await writeFile(countsFile, JSON.stringify({ historyCalls: 0 }));
+    await writeFile(countsFile, JSON.stringify({ historyCalls: 0, sdkCalls: 0 }));
     const backend = path.join(temporary, 'backend.py');
     await writeFile(backend, `import os, json
 from pathlib import Path
@@ -127,6 +127,9 @@ def counted(self, *args, **kwargs):
     return original(self, *args, **kwargs)
 Broker.research_candles = counted
 def no_sdk():
+    data = json.loads(counter.read_text())
+    data['sdkCalls'] += 1
+    counter.write_text(json.dumps(data))
     raise AssertionError('Synthetic QA must never initialize brokerage SDK')
 app = create_app(Config(mode='demo', port=int(os.environ['RESEARCH_UI_PORT'])),
     sdk_factory=no_sdk, launch_token=os.environ['RESEARCH_LAUNCH'], public_origin=os.environ['RESEARCH_ORIGIN'],
@@ -321,7 +324,9 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     expect(transactionPaths).toEqual([]);
     expect(pageErrors).toEqual([]);
     expect(databaseReadResponses.every(response => response.status === 200)).toBe(true);
-    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, latest, latestUiElapsedMs, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
+    const sdkCalls = JSON.parse(await readFile(countsFile, 'utf8')).sdkCalls;
+    expect(sdkCalls).toBe(0);
+    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, latest, latestUiElapsedMs, sdkCalls, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
     await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify(summary, null, 2));
 } catch (error) {

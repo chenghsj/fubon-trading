@@ -183,6 +183,13 @@ class ResearchStore:
             CREATE TABLE IF NOT EXISTS research_signals (
                 dataset_id TEXT, time INTEGER, source TEXT, price REAL, weighted_return REAL, missing TEXT,
                 PRIMARY KEY(dataset_id,time));
+            CREATE TABLE IF NOT EXISTS research_auto_runs (
+                id TEXT PRIMARY KEY, day TEXT, account TEXT, updated_at TEXT, payload TEXT,
+                UNIQUE(day,account));
+            CREATE TABLE IF NOT EXISTS research_auto_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT, time TEXT, kind TEXT, message TEXT);
+            CREATE TABLE IF NOT EXISTS research_auto_lease (
+                id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires REAL);
                     """)
                     self._initialized = True
             with db:
@@ -211,6 +218,12 @@ class ResearchStore:
             db.execute("DELETE FROM research_ranges WHERE source=? AND kind=? AND symbol=? AND month=? AND session=? AND NOT(end<? OR start>?)", (*key, start, end))
             db.executemany("INSERT INTO research_bars VALUES(?,?,?,?,?,?,?,?,?,?,?)", [(*key, b["time"], b["open"], b["high"], b["low"], b["close"], b["volume"]) for b in bars])
             db.execute("INSERT INTO research_ranges VALUES(?,?,?,?,?,?,?,?)", (*key, start, end, now().isoformat()))
+
+    def ingest_closed_bars(self, key, bars):
+        """Append live completed minutes without claiming a whole-day history coverage range."""
+        with self.connect() as db:
+            db.executemany("INSERT OR REPLACE INTO research_bars VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                [(*key, b["time"], b["open"], b["high"], b["low"], b["close"], b["volume"]) for b in bars])
 
     def dataset(self, payload):
         ident = digest(payload)

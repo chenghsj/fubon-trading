@@ -109,6 +109,7 @@ const PANEL_ICONS: Record<BlockType, LucideIcon> = {
     signals: Radio,
     optpnl: AreaChart,
     backtest: FlaskConical,
+    autotrade: Workflow,
     assistant: Bot,
 };
 

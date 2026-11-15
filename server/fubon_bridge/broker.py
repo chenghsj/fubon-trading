@@ -171,7 +171,7 @@ class Broker:
                 self.catalog_loaded.add(kind)
             return [deepcopy(x) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
 
-    def contract(self, key):
+    def contract(self, key, *, refresh=False):
         code = key["code"].strip().upper()
         kind = key.get("security_type")
         if not re.fullmatch(r"[A-Z0-9!]{2,24}", code):
@@ -182,7 +182,7 @@ class Broker:
             raise ValueError("此富邦轉接器支援股票、期貨與選擇權行情")
         with self.lock:
             cached = self.catalog.get(code)
-            if cached and not cached.get("target_code") and (self.config.mode == "demo" or code in self.catalog_full):
+            if cached and not refresh and not cached.get("target_code") and (self.config.mode == "demo" or code in self.catalog_full):
                 if cached["security_type"] != kind:
                     raise ValueError("商品類型不符")
                 return deepcopy(cached)
@@ -493,8 +493,15 @@ class Broker:
                 self.cache_health[account["account_id"]] = True
             return [deepcopy(t) for t in self.trades.values() if t["order"]["account"] == account]
 
-    def place(self, contract_key, order, account):
+    def place(self, contract_key, order, account, *, client_tag=None):
         with self.lock:
+            if client_tag is not None and (self.config.mode != "sandbox" or not re.fullmatch(r"FA[a-f0-9]{8}", client_tag)):
+                raise ValueError("策略委託識別碼僅供官方 sandbox 使用")
+            if client_tag is not None and (self.config.session!="regular" or account.get("account_type")!="F"
+                or not re.fullmatch(r"TMF[A-L]\d",contract_key.get("code","")) or order.get("quantity")!=1
+                or order.get("price_type")!="LMT" or order.get("order_type")!="IOC"
+                or order.get("octype") not in {"New","Cover"} or not float(order.get("price",0)).is_integer() or order.get("price",0)<=0):
+                raise ValueError("策略委託僅支援日盤微台單口限價 IOC")
             self.ready()
             contract = self.contract(contract_key)
             kind = contract["security_type"]
@@ -514,7 +521,7 @@ class Broker:
             from fubon_neo.constant import BSAction, TimeInForce, FutOptMarketType, FutOptPriceType, FutOptOrderType, MarketType, PriceType, OrderType
             shared = dict(buy_sell=getattr(BSAction, order["action"]), symbol=contract["code"],
                           time_in_force=getattr(TimeInForce, order["order_type"]), price=str(order["price"]),
-                          user_def=("FW" + uuid.uuid4().hex[:8]) if self.config.mode == "sandbox" else "FubonWeb")
+                          user_def=client_tag or (("FW" + uuid.uuid4().hex[:8]) if self.config.mode == "sandbox" else "FubonWeb"))
             if kind == "STK":
                 lot = order.get("order_lot", "Common")
                 if lot not in {"Common", "IntradayOdd", "Odd"} or order.get("order_cond", "Cash") != "Cash" or order.get("daytrade_short", False):
@@ -533,8 +540,62 @@ class Broker:
                 row = unwrap(self.sdk.futopt.place_order(self.raw_account(account), obj))
             return self._remember(row, contract, account)
 
-    def mutate(self, ident, action, value=None):
+    def automation_orders(self, account):
+        """Fresh authoritative rows only; absence from this response is never a cancellation."""
+        if self.config.mode != "sandbox":
+            raise ValueError("自動交易僅支援官方 sandbox")
         with self.lock:
+            rows = unwrap(self.sdk.futopt.get_order_results(self.raw_account(account)))
+            if not isinstance(rows,list):
+                raise ValueError("委託查詢未回傳完整清單")
+            fresh, ids = [],set()
+            for row in rows:
+                trade = self._remember(row,self._row_contract(row,account),account)
+                ident = trade["order"]["id"]
+                if ident in ids:
+                    raise ValueError("本輪委託查詢出現重複識別")
+                ids.add(ident)
+                fresh.append(dict(trade,automation_day=re.sub(r"\D","",str(field(row,"date","")))))
+            self.baseline_ids[(account["account_type"],account["broker_id"],account["account_id"])] = ids
+            self.cache_health[account["account_id"]] = True
+            return fresh
+
+    def automation_fill_price(self, account, trade, day):
+        """Use explicit execution prices, never infer them from order limits or filled_money."""
+        if self.config.mode != "sandbox":
+            raise ValueError("自動交易僅支援官方 sandbox")
+        from fubon_neo.constant import FutOptMarketType
+        with self.lock:
+            rows = unwrap(self.sdk.futopt.filled_history(self.raw_account(account), FutOptMarketType.Future, day.replace("-", "")))
+            if not isinstance(rows, list):
+                raise ValueError("成交明細尚未取得")
+            fills = {}
+            for row in rows:
+                if (str(field(row, "order_no", "")) != trade["order"]["ordno"]
+                    or re.sub(r"\D", "", str(field(row, "date", ""))) != day.replace("-", "")
+                    or str(field(row,"branch_no",""))!=str(account["broker_id"])
+                    or str(field(row,"account",""))!=str(account["account_id"])
+                    or enum_name(field(row, "buy_sell")) != trade["order"]["action"]):
+                    continue
+                if self._row_contract(row, account)["code"] != trade["contract"]["code"]:
+                    continue
+                ident = str(field(row, "filled_no", ""))
+                price, qty = number(field(row, "filled_price")), number(field(row, "filled_lot"))
+                if not ident or not math.isfinite(price) or price <= 0 or not float(qty).is_integer() or qty <= 0:
+                    raise ValueError("成交明細無法確認")
+                value = (price, int(qty))
+                if ident in fills and fills[ident] != value:
+                    raise ValueError("成交明細衝突")
+                fills[ident] = value
+            quantity = sum(q for _, q in fills.values())
+            if quantity != trade["status"]["deal_quantity"] or quantity <= 0:
+                raise ValueError("成交明細口數尚未對齊")
+            return sum(p*q for p, q in fills.values()) / quantity
+
+    def mutate(self, ident, action, value=None, *, client_tag=None):
+        with self.lock:
+            if client_tag is not None and (self.config.mode!="sandbox" or not re.fullmatch(r"FA[a-f0-9]{8}",client_tag) or action!="cancel"):
+                raise ValueError("策略改刪僅支援取消自有 sandbox 委託")
             if not self.config.broker_orders:
                 trade = self.paper.orders.get(ident)
                 if not trade:
@@ -553,6 +614,8 @@ class Broker:
             if ident not in self.baseline_ids.get((account["account_type"], account["broker_id"], account["account_id"]), set()):
                 raise ValueError("最新券商委託查詢未包含此單，拒絕使用舊快取改刪單")
             current = self.trades[ident]
+            if client_tag is not None and current["order"].get("custom_field")!=client_tag:
+                raise ValueError("此委託不屬於本策略，不可取消")
             if current["status"]["status"] not in ACTIVE:
                 raise ValueError("此委託已無可改刪數量")
             raw = self.raw_orders[ident]
