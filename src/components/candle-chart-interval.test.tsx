@@ -2,7 +2,7 @@
 import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { created, kbars } from './chart-session.test-harness';
+import { created, kbars, logicalRangeHandlers } from './chart-session.test-harness';
 
 vi.hoisted(() => {
     const store = new Map<string, string>();
@@ -12,7 +12,8 @@ vi.hoisted(() => {
     (globalThis as any).document = { addEventListener() {}, removeEventListener() {}, createElement: () => ({ style: {}, getContext: () => null }), body: {} };
 });
 vi.mock('../lib/trade', () => ({ notify: () => {}, placeQuickOrder: async () => {} }));
-vi.mock('../lib/shioaji', () => ({ cancelOrder: async () => {}, updateOrderPrice: async () => {} }));
+const { historyBackend } = vi.hoisted(() => ({ historyBackend: vi.fn() }));
+vi.mock('../lib/shioaji', () => ({ cancelOrder: async () => {}, updateOrderPrice: async () => {}, fetchKbars: (...args: unknown[]) => historyBackend(...args) }));
 vi.mock('lightweight-charts', async () => (await import('./chart-session.test-harness')).lwMock());
 
 let quote: any = undefined;
@@ -76,8 +77,10 @@ beforeEach(() => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} unobserve() {} });
     vi.useFakeTimers({ toFake: ['Date'] });
     created.length = 0;
+    logicalRangeHandlers.length = 0;
     quote = undefined;
     fetchMock.mockReset();
+    historyBackend.mockReset();
     const sma = newInstance('sma');
     sma.params = { ...sma.params, period: 20 };
     saveInstances([sma, newInstance('vwap')]);
@@ -90,7 +93,9 @@ afterEach(() => {
 });
 
 const BARS = kbars([['2026-09-25T09:00:00', '2026-09-25T13:30:00', () => 1000]]);
-const fromDays = () => fetchMock.mock.calls.map((c) => c[1]);
+// MA warmup can append older pages. Interval persistence owns the initial
+// request ending today, independently of subsequent history pagination.
+const fromDays = () => fetchMock.mock.calls.filter(c => c[2] === dateStrOffset(0)).map(c => c[1]);
 
 describe('CandleChart interval persistence (#331)', () => {
     it('defaults to 5m when the panel has no stored interval', async () => {
@@ -136,4 +141,25 @@ describe('CandleChart interval persistence (#331)', () => {
         await flush();
         expect(fromDays().at(-1)).toBe(dateStrOffset(3));
     });
+});
+
+
+it('retries the same older-history page after a transient scroll failure', async () => {
+    setNow('2026-09-25T20:00:00');
+    saveInstances([]);
+    const history = await vi.importActual<typeof import('../lib/chart-history')>('../lib/chart-history');
+    fetchMock.mockImplementation(history.fetchChartHistory);
+    historyBackend.mockResolvedValueOnce(BARS).mockRejectedValueOnce(new Error('timeout')).mockResolvedValue(BARS);
+    mount({ contract: { ...stk }, onIntervalChange: () => {} });
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    act(() => logicalRangeHandlers[0]!({ from: 0, to: 30 }));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const failedRange = fetchMock.mock.calls[1]!.slice(1, 3);
+    act(() => logicalRangeHandlers[0]!({ from: 0, to: 30 }));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]!.slice(1, 3)).toEqual(failedRange);
+    expect(historyBackend).toHaveBeenCalledTimes(3);
 });

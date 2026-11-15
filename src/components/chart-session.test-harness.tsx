@@ -12,6 +12,7 @@ export interface FakeSeries {
 }
 
 export const created: FakeSeries[] = [];
+export const logicalRangeHandlers: ((range: { from: number; to: number }) => void)[] = [];
 // 圖表訂閱的 crosshair 回呼（測試用來模擬游標移動／離開）
 export const crosshairHandlers: ((param: any) => void)[] = [];
 
@@ -22,6 +23,8 @@ function chain(): any {
     return new Proxy(f, {
         get: (_t, p) => {
             if (p === 'then') return undefined;
+            if (p === 'subscribeVisibleLogicalRangeChange')
+                return (handler: (range: { from: number; to: number }) => void) => logicalRangeHandlers.push(handler);
             if (p === Symbol.toPrimitive) return () => 0;
             if (p === 'getVisibleLogicalRange' || p === 'getVisibleRange')
                 return () => null;
