@@ -5,10 +5,12 @@
 import { useSyncExternalStore } from 'react';
 import { isTauri } from './runtime';
 import { themeClasses, vars } from '../theme.css';
-import { CUSTOM_BASES, alpha, customTokens, isCustomTheme, type CustomTheme } from './custom-theme';
+import { CUSTOM_COLOR_FIELDS, CUSTOM_PRESETS, alpha, customTokens, isCustomTheme, type CustomTheme } from './custom-theme';
 import { THEME_PALETTES } from './theme-palette';
+import { activeCustom, baseMode, currentTheme } from './theme-appearance';
+export { activeCustom, baseMode, currentTheme } from './theme-appearance';
 
-export type ThemeMode = 'dark' | 'light' | 'custom';
+export type ThemeMode = 'system' | 'dark' | 'light';
 export type Convention = 'tw' | 'intl';
 // 小／標準／大（2026-09-29 起整體放大一級，原本的 0.85 小拿掉）
 export type FontScale = 1 | 1.15 | 1.3;
@@ -17,12 +19,14 @@ export interface ThemeSettings {
     mode: ThemeMode;
     convention: Convention;
     fontScale: FontScale;
-    /** 自訂配色；mode 為 custom 時套用，切回深色／淺色時保留以便再切回來 */
+    /** 與深淺模式分開；未指定時使用內建配色，custom 使用儲存的六色。 */
+    preset?: string;
     custom?: CustomTheme;
+    accent?: string;
 }
 
 const STORAGE_KEY = 'sj-pro-theme';
-const MODES: ThemeMode[] = ['dark', 'light', 'custom'];
+const MODES: ThemeMode[] = ['system', 'dark', 'light'];
 const CONVENTIONS: Convention[] = ['tw', 'intl'];
 const SCALES: FontScale[] = [1, 1.15, 1.3];
 const DEFAULT_SCALE: FontScale = 1.15;
@@ -43,16 +47,21 @@ function load(): ThemeSettings {
             const s = JSON.parse(raw) as Partial<Record<keyof ThemeSettings, unknown>>;
             const mode = migrateMode(s.mode);
             if (
-                MODES.includes(mode as ThemeMode) &&
+                (MODES.includes(mode as ThemeMode) || mode === 'custom') &&
                 CONVENTIONS.includes(s.convention as Convention)
             ) {
                 const custom = isCustomTheme(s.custom) ? s.custom : undefined;
+                const legacyPreset = mode === 'custom' && custom
+                    ? CUSTOM_PRESETS.find(p => p.theme.base === custom.base && CUSTOM_COLOR_FIELDS.every(({ key }) => p.theme[key].toLowerCase() === custom[key].toLowerCase()))?.name ?? 'custom'
+                    : undefined;
+                const preset = legacyPreset ?? (s.preset === 'custom' && custom || CUSTOM_PRESETS.some(p => p.name === s.preset) ? s.preset as string : undefined);
                 return {
-                    // 自訂配色遺失時退回深色
-                    mode: mode === 'custom' && !custom ? 'dark' : (mode as ThemeMode),
+                    mode: mode === 'custom' ? custom?.base ?? 'dark' : mode as ThemeMode,
                     convention: s.convention as Convention,
                     fontScale: migrateScale(s.fontScale),
+                    ...(preset ? { preset } : {}),
                     ...(custom ? { custom } : {}),
+                    ...(typeof s.accent === 'string' && /^#[0-9a-f]{6}$/i.test(s.accent) ? { accent: s.accent } : {}),
                 };
             }
         }
@@ -64,21 +73,12 @@ function load(): ThemeSettings {
 
 let settings: ThemeSettings = load();
 const listeners = new Set<() => void>();
-
-/** 實際套用的起始底色：自訂配色以其 base 的 theme class 為底 */
-export function baseMode(s: ThemeSettings): 'dark' | 'light' {
-    return s.mode === 'custom' ? (s.custom?.base ?? 'dark') : s.mode;
-}
+let systemQuery: MediaQueryList | undefined;
 
 /** 圖表等以 canvas 繪製的元件用來判斷是否需要重新套色 */
 export function themeKey(s: ThemeSettings): string {
     const custom = activeCustom(s);
-    return `${s.mode}-${s.convention}${custom ? `-${Object.values(custom).join(',')}` : ''}`;
-}
-
-/** 目前生效的自訂配色（mode 不是 custom 時為 undefined） */
-export function activeCustom(s: ThemeSettings): CustomTheme | undefined {
-    return s.mode === 'custom' ? (s.custom ?? CUSTOM_BASES.dark) : undefined;
+    return `${baseMode(s)}-${s.convention}${custom ? `-${Object.values(custom).join(',')}` : ''}${s.accent ? `-${s.accent}` : ''}`;
 }
 
 const colorVars = vars.color as Record<string, string>;
@@ -94,10 +94,13 @@ function applyClass() {
     const key = `${base}-${settings.convention}`;
     const cls = themeClasses[key] ?? themeClasses['dark-tw'];
     if (cls) root.classList.add(cls);
-    // 自訂配色：六色推算的 token 以 inline 變數蓋在底色 class 上；
-    // 切回深色／淺色時移除
+    // 主題配色以 inline 變數蓋在深淺模式 class 上；預設主題移除覆寫。
     const custom = activeCustom(settings);
     const tokens = custom ? customTokens(custom, settings.convention) : {};
+    if (settings.accent) {
+        const accentTokens = customTokens(currentTheme(settings), settings.convention);
+        for (const name of ['accent', 'onAccent', 'accentDim']) tokens[name] = accentTokens[name]!;
+    }
     for (const [name, ref] of Object.entries(colorVars)) {
         const value = tokens[name];
         if (value) root.style.setProperty(cssVarName(ref), value);
@@ -110,7 +113,7 @@ function applyClass() {
 }
 
 // sync the native window chrome (macOS appearance / Windows titlebar)
-// with the in-app theme — dark → dark, light → light (custom follows its base)
+// with the resolved in-app appearance, including system preference changes.
 async function applyNativeTheme() {
     if (!isTauri) return;
     try {
@@ -122,6 +125,19 @@ async function applyNativeTheme() {
 }
 
 export function initTheme() {
+    if (!systemQuery && typeof window !== 'undefined' && window.matchMedia) {
+        systemQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const onSystemChange = () => {
+            if (settings.mode !== 'system') return;
+            // A fresh snapshot also updates canvas charts and other store subscribers.
+            settings = { ...settings };
+            applyClass();
+            void applyNativeTheme();
+            listeners.forEach(l => l());
+        };
+        if (systemQuery.addEventListener) systemQuery.addEventListener('change', onSystemChange);
+        else systemQuery.addListener(onSystemChange);
+    }
     applyClass();
     void applyNativeTheme();
 }
@@ -171,7 +187,7 @@ export function getChartColors(s: ThemeSettings): ChartColors {
             downVol: alpha(down, 0.4),
             text: t.mutedForeground!,
             grid: alpha(t.border!, 0.7),
-            crosshair: t.accent!,
+            crosshair: s.accent ?? t.accent!,
             border: t.border!,
             labelBg: t.panelRaised!,
         };
@@ -188,7 +204,7 @@ export function getChartColors(s: ThemeSettings): ChartColors {
         downVol: isTw ? greenVol : redVol,
         text: p.mutedForeground,
         grid: alpha(p.border, mode === 'dark' ? 0.7 : 0.9),
-        crosshair: p.accent,
+        crosshair: s.accent ?? p.accent,
         border: p.border,
         labelBg: p.panelRaised,
     };

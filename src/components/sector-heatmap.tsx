@@ -345,8 +345,7 @@ export function SectorHeatmap({
     const theme = useThemeSettings();
     const palette = useMemo(
         () => heatPalette(theme),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [theme.mode, theme.convention, theme.custom],
+        [theme],
     );
     const [indexCode, setIndexCode] = useState<PanoramaIndexCode>(
         () => index ?? lastIndex(),
