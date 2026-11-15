@@ -1,0 +1,53 @@
+// Codex 26.1111.21308 內建的 29 種主題／44 個亮暗版本。
+// 色票來源：已安裝 Codex 的 theme registration 與對應的內建 code theme。
+// editor／sidebar 對應背景與面板；強調色沿用主題的互動色或代表語法色。
+// 不透明化 alpha；文字、強調色與漲跌色微調明度，符合交易介面文字對比。
+// 缺少行情紅綠的主題沿用本產品的亮暗行情色，不把語法色當作漲跌訊號。
+import type { CustomTheme } from './custom-theme';
+
+export const CODEX_THEME_PRESETS: { name: string; theme: CustomTheme }[] = [
+    { name: 'Absolutely', theme: { base: 'dark', background: '#2d2d2b', panel: '#373735', foreground: '#f9f9f7', accent: '#d99e86', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Absolutely', theme: { base: 'light', background: '#f9f9f7', panel: '#f4f4f2', foreground: '#2d2d2b', accent: '#975d46', red: '#c91f36', green: '#087654' } },
+    { name: 'Ayu', theme: { base: 'dark', background: '#10141c', panel: '#0d1017', foreground: '#bfbdb6', accent: '#e6b450', red: '#f06b73', green: '#70bf56' } },
+    { name: 'Catppuccin', theme: { base: 'dark', background: '#1e1e2e', panel: '#181825', foreground: '#cdd6f4', accent: '#cba6f7', red: '#f38ba8', green: '#a6e3a1' } },
+    { name: 'Catppuccin', theme: { base: 'light', background: '#eff1f5', panel: '#e6e9ef', foreground: '#4c4f69', accent: '#8337e5', red: '#ca0e37', green: '#2e731f' } },
+    { name: 'Codex', theme: { base: 'dark', background: '#111111', panel: '#131313', foreground: '#fcfcfc', accent: '#3689d7', red: '#f67576', green: '#85df7b' } },
+    { name: 'Codex', theme: { base: 'light', background: '#ffffff', panel: '#fcfcfc', foreground: '#0d0d0d', accent: '#0169cc', red: '#d13437', green: '#008309' } },
+    { name: 'Dracula', theme: { base: 'dark', background: '#282a36', panel: '#21222c', foreground: '#f8f8f2', accent: '#bd93f9', red: '#ff5c5c', green: '#50fa7b' } },
+    { name: 'Everforest', theme: { base: 'dark', background: '#2d353b', panel: '#2d353b', foreground: '#d9ceb6', accent: '#a7c080', red: '#e98b8d', green: '#a7c080' } },
+    { name: 'Everforest', theme: { base: 'light', background: '#fdf6e3', panel: '#fdf6e3', foreground: '#525e65', accent: '#61753b', red: '#c14240', green: '#667401' } },
+    { name: 'GitHub', theme: { base: 'dark', background: '#0d1117', panel: '#010409', foreground: '#e6edf3', accent: '#359046', red: '#ff7b72', green: '#3fb950' } },
+    { name: 'GitHub', theme: { base: 'light', background: '#ffffff', panel: '#f6f8fa', foreground: '#1f2328', accent: '#1d7e39', red: '#cf222e', green: '#116329' } },
+    { name: 'Gruvbox', theme: { base: 'dark', background: '#282828', panel: '#282828', foreground: '#ebdbb2', accent: '#83a598', red: '#e07c77', green: '#9e9d28' } },
+    { name: 'Gruvbox', theme: { base: 'light', background: '#fbf1c7', panel: '#fbf1c7', foreground: '#3c3836', accent: '#076678', red: '#cc241d', green: '#6d6d13' } },
+    { name: 'Linear', theme: { base: 'dark', background: '#17181d', panel: '#080a0f', foreground: '#e6e9ef', accent: '#707ad7', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Linear', theme: { base: 'light', background: '#f7f8fa', panel: '#f2f4f8', foreground: '#2a3140', accent: '#5763c3', red: '#c91f36', green: '#087654' } },
+    { name: 'Lobster', theme: { base: 'dark', background: '#111827', panel: '#111827', foreground: '#e4e4e7', accent: '#ff5c5c', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Material', theme: { base: 'dark', background: '#212121', panel: '#212121', foreground: '#eeffff', accent: '#80cbc4', red: '#f07178', green: '#c3e88d' } },
+    { name: 'Matrix', theme: { base: 'dark', background: '#040805', panel: '#020402', foreground: '#b8ffca', accent: '#1eff5a', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Monokai', theme: { base: 'dark', background: '#272822', panel: '#1e1f1c', foreground: '#f8f8f2', accent: '#a6e22e', red: '#d76e93', green: '#86b42b' } },
+    { name: 'Night Owl', theme: { base: 'dark', background: '#011627', panel: '#011627', foreground: '#d6deeb', accent: '#82aaff', red: '#ef5350', green: '#22da6e' } },
+    { name: 'Nord', theme: { base: 'dark', background: '#2e3440', panel: '#2e3440', foreground: '#d8dee9', accent: '#88c0d0', red: '#d5979d', green: '#a3be8c' } },
+    { name: 'Notion', theme: { base: 'dark', background: '#191919', panel: '#151515', foreground: '#d9d9d8', accent: '#3b89da', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Notion', theme: { base: 'light', background: '#ffffff', panel: '#f7f6f3', foreground: '#37352f', accent: '#2a6fb8', red: '#c91f36', green: '#087654' } },
+    { name: 'OG', theme: { base: 'dark', background: '#343541', panel: '#202123', foreground: '#d1d5db', accent: '#39b395', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'One', theme: { base: 'dark', background: '#282c34', panel: '#21252b', foreground: '#b2b8c4', accent: '#61afef', red: '#e5707a', green: '#8cc265' } },
+    { name: 'One', theme: { base: 'light', background: '#fafafa', panel: '#eaeaeb', foreground: '#383a42', accent: '#485dc4', red: '#c51e35', green: '#087452' } },
+    { name: 'Oscurange', theme: { base: 'dark', background: '#0b0b0f', panel: '#0b0b0f', foreground: '#e6e6e6', accent: '#f9b98c', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Proof', theme: { base: 'light', background: '#f5f3ed', panel: '#efede6', foreground: '#2f312d', accent: '#3b715a', red: '#c91f36', green: '#087654' } },
+    { name: 'Raycast', theme: { base: 'dark', background: '#141414', panel: '#101010', foreground: '#ffffff', accent: '#4fa3f8', red: '#ff6363', green: '#59d499' } },
+    { name: 'Raycast', theme: { base: 'light', background: '#ffffff', panel: '#fcfcfc', foreground: '#000000', accent: '#1071c6', red: '#b12424', green: '#006b4f' } },
+    { name: 'Rose Pine', theme: { base: 'dark', background: '#232136', panel: '#232136', foreground: '#e0def4', accent: '#ea9a97', red: '#eb6f92', green: '#579eba' } },
+    { name: 'Rose Pine', theme: { base: 'light', background: '#faf4ed', panel: '#faf4ed', foreground: '#575279', accent: '#995c59', red: '#9e576b', green: '#286983' } },
+    { name: 'Sentry', theme: { base: 'dark', background: '#2d2935', panel: '#26222d', foreground: '#e6dff9', accent: '#9783f8', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Solarized', theme: { base: 'dark', background: '#002b36', panel: '#00212b', foreground: '#9eacad', accent: '#5e9a98', red: '#e56765', green: '#859900' } },
+    { name: 'Solarized', theme: { base: 'light', background: '#fdf6e3', panel: '#eee8d5', foreground: '#47575c', accent: '#706639', red: '#bf2c29', green: '#5d6b00' } },
+    { name: 'Temple', theme: { base: 'dark', background: '#02120c', panel: '#1d2d0f', foreground: '#c7e6da', accent: '#e4f222', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Tokyo Night', theme: { base: 'dark', background: '#1a1b26', panel: '#16161e', foreground: '#a9b1d6', accent: '#7aa2f7', red: '#f7768e', green: '#73daca' } },
+    { name: 'Vercel', theme: { base: 'dark', background: '#000000', panel: '#000000', foreground: '#ededed', accent: '#0a74fe', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Vercel', theme: { base: 'light', background: '#ffffff', panel: '#ffffff', foreground: '#171717', accent: '#0068fa', red: '#c91f36', green: '#087654' } },
+    { name: 'VS Code Plus', theme: { base: 'dark', background: '#1e1e1e', panel: '#252526', foreground: '#d4d4d4', accent: '#429dd9', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'VS Code Plus', theme: { base: 'light', background: '#ffffff', panel: '#f3f3f3', foreground: '#000000', accent: '#006eb8', red: '#c91f36', green: '#087654' } },
+    { name: 'Xcode', theme: { base: 'dark', background: '#1f1f24', panel: '#1f1f24', foreground: '#dedede', accent: '#5e8aff', red: '#ff8b95', green: '#40c9a2' } },
+    { name: 'Xcode', theme: { base: 'light', background: '#ffffff', panel: '#ffffff', foreground: '#262626', accent: '#0e0eff', red: '#c91f36', green: '#087654' } },
+];

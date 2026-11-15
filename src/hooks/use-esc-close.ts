@@ -43,18 +43,18 @@ export function pushEscHandler(h: Handler): () => void {
     };
 }
 
-// mount 即入栈（modal 都是條件渲染，mount = 開啟）；close callback
-// 走 ref，父層 re-render 換新 closure 不用重掛
-export function useEscClose(onClose: Handler) {
+// modal 預設 mount 即入栈；常駐元件中的浮層以 enabled 控制開啟期間入栈。
+// close callback 走 ref，父層 re-render 換新 closure 不用重掛。
+export function useEscClose(onClose: Handler, enabled = true) {
     const ref = useRef(onClose);
     ref.current = onClose;
     useEffect(
         // 無 DOM 的環境（node 測試）沒有 window，不入栈
         () =>
-            typeof window === 'undefined'
+            !enabled || typeof window === 'undefined'
                 ? undefined
                 : pushEscHandler(() => ref.current()),
-        [],
+        [enabled],
     );
 }
 

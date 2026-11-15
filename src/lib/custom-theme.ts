@@ -39,12 +39,7 @@ export const CUSTOM_BASES: Record<CustomBase, CustomTheme> = {
     light: customBase('light'),
 };
 
-export const CUSTOM_PRESETS: { name: string; theme: CustomTheme }[] = [
-    { name: '深海藍', theme: { base: 'dark', background: '#0b1628', panel: '#132238', foreground: '#dfe7f5', accent: '#4da3ff', red: '#ff4d5e', green: '#22c997' } },
-    { name: '墨綠', theme: { base: 'dark', background: '#0d1411', panel: '#15201b', foreground: '#dde8e1', accent: '#3ecf8e', red: '#f2545b', green: '#2fbf71' } },
-    { name: '暖灰', theme: { base: 'dark', background: '#161412', panel: '#201d1a', foreground: '#ece6df', accent: '#e0a43c', red: '#f0564a', green: '#3fb58a' } },
-    { name: '黑紫', theme: { base: 'dark', background: '#1b1b1f', panel: '#26262c', foreground: '#e6e3f0', accent: '#b58cff', red: '#ff5c7a', green: '#35c79a' } },
-];
+export { CODEX_THEME_PRESETS as CUSTOM_PRESETS } from './codex-theme-presets';
 
 // 狀態錯誤色（朱紅）：不跟使用者挑的漲跌紅，固定依底色，與 theme.css.ts 一致
 export const CUSTOM_DANGER: Record<CustomBase, { danger: string; dangerSolid: string }> = {
@@ -81,14 +76,32 @@ export function alpha(hex: string, a: number): string {
     return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
-/** 選擇對強調色底對比最高的字色，亮／暗及任意自訂色都適用。 */
-function onAccent(hex: string): string {
+function luminance(hex: string): number {
     const [r, g, b] = rgb(hex).map(value => {
         const channel = value / 255;
         return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
     });
-    const luminance = r! * 0.2126 + g! * 0.7152 + b! * 0.0722;
-    return luminance > 0.179 ? '#000000' : '#ffffff';
+    return r! * 0.2126 + g! * 0.7152 + b! * 0.0722;
+}
+
+/** 選擇對強調色底對比最高的字色，亮／暗及任意自訂色都適用。 */
+function onAccent(hex: string): string {
+    return luminance(hex) > 0.179 ? '#000000' : '#ffffff';
+}
+
+// 有些 Codex 色票的文字較柔和，固定比例混色會讓次要文字失去對比。
+// 由原本的混色比例逐步靠近使用者文字色；不更動儲存的六色色票。
+function mutedForeground(t: CustomTheme): string {
+    const share = t.base === 'dark' ? 0.42 : 0.3;
+    const surfaces = [t.background, t.panel, mix(t.panel, t.foreground, t.base === 'dark' ? 0.04 : 0.02)].map(luminance);
+    for (let step = 0; step <= 100; step++) {
+        const color = mix(t.foreground, t.panel, share * (1 - step / 100));
+        const value = luminance(color);
+        if (surfaces.every(surface => (Math.max(value, surface) + 0.05) / (Math.min(value, surface) + 0.05) >= 4.5)) {
+            return color;
+        }
+    }
+    return t.foreground;
 }
 
 /** 六色推算出完整的 color token（鍵名同 theme.css.ts 的 vars.color） */
@@ -99,8 +112,7 @@ export function customTokens(t: CustomTheme, convention: Convention): Record<str
     const down = convention === 'tw' ? t.green : t.red;
     const dim = dark ? 0.13 : 0.1;
     const flash = dark ? 0.2 : 0.16;
-    // 淺底時次要文字要更接近文字色，維持 4.5:1 以上的對比
-    const mutedFg = mix(fg, t.panel, dark ? 0.42 : 0.3);
+    const mutedFg = mutedForeground(t);
     return {
         background: t.background,
         panel: t.panel,

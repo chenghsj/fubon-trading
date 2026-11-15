@@ -1,6 +1,6 @@
 // src/components/custom-theme-editor.css.ts
 
-import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 import { vars } from '../theme.css';
 
 export const editor = style({
@@ -13,29 +13,16 @@ export const editor = style({
     background: vars.color.inset,
 });
 
-export const presets = style({ display: 'flex', flexWrap: 'wrap', gap: vars.space.xs });
-
-const presetBase = style({
+export const presetOption = style({
     display: 'inline-flex',
     alignItems: 'center',
     gap: 6,
-    padding: '3px 10px 3px 4px',
-    borderRadius: 999,
-    border: `1px solid ${vars.color.border}`,
-    background: vars.color.panel,
-    color: vars.color.foreground,
-    fontFamily: vars.font.body,
-    fontSize: '0.7rem',
-    cursor: 'pointer',
-});
-
-export const preset = styleVariants({
-    off: [presetBase, { ':hover': { borderColor: vars.color.borderBright } }],
-    on: [presetBase, { borderColor: vars.color.accent, color: vars.color.accent }],
+    minWidth: 0,
 });
 
 export const presetChip = style({
     display: 'inline-flex',
+    flexShrink: 0,
     borderRadius: 999,
     overflow: 'hidden',
     border: `1px solid ${vars.color.borderBright}`,
