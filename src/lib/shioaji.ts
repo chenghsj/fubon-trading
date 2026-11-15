@@ -15,6 +15,7 @@ import { observeMarketSnapshots } from './market-snapshot-store';
 import { observeTradeResponse } from './trade-observations';
 import { noteStockOrderConditions } from './stock-order-conditions';
 import { beginServerInfoRequest, observeServerInfo } from './server-info-store';
+import { paperCostPayload } from './paper-cost';
 // src/lib/shioaji.ts
 
 import { accountFor, getAccountState } from './account-store';
@@ -905,6 +906,7 @@ export function placeFuturesOrder(
     return sendOrderMutation<Trade>('/api/v1/order/place_order', {
         contract: orderableKey(contract),
         futures_order: { ...order, account: selected },
+        ...paperCostPayload(contract),
     }, selected, opts).then(ensureAccepted).then(trade => observeTradeResponse(trade, selected));
 }
 

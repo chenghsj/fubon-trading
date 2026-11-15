@@ -113,7 +113,7 @@ def test_durable_intent_precedes_one_submission_and_never_repeats_same_signal(se
     assert len(gateway.requests[0]["tag"])==10
 
 
-@pytest.mark.parametrize("mode",["demo","paper","live"])
+@pytest.mark.parametrize("mode",["demo","live"])
 def test_other_environments_cannot_start(setup,mode):
     trader,gateway,clock,store,cfg = setup
     gateway.mode = mode

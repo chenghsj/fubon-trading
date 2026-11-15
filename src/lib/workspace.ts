@@ -609,7 +609,7 @@ export const BLOCK_META: Record<
     },
     autotrade: {
         label: '自動交易',
-        description: 'Sandbox 策略啟停、測試委託與風控狀態',
+        description: 'Paper／Sandbox 策略、模擬帳簿與風控狀態',
         category: 'trading',
         pinnable: false,
         singleton: true,

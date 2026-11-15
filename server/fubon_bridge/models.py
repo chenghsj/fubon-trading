@@ -33,11 +33,19 @@ class Order(BaseModel):
         return self
 
 
+class PaperCost(BaseModel):
+    model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
+    fee_per_side: float = Field(default=20,ge=0,le=1000)
+    tax_rate: float = Field(default=.00002,ge=0,le=.01)
+    fee_source: Literal['assumed','statement'] = 'assumed'
+
+
 class PlaceOrder(BaseModel):
     model_config = ConfigDict(extra="forbid")
     contract: ContractKey
     stock_order: Order | None = None
     futures_order: Order | None = None
+    paper_cost: PaperCost | None = None
 
     @model_validator(mode="after")
     def exactly_one_order(self):

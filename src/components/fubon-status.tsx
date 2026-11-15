@@ -39,7 +39,7 @@ export function FubonStatus() {
     return <div className={unavailable || info?.mode === 'live' ? styles.warning : styles.banner} role="status">
         <strong>Fubon Trading</strong>
         <span>{label}</span>
-        <span>{info?.mode === 'sandbox' ? 'Sandbox 策略可由「自動交易」面板啟動 · 圖表括號單尚未支援' : '手動交易 · 自動停損停利尚未支援'}</span>
+        <span>{['sandbox', 'paper'].includes(info?.mode ?? '') ? `${info?.mode === 'paper' ? 'Paper' : 'Sandbox'} 策略可由「自動交易」面板啟動 · 圖表括號單尚未支援` : '手動交易 · 自動停損停利尚未支援'}</span>
         {info?.mode !== 'demo' && info?.connected && <span>{info.session === 'afterhours' ? '夜盤' : '日盤'} · {info.market_connected ? '行情已連線' : '行情等待連線'}</span>}
         <Button size="compact" variant="ghost" type="button" title="鎖定此工作階段，不會取消委託或平倉" onClick={() => { void logoutFubonSession(); }} >鎖定介面</Button>
         <a className={styles.link} href="https://github.com/chenghsj/fubon-trading" target="_blank" rel="noreferrer">專案與設定說明</a>

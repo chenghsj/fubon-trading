@@ -17,7 +17,8 @@ from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
 from .research import HistoryRequest, ResearchStore, load_history
-from .auto_gateway import SandboxGateway
+from .auto_gateway import SandboxGateway, PaperGateway
+from .paper_store import PaperStore
 from .auto_store import AutoStore
 from .auto_trading import AutoConfig, SandboxAutoTrader
 from .learning_store import LearningStore
@@ -30,7 +31,7 @@ from typing import Literal
 
 class AutoControl(BaseModel):
     run_id: str
-    command: Literal["pause", "stop", "reconcile", "archive"]
+    command: Literal["pause", "stop", "reconcile", "archive", "flatten"]
     acknowledgement: str = ""
     execution_allowed: bool = False
 
@@ -66,9 +67,10 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         if loop and not loop.is_closed():
             loop.call_soon_threadsafe(deliver)
 
-    broker = Broker(cfg, publish, sdk_factory)
     research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
-    automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(SandboxGateway(broker), AutoStore(research), session.authorize)
+    broker = Broker(cfg,publish,sdk_factory,paper_store=PaperStore(research) if cfg.mode=='paper' else None)
+    gateway = PaperGateway(broker) if cfg.mode=='paper' else SandboxGateway(broker)
+    automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(gateway,AutoStore(research,cfg.mode),session.authorize)
     learning = LearningService(broker,LearningStore(research),automation)
 
     @asynccontextmanager
@@ -211,7 +213,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             session=cfg.session, error=broker.error,
             trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
             supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin"],
-            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "本機模擬不計手續費、稅與市場衝擊；重啟即重設"])
+            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
 
     @app.get("/api/v1/health")
     def health():
@@ -285,6 +287,12 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.get("/api/v1/automation/state")
     def automation_state(request: Request):
         return automation.snapshot(request.headers.get("authorization", ""))
+
+    @app.get('/api/v1/paper/state')
+    def paper_state():
+        if cfg.mode != 'paper':
+            raise ValueError('本機持久模擬帳簿僅供 paper 模式')
+        return broker.paper.overview()
 
     @app.post("/api/v1/automation/start")
     def automation_start(request: Request, body: AutoConfig):
@@ -389,7 +397,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         if order.quantity > cfg.max_quantity:
             raise ValueError(f"超過本機單筆數量上限 {cfg.max_quantity}")
         account = broker.account(order.account)
-        return broker.place(body.contract.model_dump(), order.model_dump(exclude={"account"}), account)
+        cost=body.paper_cost.model_dump() if body.paper_cost else None
+        return broker.place(body.contract.model_dump(),order.model_dump(exclude={"account"}),account,paper_cost=cost)
 
     @app.post("/api/v1/order/trades")
     def trades(body: dict = Body(...)):

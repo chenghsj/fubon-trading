@@ -5,7 +5,7 @@
 ```text
 React → 同來源 /api proxy → 127.0.0.1:21323
                            ├─ demo: 合成行情 + PaperBook
-                           ├─ paper: Fubon 行情 + PaperBook
+                           ├─ paper: Fubon 行情 + SQLite PaperBook + 可選策略面板
                            ├─ sandbox: 官方測試行情／委託 + 可選策略面板
                            └─ live: Fubon 行情／交易／帳務
 ```
@@ -47,7 +47,7 @@ React → 同來源 /api proxy → 127.0.0.1:21323
 
 富邦主動回報與 Shioaji 的成交明細、取消增量語意不同。目前僅用回報觸發帳務重讀，未產生經驗證的 Shioaji DealReport，因此停用括號停損停利、觸價、定時平倉與兩腳價差自動引擎。主要入口會拒絕建立，畫面停用保護按鈕。手動下單、改刪與平倉仍可用。
 
-另提供限定微台單口的 [sandbox 策略自動交易面板](design/sandbox-auto-trading.md)，直接核對富邦權威委託與成交明細，不啟用上述相容層引擎。面板初始停用，需由使用者啟動；本機輪詢退出並非券商端停損停利保護。
+另提供限定微台單口的 [paper／sandbox 策略自動交易面板](design/sandbox-auto-trading.md)：sandbox 核對富邦權威委託與成交明細，paper 經持久本機帳簿核對。它不啟用上述相容層引擎；初始停用，需由使用者啟動。Paper 費稅、保存與恢復方式見 [操作規格](design/paper-trading.md)；本機輪詢退出並非券商端停損停利保護。
 
 ## Passkey 規格來源
 

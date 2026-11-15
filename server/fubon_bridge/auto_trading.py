@@ -1,4 +1,4 @@
-"""Single-day, single-lot TMF automation for the official sandbox only.
+"""Single-day, single-lot TMF automation for paper and the official sandbox.
 
 The worker owns execution. Browser heartbeats permit new entries, not exit monitoring.
 Every intent is durable before its one SDK submission; uncertain outcomes are queried.
@@ -104,7 +104,7 @@ class SandboxAutoTrader:
         self.last_heartbeat_received = float('-inf')
         self.load_error = False
         try:
-            self.state = (store.latest() if gateway.mode=="sandbox" else None) or empty_state()
+            self.state = (store.latest() if gateway.mode in {"sandbox","paper"} else None) or empty_state()
             if self.state["id"]:
                 self.state["config"] = AutoConfig.model_validate(self.state["config"]).model_dump(mode="json")
                 assert isinstance(self.state["orders"],list)
@@ -121,7 +121,7 @@ class SandboxAutoTrader:
         with self.lock:
             result = deepcopy(self.state)
             result["executionBlocked"] = self.execution_blocked.is_set() or result.get("executionBlocked",False)
-            result.update(mode=self.gateway.mode,available=self.gateway.mode=="sandbox" and not self.load_error,
+            result.update(mode=self.gateway.mode,available=self.gateway.mode in {"sandbox","paper"} and not self.load_error,
                 monitoring=self.monitoring,
                 owned=bool(self.owner and self.owner==header), leaseSeconds=max(0,round(self.lease_until-self.monotonic())),
                 events=self.store.events(self.state["id"]) if self.state["id"] else [])
@@ -133,8 +133,8 @@ class SandboxAutoTrader:
             self.store.save(self.state,kind,message)
 
     def _assert_mode(self):
-        if self.gateway.mode!="sandbox" or self.closing.is_set() or self.load_error:
-            raise ValueError("自動交易僅支援官方 sandbox；目前不可啟動")
+        if self.gateway.mode not in {"sandbox","paper"} or self.closing.is_set() or self.load_error:
+            raise ValueError("自動交易僅支援 sandbox 或 paper；目前不可啟動")
 
     def start(self, config, header):
         with self.lock:
@@ -153,27 +153,36 @@ class SandboxAutoTrader:
             if self.state["status"] in {"running","stopping"} or self.state["pending"] or self.state["position"]:
                 raise ValueError("已有執行中策略或未確認曝險；請先暫停、對帳與退出")
             self.store.claim(self.writer)
-            previous = self.store.for_day(cfg["account"],cfg["trade_date"])
-            if previous:
-                previous['config']=AutoConfig.model_validate(previous['config']).model_dump(mode='json')
-            if previous and previous.get("manualResolved"):
-                raise ValueError("本日已人工封存，不再重新啟動；請選擇下一交易日")
-            if previous and previous["entryCount"] and previous["config"]!=cfg:
-                raise ValueError("本日已有進場意圖，設定已固定；請沿用原設定恢復")
-            if previous and (previous["pending"] or previous["position"]):
-                raise ValueError("本日仍有未確認委託或曝險，請先重新對帳")
-            if previous and sum(o["filled"]*(1 if o["action"]=="Buy" else -1) for o in previous["orders"]):
-                raise ValueError("本日成交紀錄仍有曝險，請先重新對帳")
-            contract = self.gateway.prepare(cfg)
-            self.state = previous or empty_state()
-            self.state.update(id=self.state["id"] or uuid.uuid4().hex,config=cfg,contract=contract,
-                status="running",reason="等待啟動後新完成的 5 分訊號",lastDecision=int(at.timestamp())//300*300)
-            self.owner, self.lease_until = header,self.monotonic()+15
-            self.last_heartbeat_received = self.monotonic()
-            self.entries_blocked.clear()
-            self.monitoring = True
-            self._save("啟動 sandbox 策略；不追補啟動前訊號","control")
-            return self.snapshot(header)
+            prior_state = deepcopy(self.state)
+            prior_control = self.monitoring,self.owner,self.lease_until,self.last_heartbeat_received
+            try:
+                previous = self.store.for_day(cfg["account"],cfg["trade_date"])
+                if previous:
+                    previous['config']=AutoConfig.model_validate(previous['config']).model_dump(mode='json')
+                if previous and previous.get("manualResolved"):
+                    raise ValueError("本日已人工封存，不再重新啟動；請選擇下一交易日")
+                if previous and previous["entryCount"] and previous["config"]!=cfg:
+                    raise ValueError("本日已有進場意圖，設定已固定；請沿用原設定恢復")
+                if previous and (previous["pending"] or previous["position"]):
+                    raise ValueError("本日仍有未確認委託或曝險，請先重新對帳")
+                if previous and sum(o["filled"]*(1 if o["action"]=="Buy" else -1) for o in previous["orders"]):
+                    raise ValueError("本日成交紀錄仍有曝險，請先重新對帳")
+                contract = self.gateway.prepare(cfg)
+                self.state = previous or empty_state()
+                self.state.update(id=self.state["id"] or uuid.uuid4().hex,config=cfg,contract=contract,
+                    status="running",reason="等待啟動後新完成的 5 分訊號",lastDecision=int(at.timestamp())//300*300)
+                self.owner, self.lease_until = header,self.monotonic()+15
+                self.last_heartbeat_received = self.monotonic()
+                self.entries_blocked.clear()
+                self.monitoring = True
+                self._save(f"啟動 {self.gateway.mode} 策略；不追補啟動前訊號","control")
+                return self.snapshot(header)
+            except Exception:
+                self.state = prior_state
+                self.monitoring,self.owner,self.lease_until,self.last_heartbeat_received = prior_control
+                if not self.monitoring:
+                    self.store.release(self.writer)
+                raise
 
     def _execution_control(self, allowed, received):
         # This short gate never waits for the state lock or brokerage RPCs.
@@ -211,7 +220,7 @@ class SandboxAutoTrader:
 
     def control(self, command, header, run_id, acknowledgement="", execution_allowed=False):
         received = self.monotonic()
-        if command in {"pause","stop"} and run_id==self.state["id"] and self.authorize(header):
+        if command in {"pause","stop","flatten"} and run_id==self.state["id"] and self.authorize(header):
             self.entries_blocked.set()
         with self.lock:
             self._assert_mode()
@@ -219,6 +228,8 @@ class SandboxAutoTrader:
                 raise ValueError("策略版本已變更，請重新整理")
             if not self.authorize(header):
                 raise ValueError("工作階段已鎖定")
+            if command=='flatten':
+                return self._flatten_paper(header,acknowledgement,execution_allowed,received)
             if self.state.get("manualResolved") or self.state["status"] in {"idle","stopped","completed","archived"}:
                 raise ValueError("本次策略已結束，不能重新開啟舊控制指令；請建立新的交易日設定")
             self.store.claim(self.writer)
@@ -250,6 +261,8 @@ class SandboxAutoTrader:
             elif command=="archive":
                 if self.state["status"]!="attention" or acknowledgement!="已確認測試委託與部位":
                     raise ValueError("請先人工確認測試委託與部位，再輸入完整確認文字")
+                if self.gateway.mode=='paper':
+                    self.gateway.assert_flat(self.state['config'])
                 self.state.update(status="archived",manualResolved=True,pending=None,position=None,
                     reason="已由使用者人工確認並封存；此動作沒有撤單或平倉")
                 self.owner = None
@@ -260,14 +273,49 @@ class SandboxAutoTrader:
             self._save(self.state["reason"],"control")
             return self.snapshot(header)
 
-    def _valid_quote(self):
+    def _flatten_paper(self, header, acknowledgement, execution_allowed, received):
+        if self.gateway.mode!='paper' or acknowledgement!='確認退出 paper 策略部位' or not execution_allowed:
+            raise ValueError('請解除風控鎖並確認退出 paper 策略部位；此操作不適用券商環境')
+        cfg, at = self.state['config'],self.clock()
+        self.store.claim(self.writer)
+        try:
+            self._reconcile()
+            self._rebuild()
+            contract=self.gateway.prepare(cfg)
+            if contract['delivery_date']<at.date().isoformat():
+                raise ValueError('原合約已到期，無法以其他月份行情代替退出')
+            self.state['contract']=contract
+            self.state['quote']=self.gateway.quote(contract)
+            self._rebuild()
+            if self.state['pending']:
+                raise ValueError('仍有待確認委託，不重送退出')
+            if self.state['position']:
+                self.state['executionBlocked']=self._execution_control(True,received)
+                self.state.update(status='stopping',manualResolved=False,exitRequested=True)
+                self.monitoring=True
+                self._send('Sell' if self.state['position']['side']=='Buy' else 'Buy','exit','使用者確認退出保存的 paper 部位',recovery=True)
+                self._reconcile()
+                self._rebuild()
+            self.gateway.assert_flat(cfg)
+            self.state.update(status='stopped',reason='保存的 paper 策略部位已確認退出，未恢復新倉')
+            self._save(self.state['reason'],'control')
+        except Exception:
+            self.state.update(status='attention',reason='Paper 部位退出未完成；保留紀錄，不自動重送，請確認原合約新鮮行情與委託')
+            self._save(self.state['reason'],'error')
+            raise
+        finally:
+            self.monitoring,self.owner,self.lease_until=False,None,0
+            self.store.release(self.writer)
+        return self.snapshot(header)
+
+    def _valid_quote(self, day=None):
         q = self.state["quote"]
         if not q or q.get("trial") or not all(math.isfinite(q.get(k,0)) and q.get(k,0)>0 for k in ("price","bid","ask")):
             return False
         if q["bid"]>q["ask"]:
             return False
         age = self.clock().timestamp()-q["time"]
-        return -2<=age<=15 and datetime.fromtimestamp(q["time"],TAIPEI).date().isoformat()==self.state["config"]["trade_date"]
+        return -2<=age<=15 and datetime.fromtimestamp(q["time"],TAIPEI).date().isoformat()==(day or self.state["config"]["trade_date"])
 
     def _owned_trade(self, trade, order):
         cfg = self.state["config"]
@@ -353,13 +401,16 @@ class SandboxAutoTrader:
             if not self.state["pending"]:
                 self.state["exitRequested"] = False
 
-    def _send(self, action, role, reason):
+    def _send(self, action, role, reason, *, recovery=False):
         self._assert_mode()
+        if recovery and (self.gateway.mode!='paper' or role!='exit'):
+            raise ValueError('手動恢復僅供 paper 退出')
         if not self.monitoring or self.state.get("manualResolved"):
             raise ValueError("尚未人工接管監控，不可建立委託")
         cfg, at = self.state["config"],self.clock()
         minute = at.hour*60+at.minute
-        if at.date().isoformat()!=cfg["trade_date"] or not 540<=minute<825 or not self._valid_quote() or self.state["pending"]:
+        day=at.date().isoformat() if recovery else cfg['trade_date']
+        if at.date().isoformat()!=day or day<cfg['trade_date'] or not 540<=minute<825 or not self._valid_quote(day) or self.state["pending"]:
             raise ValueError("送單前日期、行情或待確認狀態不符")
         if role=="entry" and (self.state["status"]!="running" or not self.owner or not self.authorize(self.owner) or self.monotonic()>self.lease_until or not 560<=minute<=790):
             raise ValueError("新倉控制權或交易時段已失效")
@@ -508,13 +559,13 @@ class SandboxAutoTrader:
         bars = self.gateway.bars(cfg["contract_code"],cfg["trade_date"])
         closed = [b for b in bars if b["time"]<=decision]
         month = self.state["contract"].get("delivery_date", "").replace("-", "")[:6]
-        self.store.research.ingest_closed_bars(("fubon-sandbox","FUT","TMF",month,"regular"),closed)
+        self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"FUT","TMF",month,"regular"),closed)
         stocks = {}
         if cfg["use_basket"]:
             for member in cfg["basket"]:
                 values = self.gateway.bars(member["code"],cfg["trade_date"],"STK")
                 stocks[member["code"]] = [b for b in values if b["time"]<=decision]
-                self.store.research.ingest_closed_bars(("fubon-sandbox","STK",member["code"],"","regular"),stocks[member["code"]])
+                self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"STK",member["code"],"","regular"),stocks[member["code"]])
         signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks)
         self.state["lastSignal"] = signal
         self._save(signal["reason"],"signal")

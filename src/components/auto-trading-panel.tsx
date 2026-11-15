@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
+import { PaperLedger } from './paper-ledger';
 import { ContractFeeNote } from './contract-fee-note';
 import { getContractFee, useContractFee } from '../lib/contract-fee';
 import { apiGet } from '../lib/api';
@@ -83,10 +84,10 @@ export function AutoTradingPanel() {
         catch (e) { if (alive.current) setError(message(e)); }
         finally { if (alive.current) setBusy(''); }
     };
-    const control = async (command: 'pause' | 'stop' | 'reconcile' | 'archive') => {
+    const control = async (command: 'pause' | 'stop' | 'reconcile' | 'archive' | 'flatten') => {
         if (!state?.id) return;
         setBusy('正在套用控制…'); setError('');
-        try { accept(await fubonPost<AutoState>('/api/v1/automation/control', { command, run_id: state.id, acknowledgement, execution_allowed: !getRiskSettings().locked }, 45000)); setAcknowledgement(''); }
+        try { accept(await fubonPost<AutoState>('/api/v1/automation/control', { command, run_id: state.id, acknowledgement: command === 'flatten' ? '確認退出 paper 策略部位' : acknowledgement, execution_allowed: !getRiskSettings().locked }, 45000)); setAcknowledgement(''); }
         catch (e) { if (alive.current) setError(message(e)); }
         finally { if (alive.current) setBusy(''); }
     };
@@ -100,16 +101,23 @@ export function AutoTradingPanel() {
     }, [fee, editable, state?.entryCount, state?.status, state?.config?.trade_date, draft.trade_date]);
     const applyFee = (value: number) => setDraft(old => ({ ...old, fee_per_side: value, fee_source: 'statement' }));
     const updateNumber = (key: keyof AutoConfig, value: string) => setDraft(old => ({ ...old, [key]: value === '' ? NaN : Number(value), ...(key === 'fee_per_side' ? { fee_source: Number(value) === fee?.feePerSide ? 'statement' as const : 'assumed' as const } : {}) }));
-    return <section className={s.wrap} aria-label="Sandbox 自動交易">
+    const paper = state?.mode === 'paper';
+    const choices = accounts.filter(a => !paper || a.account_id === 'PAPER-AUTO-F');
+    useEffect(() => {
+        const account = accounts.find(a => a.account_id === 'PAPER-AUTO-F');
+        if (paper && !state?.config && account) setDraft(old => old.account.account_id === 'PAPER-AUTO-F' ? old : { ...old, account });
+    }, [paper, state?.config, accounts]);
+    return <section className={s.wrap} aria-label={paper ? 'Paper 自動交易' : 'Sandbox 自動交易'}>
         <div className={s.header}><h2 className={s.title}>自動交易 · 微台日盤</h2><span className={`${s.status} ${state?.status === 'attention' ? s.warning : ''}`}>{state ? AUTO_STATUS[state.status] : '讀取狀態…'}</span></div>
-        <p className={s.muted}>官方 sandbox 測試委託 · 單口、單一部位 · 09:00 開盤區間策略</p>
-        <p className={s.notice}><strong>策略驗證：研究中</strong><br />已檢查收盤訊號、缺漏資料與執行風控；已加入固定成本壓力情境，仍未通過穩健性檢查；尚缺獨立樣本外與盤中前測。啟動僅用於 sandbox 流程測試，不代表已通過獲利驗證。</p>
-        {state && !state.available && <p role="status" className={s.notice}>目前為 {state.mode}。請以既有官方 sandbox 設定啟動服務；此面板僅在 sandbox 執行。</p>}
+        <p className={s.muted}>{paper ? 'Paper 正式行情／本機模擬委託' : '官方 sandbox 測試委託'} · 單口、單一部位 · 09:00 開盤區間策略</p>
+        <p className={s.notice}><strong>策略驗證：研究中</strong><br />已檢查收盤訊號、缺漏資料與執行風控；已加入固定成本壓力情境，仍未通過穩健性檢查；尚缺獨立樣本外與盤中前測。啟動僅用於 paper／sandbox 流程測試，不代表已通過獲利驗證。</p>
+        {state && !state.available && <p role="status" className={s.notice}>目前為 {state.mode}。此面板支援 paper 本機模擬或官方 sandbox 日盤，正式交易不可啟動。</p>}
         <div className={s.notice} role="status"><strong>{state?.reason ?? '正在連線'}</strong><br />{state?.owned ? `本分頁持有控制權 · 心跳剩餘 ${state.leaseSeconds} 秒` : state?.id && activeStatuses.has(state.status) ? '此分頁可停止或對帳；尚未持有新倉控制權。' : '啟動前不會產生委託。'}</div>
         {globalBlock && <p className={s.warning}>新倉受風控限制：{globalBlock}</p>}
         {risk.locked && <p className={s.warning}>風控鎖定也會阻擋自動退出送單；已有曝險時請人工確認。</p>}
         {syncError && <p role="alert" className={s.warning}>{syncError}</p>}
         {error && <p role="alert" className={s.warning}>{error}</p>}
+        {paper && <PaperLedger />}
         <div className={s.metrics}>
             <div className={s.metric}>進場委託次數<strong className={s.number}>{state?.entryCount ?? 0} / {state?.config?.max_entries ?? draft.max_entries}</strong></div>
             <div className={s.metric}>本策略追蹤曝險<strong className={s.number}>{state?.position ? `${state.position.side === 'Buy' ? '多' : '空'} ${state.position.quantity} 口` : state?.pending ? '委託待確認' : '無'}</strong></div>
@@ -121,7 +129,7 @@ export function AutoTradingPanel() {
             <fieldset className={s.fieldset} disabled={!editable}>
                 <legend className={s.heading}>策略與執行設定</legend>
                 <div className={s.grid}>
-                    <label className={s.field}>期貨測試帳戶<SelectControl aria-label="期貨測試帳戶" wrapperClassName="w-full" disabled={!editable} className={s.control} value={autoAccountKey(draft.account)} onValueChange={selectedValue => { const a = accounts.find(a => autoAccountKey(a) === selectedValue); if (a) setDraft(old => ({ ...old, account: a })); }}><SelectOption value=":">選擇帳戶</SelectOption>{accounts.map(a => <SelectOption key={autoAccountKey(a)} value={autoAccountKey(a)}>{a.broker_id}-{a.account_id}</SelectOption>)}</SelectControl></label>
+                    <label className={s.field}>{paper ? '策略模擬帳戶' : '期貨測試帳戶'}<SelectControl aria-label={paper ? '策略模擬帳戶' : '期貨測試帳戶'} wrapperClassName="w-full" disabled={!editable} className={s.control} value={autoAccountKey(draft.account)} onValueChange={selectedValue => { const a = accounts.find(a => autoAccountKey(a) === selectedValue); if (a) setDraft(old => ({ ...old, account: a })); }}><SelectOption value=":">選擇帳戶</SelectOption>{choices.map(a => <SelectOption key={autoAccountKey(a)} value={autoAccountKey(a)}>{a.broker_id}-{a.account_id}</SelectOption>)}</SelectControl></label>
                     <label className={s.field}>微台具體合約<Input className={s.control} value={draft.contract_code} required pattern="TMF[A-L][0-9]" placeholder="TMFK6" onChange={e => setDraft(old => ({ ...old, contract_code: e.target.value.toUpperCase() }))} /></label>
                     <label className={s.field}>權值股濾網<SelectControl aria-label="權值股濾網" wrapperClassName="w-full" disabled={!editable} className={s.control} value={draft.use_basket ? 'basket' : 'baseline'} onValueChange={selectedValue => setDraft(old => ({ ...old, use_basket: selectedValue === 'basket' }))}><SelectOption value="baseline">開盤區間突破</SelectOption><SelectOption value="basket">突破＋權值股方向濾網</SelectOption></SelectControl></label>
                     <label className={s.field}>策略版本<SelectControl aria-label="策略版本" wrapperClassName="w-full" disabled={!editable} className={s.control} value={draft.strategy_version ?? 'orb_v1'} onValueChange={value => setDraft(old => ({ ...old, strategy_version: value as AutoConfig['strategy_version'] }))}><SelectOption value="orb_v1">V1 固定停損</SelectOption><SelectOption value="orb_atr_v2">V2 波動風控（研究候選）</SelectOption></SelectControl></label>
@@ -137,19 +145,20 @@ export function AutoTradingPanel() {
                 <div className={s.muted}><ContractFeeNote product="TMF" value={draft.fee_per_side} disabled={!editable} onApply={applyFee} />本計畫成本來源：{draft.fee_source === 'statement' ? '對帳單核對費率' : '試算假設'}。有進場意圖後保留原成本設定。</div>
             </fieldset>
             {lockedPlan && <p className={s.muted}>執行設定已固定；本日一旦有進場意圖，重新啟動也保留額度與原設定。</p>}
-            <div className={s.actions}><Button size="compact" type="submit" disabled={!mayStart}>啟動／恢復 sandbox 策略</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('pause')}>停止新倉</Button><Button size="compact" type="button" variant="destructive" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('stop')}>停止並退出</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('reconcile')}>重新對帳與接管監控</Button></div>
+            <div className={s.actions}><Button size="compact" type="submit" disabled={!mayStart}>啟動／恢復 {paper ? 'paper' : 'sandbox'} 策略</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('pause')}>停止新倉</Button><Button size="compact" type="button" variant="destructive" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('stop')}>停止並退出</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('reconcile')}>重新對帳與接管監控</Button></div>
         </form>
         {busy && <p role="status">{busy}</p>}
         <p className={s.muted}>首 15 分鐘建立區間；09:20–13:10 只處理啟動後的新 5 分收盤訊號，每方向最多一次進場意圖，每次 1 口。限價 IOC 未成交也占用進場額度；13:20 嘗試退出。新委託的停損停利以確認成交價為基準；成交價未明時暫用限價，由本機服務每 5 秒監控，沒有建立券商端保護單。</p>
         <p className={s.muted}>面板關閉、鎖定或心跳逾時 15 秒會停止新倉；服務在線時仍追蹤既有曝險。風控鎖會阻擋所有自動送單。退出最多嘗試三張已確認結果的 IOC；未知結果不重送。服務重啟後須手動恢復／對帳。</p>
         {state?.position && <div className={s.notice}>本策略成交推導：{state.position.side === 'Buy' ? '多' : '空'} 1 口 · 成交價 {amount(state.position.entryPrice)}<br />{state.position.referenceType === 'fill' ? '確認成交價基準' : '限價暫估／舊計畫基準'} {state.position.referencePrice} · 停損 {state.position.stop} · 停利 {state.position.target}<br />{state.monitoring ? '後端監控中' : '尚未接管退出監控，請重新對帳'}</div>}
+        {paper && state?.position && <div className={s.actions}><Button size="compact" variant="destructive" disabled={!!busy || risk.locked || !!state.pending} onClick={() => void control('flatten')}>確認退出保存的 paper 策略部位</Button><p className={s.muted}>可處理隔日保留的部位，僅使用原具體合約的新鮮日盤行情；不恢復新倉。</p></div>}
         {state?.quote && <p className={s.muted}>最近報價 {amount(state.quote.price)} · {when(state.quote.time)}{state.quote.trial ? ' · 試撮' : ''}</p>}
         {state?.lastSignal && <div className={s.notice}>最近判斷 {when(state.lastSignal.time)} · {state.lastSignal.reason}<br />開盤區間 {amount(state.lastSignal.low)}～{amount(state.lastSignal.high)}{state.lastSignal.score !== null && ` · 籃子加權變化 ${(state.lastSignal.score * 100).toFixed(4)}%`}</div>}
         <h3 className={s.heading}>本策略委託</h3>
         <div className={s.scroll}><table className={s.table}><thead><tr><th>時間／識別碼</th><th>用途／方向</th><th>限價</th><th>狀態</th><th>確認成交</th><th>成交價</th></tr></thead><tbody>{state?.orders.map(o => <tr key={o.tag}><td>{when(o.submittedAt)}<br />{o.tag}</td><td>{o.role === 'entry' ? '進場' : '退出'} / {o.action === 'Buy' ? '買' : '賣'}</td><td>{o.limit}</td><td>{o.status}</td><td>{o.filled} 口</td><td>{o.filled ? amount(o.fillPrice) : '—'}</td></tr>)}{!state?.orders.length && <tr><td colSpan={6}>尚無策略委託。啟動後符合完整資料與風控條件才會送出測試單。</td></tr>}</tbody></table></div>
         <h3 className={s.heading}>執行紀錄</h3>
         <ul className={s.log}>{state?.events.map(e => <li key={e.id}><span className={s.muted}>{when(e.time)}</span><br />{e.message}</li>)}{!state?.events.length && <li>尚未啟動；設定與意圖會保存在本地資料庫。</li>}</ul>
-        <p className={s.muted}>損益含設定的費率估計，不是券商帳務。共用測試帳戶的其他操作可能改變總庫存；本面板只根據自有識別碼的成交追蹤策略曝險。</p>
-        {state?.status === 'attention' && <details><summary>已人工處理：封存本次追蹤</summary><p className={s.muted}>先到委託／持倉確認測試單與部位均已處理。封存只結束本機追蹤，不會撤單或平倉，本日也不能再次啟動。</p><label className={s.field}>輸入「已確認測試委託與部位」<Input className={s.control} value={acknowledgement} onChange={e => setAcknowledgement(e.target.value)} /></label><div className={s.actions}><Button size="compact" variant="outline" disabled={!!busy || acknowledgement !== '已確認測試委託與部位'} onClick={() => void control('archive')}>確認並封存</Button></div></details>}
+        <p className={s.muted}>損益含設定的費率估計，不是券商帳務。{paper ? 'Paper 使用策略專用模擬帳戶，費稅按凍結設定保存；手動單不影響策略部位。' : '共用測試帳戶的其他操作可能改變總庫存；本面板只根據自有識別碼的成交追蹤策略曝險。'}</p>
+        {state?.status === 'attention' && <details><summary>已人工處理：封存本次追蹤</summary><p className={s.muted}>先到委託／持倉確認模擬委託與部位均已處理。封存只結束本機追蹤，不會撤單或平倉，本日也不能再次啟動。</p><label className={s.field}>輸入「已確認測試委託與部位」<Input className={s.control} value={acknowledgement} onChange={e => setAcknowledgement(e.target.value)} /></label><div className={s.actions}><Button size="compact" variant="outline" disabled={!!busy || acknowledgement !== '已確認測試委託與部位'} onClick={() => void control('archive')}>確認並封存</Button></div></details>}
     </section>;
 }
