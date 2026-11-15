@@ -6,7 +6,7 @@ import re
 import threading
 import uuid
 
-from .config import Config
+from .config import Config, SANDBOX_URL
 from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_events,
                       normalize_trade, now, number, snapshot, stamp, symbol_alias, unwrap)
 from .paper import ACTIVE, PaperBook
@@ -43,15 +43,19 @@ class Broker:
         try:
             cfg = self.config.with_credentials()
             self.config = cfg
-            if not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
+            if cfg.mode != "sandbox" and not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
                 self.error = "尚未設定富邦登入資料；請執行 pnpm credentials set 儲存至 Keychain 後重啟服務"
                 return
-            if self.sdk_factory:
-                self.sdk = self.sdk_factory()
-            else:
+            factory = self.sdk_factory
+            if factory is None:
                 from fubon_neo.sdk import FubonSDK
-                self.sdk = FubonSDK()
-            accounts = unwrap(self.sdk.apikey_login(cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password))
+                factory = FubonSDK
+            if cfg.mode == "sandbox":
+                self.sdk = factory(30, 2, url=SANDBOX_URL)
+                accounts = unwrap(self.sdk.login(cfg.personal_id, "12345678", cfg.cert_path, cfg.cert_password))
+            else:
+                self.sdk = factory()
+                accounts = unwrap(self.sdk.apikey_login(cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password))
             for account in accounts:
                 kind = "F" if field(account, "account_type") == "futopt" else "S"
                 key = (kind, str(field(account, "branch_no")), str(field(account, "account")))
@@ -96,7 +100,7 @@ class Broker:
         return bool(needed) and needed.issubset(self.connected_sockets)
 
     def account_rows(self):
-        if self.config.mode != "live":
+        if not self.config.broker_orders:
             return [dict(account_type=kind, broker_id="LOCAL", account_id=f"{self.config.mode.upper()}-{kind}",
                 person_id="", username="展示模擬帳戶" if self.config.mode == "demo" else "富邦行情／本機模擬帳戶",
                 signed=self.config.mode == "demo" or bool(self.sdk and not self.error)) for kind in ("F", "S")]
@@ -301,7 +305,10 @@ class Broker:
                 result[key_].append(value)
         return result
 
-    def _on_sdk_event(self, *args):
+    def _on_sdk_event(self, code, *args):
+        if str(code) in {"300", "301", "302", "303", "304", "500"}:
+            self.error = "富邦交易連線已中斷，請重啟服務並重新登入；委託結果請向券商核對"
+            self.emit("fubon_reconcile_required", {"reason": "broker_disconnected"})
         # Account connection events require manual re-establishment rather than
         # silently keeping a trading session marked healthy.
         for key in self.cache_health:
@@ -434,7 +441,7 @@ class Broker:
         return deepcopy(trade)
 
     def order_list(self, account, refresh=True):
-        if self.config.mode != "live":
+        if not self.config.broker_orders:
             return [deepcopy(t) for t in self.paper.orders.values() if t["order"]["account"] == account]
         with self.lock:
             if refresh:
@@ -460,9 +467,9 @@ class Broker:
             # Never let an alias or browser-provided target choose a real order.
             if contract.get("target_code") or "!" in contract["code"] or re.search(r"R[123]$", contract["code"]):
                 raise ValueError("請選擇具體月份合約下單，連續月代碼僅供看盤")
-            if self.config.mode != "live":
+            if not self.config.broker_orders:
                 return self.paper.place(contract, order, account, self.quote(contract))
-            if not self.config.live_enabled:
+            if self.config.mode == "live" and not self.config.live_enabled:
                 raise ValueError("正式下單未啟用")
             socket_kind = "stock" if kind == "STK" else "futopt"
             if socket_kind not in self.connected_sockets:
@@ -470,7 +477,8 @@ class Broker:
             from fubon_neo.sdk import FutOptOrder, Order
             from fubon_neo.constant import BSAction, TimeInForce, FutOptMarketType, FutOptPriceType, FutOptOrderType, MarketType, PriceType, OrderType
             shared = dict(buy_sell=getattr(BSAction, order["action"]), symbol=contract["code"],
-                          time_in_force=getattr(TimeInForce, order["order_type"]), price=str(order["price"]), user_def="FubonWeb")
+                          time_in_force=getattr(TimeInForce, order["order_type"]), price=str(order["price"]),
+                          user_def=("FW" + uuid.uuid4().hex[:8]) if self.config.mode == "sandbox" else "FubonWeb")
             if kind == "STK":
                 lot = order.get("order_lot", "Common")
                 if lot not in {"Common", "IntradayOdd", "Odd"} or order.get("order_cond", "Cash") != "Cash" or order.get("daytrade_short", False):
@@ -491,7 +499,7 @@ class Broker:
 
     def mutate(self, ident, action, value=None):
         with self.lock:
-            if self.config.mode != "live":
+            if not self.config.broker_orders:
                 trade = self.paper.orders.get(ident)
                 if not trade:
                     raise ValueError("找不到本服務的委託")
@@ -499,7 +507,7 @@ class Broker:
                     return self.paper.cancel(ident)
                 return self.paper.update(ident, "price" if action == "price" else "quantity", value, self.quote(trade["contract"]))
             self.ready()
-            if not self.config.live_enabled:
+            if self.config.mode == "live" and not self.config.live_enabled:
                 raise ValueError("正式改刪單未啟用")
             trade = self.trades.get(ident)
             if not trade:
@@ -519,17 +527,19 @@ class Broker:
                 obj = client.make_modify_price_obj(raw, str(value))
                 row = unwrap(client.modify_price(self.raw_account(account), obj))
             else:
-                if value > current["status"]["order_quantity"] - current["status"]["cancel_quantity"]:
-                    raise ValueError("改量只支援減量")
+                effective = current["status"]["order_quantity"] - current["status"]["cancel_quantity"]
+                remaining = effective - current["status"]["deal_quantity"]
+                if value <= 0 or value >= remaining:
+                    raise ValueError("減少量須小於未成交量；全部取消請使用刪單")
                 if account["account_type"] == "S":
                     raise ValueError("股票改量尚未驗證，請使用刪單後重新委託")
-                obj = client.make_modify_lot_obj(raw, value)
+                obj = client.make_modify_lot_obj(raw, int(effective - value))
                 row = unwrap(client.modify_lot(self.raw_account(account), obj))
             return self._remember(row, current["contract"], account)
 
     def positions(self, account):
         with self.lock:
-            if self.config.mode != "live":
+            if not self.config.broker_orders:
                 return self.paper.position_rows(account, self.quote)
             if account["account_type"] == "S":
                 rows = unwrap(self.sdk.accounting.unrealized_gains_and_loses(self.raw_account(account))) or []
@@ -557,7 +567,7 @@ class Broker:
                 last_price=number(field(row, "market_price")), pnl=number(field(row, "profit_or_loss"))) for i, row in enumerate(rows)]
 
     def margin(self, account):
-        if self.config.mode != "live":
+        if not self.config.broker_orders:
             return dict(yesterday_balance=1_000_000, today_balance=1_000_000, equity=1_000_000,
                 equity_amount=1_000_000, available_margin=1_000_000, initial_margin=0, maintenance_margin=0,
                 fee=0, tax=0, future_open_position=sum(p["pnl"] for p in self.positions(account)))
@@ -575,7 +585,7 @@ class Broker:
             option_openbuy_market_value="opt_long_value", option_opensell_market_value="opt_short_value").items()}
 
     def balance(self, account):
-        if self.config.mode != "live":
+        if not self.config.broker_orders:
             return dict(acc_balance=1_000_000, date=now().date().isoformat(), errmsg="本機模擬資金")
         row = unwrap(self.sdk.accounting.bank_remain(self.raw_account(account)))
         return dict(acc_balance=number(field(row, "balance")), date=now().date().isoformat(), errmsg="")

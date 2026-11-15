@@ -102,13 +102,14 @@ class PaperBook:
         trade = self.orders[ident]
         if trade["status"]["status"] not in ACTIVE:
             raise ValueError("此委託已無可修改數量")
-        if key == "quantity" and value > trade["status"]["order_quantity"] - trade["status"]["cancel_quantity"]:
-            raise ValueError("改量只支援減量")
+        remaining = trade["status"]["order_quantity"] - trade["status"]["cancel_quantity"] - trade["status"]["deal_quantity"]
+        if key == "quantity" and (value <= 0 or value >= remaining):
+            raise ValueError("減少量須小於未成交量；全部取消請使用刪單")
         if key == "price":
             trade["order"][key] = value
             trade["status"]["modified_price"] = value
         else:
-            trade["status"]["cancel_quantity"] = trade["status"]["order_quantity"] - value
+            trade["status"]["cancel_quantity"] += value
         self._report(trade, "UpdatePrice" if key == "price" else "UpdateQty")
         self.match(trade, quote)
         return deepcopy(trade)

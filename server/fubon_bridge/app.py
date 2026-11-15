@@ -168,8 +168,9 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             instance_id=broker.instance_id, connected=cfg.mode == "demo" or bool(broker.sdk and not broker.error),
             market_connected=broker.market_connected(),
             session=cfg.session, error=broker.error,
+            trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
             supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin"],
-            limitations=["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "本機模擬不計手續費、稅與市場衝擊；重啟即重設"])
+            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "本機模擬不計手續費、稅與市場衝擊；重啟即重設"])
 
     @app.get("/api/v1/health")
     def health():
@@ -297,7 +298,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.post("/api/v1/order/trade_cache_health")
     def cache_health(body: dict = Body(...)):
         account = broker.account(body)
-        healthy = cfg.mode != "live" or broker.cache_health.get(account["account_id"], False)
+        healthy = not cfg.broker_orders or broker.cache_health.get(account["account_id"], False)
         return dict(state="Healthy" if healthy else "Degraded",
             reasons=[] if healthy else [{"event_type": "FuturesOrder" if account["account_type"] == "F" else "StockOrder", "reason": "PendingReport"}])
 

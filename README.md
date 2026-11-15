@@ -65,6 +65,7 @@ pnpm credentials delete   # 刪除儲存資料；另需停止服務才能結束�
 舊版 `.env` 的四個登入欄位已停用；若其中仍有值，paper/live 會拒絕啟動。請先執行 `pnpm credentials set`，確認設定成功，再自行清除舊檔與備份中的明文資料。程式不會自動搬移或刪除你的秘密。
 
 - `paper`：富邦真實行情，委託只進本機模擬帳簿。
+- `sandbox`：使用官方測試帳戶登入固定的 `neoapitest.fbs.com.tw`，委託送到富邦測試主機，不讀正式 Keychain；設定方式見 [FUBON.md](docs/FUBON.md#官方測試環境)。
 - `live`：必須同時設 `FUBON_MODE=live` 與 `FUBON_ENABLE_LIVE_TRADING=true` 才能發送正式委託。修改後需重啟。
 - 夜盤另設 `FUBON_SESSION=afterhours`。
 - 登入失敗時顯示錯誤，不會退回合成行情。
@@ -73,7 +74,7 @@ pnpm credentials delete   # 刪除儲存資料；另需停止服務才能結束�
 - 瀏覽器只在同源 API 的 Authorization 標頭附帶權限，拒絕重新導向；不使用 Cookie 或查詢參數。工作階段 token 存在該分頁的 sessionStorage；不進入 localStorage、Git 或建置環境。
 - Keychain 與 token 可降低檔案外洩及未授權本機請求的風險，無法防止已控制你作業系統帳號或瀏覽器的惡意程式。
 
-**尚未使用真實富邦帳號驗證登入、行情權限、改刪單或成交回報。** 富邦公開測試帳號目前僅提供證券；本機 paper 不是券商期貨測試環境。
+**尚未使用真實富邦帳號驗證登入、行情權限、改刪單或成交回報。** 富邦目前提供證券及期貨官方測試帳號；本機 paper 與官方 sandbox 為不同模式。
 
 ## Passkey 復原與資料
 

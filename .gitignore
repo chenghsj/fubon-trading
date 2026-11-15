@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/
+node_modules
 
 # Build output
 dist/
@@ -10,6 +10,8 @@ __pycache__/
 
 # Environment
 .env
+.sandbox/
+server/log/
 .env.local
 .env.*.local
 
