@@ -14,6 +14,7 @@ const uiPort = Number(process.env.MODE_UI_PORT || 6193), apiPort = Number(proces
 const origin = `http://localhost:${uiPort}`, temporary = await mkdtemp(path.join(tmpdir(), 'fubon-mode-fixture-'));
 const artifacts = process.env.MODE_ARTIFACT_DIR || '/private/tmp/fubon-mode-qa-20261116';
 const launch = randomBytes(32).toString('base64url'), children = [], scenarios = [], screenshots = [], pageErrors = [], orderRequests = [];
+const passkeyGeometry = [];
 let browser, context, page, logs = '', closing;
 const dialog = () => page.locator('[role="dialog"]').filter({ hasText: '選擇行情來源與委託執行環境。' });
 const apply = () => dialog().getByRole('button', { name: '套用並重新連線', exact: true });
@@ -89,6 +90,55 @@ async function theme(name) {
     const settingsDialog = page.getByRole('dialog', { name: '設定', exact: true });
     await settingsDialog.getByRole('tab', { name: '外觀', exact: true }).click();
     await settingsDialog.getByRole('radio', { name, exact: true }).click(); await page.keyboard.press('Escape'); await expect(settingsDialog).toBeHidden();
+}
+
+async function passkeyAppearance(mode, scale) {
+    await page.evaluate(async ({ mode, scale }) => {
+        const themeStore = await import('/src/lib/theme-store.ts');
+        themeStore.setThemeSettings({ mode, convention: 'tw', fontScale: scale });
+    }, { mode, scale });
+}
+async function passkeyShot(name) {
+    const card = page.locator('[data-slot="card"][aria-labelledby="passkey-title"]');
+    await expect(card).toBeVisible();
+    const geometry = await card.evaluate(el => {
+        const bounds = el.getBoundingClientRect(), main = el.closest('main'), button = el.querySelector('button'), heading = el.querySelector('h1'), icon = el.querySelector('svg');
+        const [header, content, footer] = el.children;
+        return { width: innerWidth, height: innerHeight, cardWidth: bounds.width, cardHeight: bounds.height,
+            client: el.clientWidth, scroll: el.scrollWidth, mainClient: main.clientHeight, mainScroll: main.scrollHeight,
+            headingFont: getComputedStyle(heading).fontSize, iconWidth: icon.getBoundingClientRect().width,
+            headerPadding: getComputedStyle(header).padding, contentPadding: getComputedStyle(content).padding, footerPadding: getComputedStyle(footer).padding,
+            descriptionFont: getComputedStyle(header.lastElementChild).fontSize,
+            buttonHeight: button.getBoundingClientRect().height, coarse: matchMedia('(pointer: coarse)').matches };
+    });
+    expect(geometry.cardWidth).toBeLessThanOrEqual(Math.min(380, geometry.width - 32));
+    expect(geometry.scroll).toBeLessThanOrEqual(geometry.client + 1); expect(geometry.iconWidth).toBe(24);
+    expect(geometry.headerPadding).toBe('16px'); expect(geometry.contentPadding).toBe('0px 16px 12px'); expect(geometry.footerPadding).toBe('0px 16px 16px');
+    const expectedScale = name.endsWith('scale1.3') ? 1.3 : 1;
+    expect(Math.abs(Number.parseFloat(geometry.descriptionFont) - 12 * expectedScale)).toBeLessThan(.01);
+    expect(geometry.buttonHeight).toBeGreaterThanOrEqual(geometry.coarse ? 44 : 32);
+    const button = card.getByRole('button'); await button.scrollIntoViewIfNeeded();
+    const action = await button.boundingBox(); expect(action.y).toBeGreaterThanOrEqual(0); expect(action.y + action.height).toBeLessThanOrEqual(geometry.height);
+    passkeyGeometry.push({ name, ...geometry });
+    const filename = path.join(artifacts, name + '.png'); await card.screenshot({ path: filename, animations: 'disabled' }); screenshots.push(filename);
+}
+async function passkeyViews(kind) {
+    for (const width of [320, 390, 1440]) for (const mode of ['dark', 'light']) for (const scale of [1, 1.3]) {
+        await page.setViewportSize({ width, height: width === 1440 ? 900 : 844 });
+        await passkeyAppearance(mode, scale); await passkeyShot(`passkey-${kind}-${mode}-${width}-scale${scale}`);
+    }
+    await page.setViewportSize({ width: 320, height: 480 }); await passkeyAppearance('dark', 1.3);
+    let release;
+    const responseReady = new Promise(resolve => { release = resolve; });
+    const endpoint = `**/api/v1/passkeys/${kind === 'register' ? 'register' : 'authenticate'}/options`;
+    const handler = async route => { await responseReady; await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ detail: 'Synthetic QA failure' }) }); };
+    await page.route(endpoint, handler);
+    await page.getByRole('button', { name: kind === 'register' ? '建立 Passkey 並解鎖' : '使用 Passkey 解鎖', exact: true }).click();
+    await expect(page.getByRole('button', { name: '等待裝置驗證…', exact: true })).toBeDisabled();
+    await passkeyShot(`passkey-${kind}-waiting-dark-320x480-scale1.3`);
+    release(); await expect(page.getByRole('alert')).toContainText('驗證未完成');
+    await passkeyShot(`passkey-${kind}-error-dark-320x480-scale1.3`); await page.unroute(endpoint, handler);
+    await page.setViewportSize({ width: 1440, height: 1050 }); await passkeyAppearance('dark', 1.15);
 }
 
 try {
@@ -216,7 +266,17 @@ entry.main()
     });
     const cdp = await context.newCDPSession(page); await cdp.send('WebAuthn.enable');
     await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
-    await unlock(true); const initial = await settings(); expect(initial.mode).toBe('paper'); expect(initial.live_enabled).toBe(false);
+    if (process.env.MODE_PASSKEY_QA === '1') {
+        await page.goto(origin + '/#fubon-launch=' + launch); await expect(page.getByRole('button', { name: '建立 Passkey 並解鎖', exact: true })).toBeVisible();
+        await passkeyViews('register');
+        await page.getByRole('button', { name: '建立 Passkey 並解鎖', exact: true }).click();
+        await expect(page.getByRole('button', { name: '交易模式設定', exact: true })).toBeVisible({ timeout: 30000 });
+        await page.getByRole('button', { name: '鎖定介面', exact: true }).click();
+        await expect(page.getByRole('button', { name: '使用 Passkey 解鎖', exact: true })).toBeVisible();
+        await passkeyViews('authenticate'); await unlock();
+        scenarios.push('compact Passkey registration/unlock at 320/390/1440, dark/light, scales 1/1.3; waiting/error at 320x480 scroll safely with reachable action');
+    } else await unlock(true);
+    const initial = await settings(); expect(initial.mode).toBe('paper'); expect(initial.live_enabled).toBe(false);
     await page.evaluate(() => {
         localStorage.setItem('fubon.contract-fees.v1', JSON.stringify({ TMF: { product: 'TMF', feePerSide: 12, source: 'statement', updatedAt: '2026-11-16T00:00:00Z' } }));
         localStorage.setItem('sj-pro-risk', JSON.stringify({ enabled: false, locked: false, confirmManualOrders: false }));
@@ -291,7 +351,7 @@ entry.main()
     const final = await qa(); expect(final.counts.sdkCalls).toBe(0); expect(final.counts.keychainCalls).toBe(0); expect(final.counts.sdkTransactions).toBe(0);
     expect(pageErrors).toEqual([]); expect(JSON.parse(await readFile(path.join(temporary, 'server/.mode-settings.json'), 'utf8'))).toEqual({ mode: 'paper', live_enabled: false });
     scenarios.push('390/1440 dark/light, no native Select, no dialog overflow or browser exceptions; persisted final mode paper');
-    await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify({ passed: true, scenarios, counts: final.counts, pageErrors, orderRequests, screenshots, temporary }, null, 2));
+    await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify({ passed: true, scenarios, counts: final.counts, pageErrors, orderRequests, screenshots, passkeyGeometry, temporary }, null, 2));
     console.log(JSON.stringify({ passed: true, scenarios, counts: final.counts, pageErrors, artifacts }, null, 2));
 } catch (error) {
     await writeFile(path.join(artifacts, 'failure.log'), logs);
