@@ -6,6 +6,12 @@ from .learning_features import FEATURES, POLICY, signal_features
 from .learning_train import PARAMETERS, implementation_hashes
 
 
+class ModelInferenceError(ValueError):
+    def __init__(self, decision):
+        super().__init__(decision['reason'])
+        self.decision = decision
+
+
 def model_settings(report):
     config = report['config']
     return dict(strategy_version='orb_atr_v2', use_basket=False,
@@ -77,13 +83,14 @@ class EntryFilter:
             _, values = signal_features(bars, decision, stocks)
         except ValueError as error:
             return dict(result, reason=str(error))
+        result['features'] = values
         try:
             import numpy as np
             score = float(self.model.predict(np.asarray([values], dtype=np.float64), num_threads=2)[0])
             if not math.isfinite(score) or not 0 <= score <= 1:
                 raise ValueError('invalid score')
         except Exception:
-            raise ValueError('模型推論失敗，停止新倉；不回退為無濾網交易') from None
+            raise ModelInferenceError(dict(result, reason='模型推論失敗，停止新倉；不回退為無濾網交易')) from None
         accepted = score >= POLICY['threshold']
         return dict(result, score=score, accepted=accepted, features=values,
             reason=f'LightGBM 分數 {score:.3f}，'+('保留突破訊號' if accepted else '低於0.5，跳過進場'))

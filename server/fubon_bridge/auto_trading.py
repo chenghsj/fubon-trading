@@ -569,10 +569,13 @@ class SandboxAutoTrader:
         if signal['side'] and cfg.get('model_run_id'):
             if self.entry_filter is None or self.entry_filter.ident != cfg['model_run_id']:
                 raise ValueError('所選模型尚未載入，禁止進場')
+            from .learning_inference import ModelInferenceError
             try:
                 signal['model'] = self.entry_filter.evaluate(closed, decision, stocks)
-            except ValueError as error:
-                self.state.update(status='attention', reason=str(error))
+            except ModelInferenceError as error:
+                signal['model'] = error.decision
+                signal['reason'] = str(error)
+                self.state.update(lastSignal=signal, status='attention', reason=str(error))
                 self._save(self.state['reason'], 'model_error')
                 return
             signal['reason'] = signal['model']['reason']

@@ -155,12 +155,27 @@ def test_exit_deadline_survives_restart_and_unavailable_model(trained,tmp_path):
     assert restarted.state['exitReason']=='模型20分鐘退出期限'
 
 
-def test_inference_failure_never_falls_back_to_unfiltered_entry(trained,tmp_path,monkeypatch):
-    trader,gateway,clock,_,config=make_trader(trained,tmp_path)
+@pytest.mark.parametrize('failure', ['nan', 'exception'])
+def test_inference_failure_never_falls_back_to_unfiltered_entry(trained,tmp_path,monkeypatch,failure):
+    trader,gateway,clock,store,config=make_trader(trained,tmp_path)
     trader.start(config,HEADER)
-    monkeypatch.setattr(trader.entry_filter.model,'predict',lambda *_a,**_kw:[float('nan')])
+    def fail_prediction(*_args, **_kwargs):
+        if failure == 'exception':
+            raise RuntimeError('prediction unavailable')
+        return [float('nan')]
+    monkeypatch.setattr(trader.entry_filter.model,'predict',fail_prediction)
     clock.at=clock.at.replace(minute=20,second=1);trader.tick()
     assert trader.state['status']=='attention' and not gateway.requests
+    decision=trader.state['lastSignal']
+    assert decision is not None
+    model=decision['model']
+    assert model['runId']==config.model_run_id and model['hash']==trader.entry_filter.hash
+    assert len(model['features'])==12 and model['score'] is None
+    assert model['accepted'] is False and model['threshold']==.5
+    assert '模型推論失敗' in decision['reason'] == model['reason']
+    restored=AutoStore(store.research)
+    assert restored.latest()['lastSignal']==decision
+    assert restored.model_decisions(trader.state['id'])==[decision]
 
 
 def test_model_list_requires_session_and_cannot_activate_demo(tmp_path,trained):
