@@ -57,7 +57,7 @@ export function CustomThemeEditor() {
     const presets = CUSTOM_PRESETS.filter(p => p.theme.base === base);
     const apply = (next: CustomTheme) => setThemeSettings({ preset: 'custom', custom: next, accent: undefined });
     const selectPreset = (preset?: string) => {
-        setThemeSettings({ preset, accent: undefined });
+        setThemeSettings({ preset });
         setPresetOpen(false);
     };
     const themeJson = () => JSON.stringify(custom, null, 2);

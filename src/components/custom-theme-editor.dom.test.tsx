@@ -79,9 +79,14 @@ it('主題、深淺模式和強調色可以分別設定並還原', async () => {
     fireEvent.change(screen.getByLabelText('強調色顏色'), { target: { value: '#abcdef' } });
     const saved = () => JSON.parse(localStorage.getItem('sj-pro-theme')!);
     expect(saved()).toMatchObject({ mode: 'dark', preset: 'Catppuccin', accent: '#abcdef' });
+    await user.click(trigger);
+    await user.type(screen.getByRole('combobox', { name: '搜尋主題' }), 'Nord');
+    await user.click(screen.getByRole('option', { name: 'Nord' }));
+    expect(saved()).toMatchObject({ mode: 'dark', preset: 'Nord', accent: '#abcdef' });
+    expect((screen.getByRole('combobox', { name: '強調色來源' }) as HTMLSelectElement).value).toBe('custom');
     await user.selectOptions(screen.getByRole('combobox', { name: '強調色來源' }), 'theme');
     expect(saved().accent).toBeUndefined();
-    expect(trigger.textContent).toContain('Catppuccin');
+    expect(trigger.textContent).toContain('Nord');
 });
 
 it('進階配色保留六色編輯，且不會重設深淺模式', async () => {

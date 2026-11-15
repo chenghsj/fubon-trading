@@ -294,6 +294,11 @@ async function themeControls(page, settings, artifacts) {
     await settings.getByRole('radio', { name: '淺色', exact: true }).click();
     await expect(trigger).toHaveText('AaAbsolutely');
     await expect.poll(() => cssToken('--background')).toBe('#f9f9f7');
+    await expect(source).toHaveValue('custom');
+    await expect(accent).toHaveValue('#3d755d');
+    await expect.poll(() => cssToken('--primary')).toBe('#3d755d');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')).accent)).toBe('#3d755d');
+    await source.selectOption('theme');
     await expect.poll(() => cssToken('--primary')).toBe('#9e5035');
     expect((await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')))).preset).toBeUndefined();
     for (const [width, height, suffix] of [[1440, 1000, 'desktop'], [390, 844, 'narrow']]) {
