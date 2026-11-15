@@ -1002,10 +1002,12 @@ export function CandleChart({
         let pageError = false;
         let dryPages = 0; // consecutive empty pages → assume exhausted
         const loadMore = () => {
-            if (fetching || cancelled || pageError) return false;
+            if (fetching || cancelled) return false;
             if (loadedKeyRef.current !== loadKey) return false;
             if (dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS) return false;
             fetching = true;
+            // MA warmup pauses via paging.error; a new user scroll can retry.
+            pageError = false;
             setHistoryPaging({ busy: true, error: false, exhausted: false });
             const from = Math.min(oldestDay + tf.days, MAX_HISTORY_DAYS);
             fetchChartHistory(

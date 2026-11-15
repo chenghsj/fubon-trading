@@ -2,7 +2,7 @@
 import { createElement } from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { created, kbars } from './chart-session.test-harness';
+import { created, kbars, logicalRangeHandlers } from './chart-session.test-harness';
 
 vi.hoisted(() => {
     const store = new Map<string, string>();
@@ -76,6 +76,7 @@ beforeEach(() => {
     vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} unobserve() {} });
     vi.useFakeTimers({ toFake: ['Date'] });
     created.length = 0;
+    logicalRangeHandlers.length = 0;
     quote = undefined;
     fetchMock.mockReset();
     const sma = newInstance('sma');
@@ -138,4 +139,22 @@ describe('CandleChart interval persistence (#331)', () => {
         await flush();
         expect(fromDays().at(-1)).toBe(dateStrOffset(3));
     });
+});
+
+
+it('retries the same older-history page after a transient scroll failure', async () => {
+    setNow('2026-09-25T20:00:00');
+    saveInstances([]);
+    fetchMock.mockResolvedValueOnce(BARS).mockRejectedValueOnce(new Error('timeout')).mockResolvedValue(BARS);
+    mount({ contract: { ...stk }, onIntervalChange: () => {} });
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    act(() => logicalRangeHandlers[0]!({ from: 0, to: 30 }));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const failedRange = fetchMock.mock.calls[1]!.slice(1, 3);
+    act(() => logicalRangeHandlers[0]!({ from: 0, to: 30 }));
+    await flush();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[2]!.slice(1, 3)).toEqual(failedRange);
 });
