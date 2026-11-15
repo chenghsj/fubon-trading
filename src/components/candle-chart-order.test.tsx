@@ -614,7 +614,7 @@ describe('chart order settings button', () => {
         expect(lockButton().props.className).toContain(styles.orderLockBtn.locked);
     });
 
-    it('鎖定鈕在下單區塊開頭：分隔線之後、點價買之前，更新歷史維持在最右端', async () => {
+    it('鎖定鈕在下單區塊開頭，指標與更新歷史同組留在最右端', async () => {
         await mount({ contract: stk });
         const lockButton = view.root.find(n => n.type === 'button' && n.props['aria-label'] === '委託線鎖定');
         let toolbar = lockButton.parent!;
@@ -629,8 +629,11 @@ describe('chart order settings button', () => {
         const highLow = view.root.find(n => n.type === 'button' && n.props['aria-label'] === '最高最低標記');
         expect(items.indexOf(highLow)).toBeLessThan(at - 1);
         const refreshButton = view.root.findByType(RefreshButton);
-        expect(refreshButton.parent).toBe(toolbar);
-        expect(items.indexOf(refreshButton.findByType('button'))).toBe(items.length - 1);
+        const tools = refreshButton.parent!;
+        expect(tools.props.className).toBe(styles.chartTools);
+        expect(tools.parent).toBe(toolbar);
+        expect(items.at(-1)).toBe(tools);
+        expect(hostChildren(tools)).toEqual([button(view.root, '指標'), refreshButton.findByType('button')]);
     });
 
     it('委託線鎖住時標題沒有拖曳提示，解鎖後恢復', async () => {

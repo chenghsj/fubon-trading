@@ -120,13 +120,20 @@ export const modeBtn = styleVariants({
     ],
 });
 
-// 指標按鈕獨立靠右（它屬於圖表工具，不屬於交易模式群）
+// 圖表操作共用一個靠右位置，換行時指標與更新不分開。
+export const chartTools = style({
+    display: 'inline-flex',
+    alignItems: 'center',
+    flexShrink: 0,
+    gap: 4,
+    marginLeft: 'auto',
+});
+
 export const indicatorBtn = styleVariants({
-    normal: [modeBase, { marginLeft: 'auto' }],
+    normal: [modeBase],
     active: [
         modeBase,
         {
-            marginLeft: 'auto',
             color: vars.color.foreground,
             background: vars.color.muted,
         },

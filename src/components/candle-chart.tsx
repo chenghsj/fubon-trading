@@ -2320,16 +2320,19 @@ export function CandleChart({
                         contractLabel={`${contract.code}${(contract as { name?: string }).name ? ` ${(contract as { name?: string }).name}` : ''}`}
                     />
                 )}
-                <Button size="compact" variant="outline"
-                    className={
-                        styles.indicatorBtn[
-                            instances.length > 0 ? 'active' : 'normal'
-                        ]
-                    }
-                    onClick={() => setPickerOpen(true)}
-                >
-                    指標
-                </Button>
+                <div className={styles.chartTools} role="group" aria-label="圖表工具">
+                    <Button size="compact" variant="outline"
+                        className={
+                            styles.indicatorBtn[
+                                instances.length > 0 ? 'active' : 'normal'
+                            ]
+                        }
+                        onClick={() => setPickerOpen(true)}
+                    >
+                        指標
+                    </Button>
+                    <RefreshButton label="更新歷史" loading={loading} onClick={() => setHistorySeq(nextChartHistoryRevision())} />
+                </div>
                 {pickerOpen && (
                     <IndicatorDialog
                         instances={instances}
@@ -2356,7 +2359,6 @@ export function CandleChart({
                         onCancel={cancelSettings}
                     />
                 )}
-                <RefreshButton label="更新歷史" loading={loading} onClick={() => setHistorySeq(nextChartHistoryRevision())} />
             </div>
             <div className={styles.chartRow}>
             <ChartDrawingTools api={drawings} />
