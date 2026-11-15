@@ -1,0 +1,246 @@
+{
+  "start": 1794272400,
+  "bars": [
+    {
+      "time": 1794272460,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272520,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272580,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272640,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272700,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272760,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272820,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272880,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794272940,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794273000,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794273060,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794273120,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794273180,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794273240,
+      "open": 100,
+      "high": 101,
+      "low": 99,
+      "close": 100,
+      "volume": 10
+    },
+    {
+      "time": 1794273300,
+      "open": 100,
+      "high": 110,
+      "low": 99,
+      "close": 110,
+      "volume": 10
+    },
+    {
+      "time": 1794273360,
+      "open": 110,
+      "high": 111,
+      "low": 109,
+      "close": 110,
+      "volume": 10
+    }
+  ],
+  "cases": [
+    {
+      "name": "long fixed minimum",
+      "action": "Buy",
+      "limit": 25023,
+      "price": 25020,
+      "close": 25020,
+      "high": 25010,
+      "low": 24990,
+      "atr": 20,
+      "realized": 0,
+      "stop": 30,
+      "risk": 354
+    },
+    {
+      "name": "long ATR widened",
+      "action": "Buy",
+      "limit": 25023,
+      "price": 25020,
+      "close": 25020,
+      "high": 25010,
+      "low": 24990,
+      "atr": 40,
+      "realized": 0,
+      "stop": 60,
+      "risk": 654
+    },
+    {
+      "name": "short symmetric",
+      "action": "Sell",
+      "limit": 24977,
+      "price": 24980,
+      "close": 24980,
+      "high": 25010,
+      "low": 24990,
+      "atr": 40,
+      "realized": 0,
+      "stop": 60,
+      "risk": 654
+    },
+    {
+      "name": "price inside despite adverse slippage",
+      "action": "Buy",
+      "limit": 25012,
+      "price": 25009,
+      "close": 25012,
+      "high": 25010,
+      "low": 24990,
+      "atr": 20,
+      "realized": 0,
+      "blocked": "breakout"
+    },
+    {
+      "name": "short price inside despite adverse slippage",
+      "action": "Sell",
+      "limit": 24988,
+      "price": 24991,
+      "close": 24988,
+      "high": 25010,
+      "low": 24990,
+      "atr": 20,
+      "realized": 0,
+      "blocked": "breakout"
+    },
+    {
+      "name": "too far from signal",
+      "action": "Buy",
+      "limit": 25032,
+      "price": 25029,
+      "close": 25020,
+      "high": 25010,
+      "low": 24990,
+      "atr": 20,
+      "realized": 0,
+      "blocked": "drift"
+    },
+    {
+      "name": "missing ATR",
+      "action": "Buy",
+      "limit": 25023,
+      "price": 25020,
+      "close": 25020,
+      "high": 25010,
+      "low": 24990,
+      "atr": null,
+      "realized": 0,
+      "blocked": "warmup"
+    },
+    {
+      "name": "remaining daily risk excludes fee inclusive stop",
+      "action": "Buy",
+      "limit": 25023,
+      "price": 25020,
+      "close": 25020,
+      "high": 25010,
+      "low": 24990,
+      "atr": 20,
+      "realized": -650,
+      "blocked": "budget"
+    },
+    {
+      "name": "daily profit cannot expand per trade cap",
+      "action": "Buy",
+      "limit": 25023,
+      "price": 25020,
+      "close": 25020,
+      "high": 25010,
+      "low": 24990,
+      "atr": 100,
+      "realized": 10000,
+      "blocked": "budget"
+    }
+  ]
+}

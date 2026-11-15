@@ -22,6 +22,7 @@ globalStyle(`${table} th:first-child, ${table} td:first-child`, { textAlign: 'le
 export const chart = style({ width: '100%', height: 150, background: vars.color.inset, border: `1px solid ${vars.color.border}`, borderRadius: vars.radius.sm });
 export const baseLine = style({ fill: 'none', stroke: vars.color.mutedForeground, strokeWidth: 1.5 });
 export const filterLine = style({ fill: 'none', stroke: vars.color.accent, strokeWidth: 2 });
+export const revisionLine = style([filterLine, { strokeDasharray: '6 4', strokeWidth: 2.5 }]);
 export const subhead = style({ fontSize: '.74rem', margin: '10px 0 5px' });
 export const records = style({ display: 'flex', flexDirection: 'column', gap: 4 });
 export const recordButton = style({ whiteSpace: 'normal', height: 'auto', lineHeight: 1.5 });

@@ -18,6 +18,7 @@ await mkdir(artifacts, { recursive: true });
 const launch = randomBytes(32).toString('base64url');
 const children = [], pageErrors = [], mutations = [], readonlyOrderPaths = [], scenarios = [];
 let browser, page, logs = '', closing;
+let feeFreezeChecked = false;
 const panel = () => page.getByRole('region', { name: 'Sandbox 自動交易', exact: true });
 const button = name => panel().getByRole('button', { name, exact: true });
 
@@ -92,6 +93,7 @@ async function start() {
     await see('策略執行中');
     await expect(panel().getByRole('combobox', { name: '期貨測試帳戶', exact: true })).toBeDisabled();
     await expect(panel().getByRole('combobox', { name: '策略版本', exact: true })).toBeDisabled();
+    await expect(panel().getByRole('combobox', { name: '權值股濾網', exact: true })).toBeDisabled();
     expect((await state()).status).toBe('running');
 }
 async function enterAndFill() {
@@ -102,6 +104,29 @@ async function enterAndFill() {
     expect(pending.state.position).toBeNull();
     await see('委託待確認');
     await expect(panel().getByRole('table')).toContainText('AwaitingConfirmation');
+    if (!feeFreezeChecked) {
+        const workspace = await page.evaluate(() => localStorage.getItem('sj-pro-workspace-v3'));
+        const frozenFee = pending.state.config.fee_per_side;
+        await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toBeDisabled();
+        await expect(button('依對帳單保存費率')).toBeDisabled();
+        await page.getByRole('button', { name: /新增面板/ }).first().click();
+        const picker = page.getByRole('dialog', { name: '新增面板', exact: true });
+        await picker.getByPlaceholder('搜尋面板（名稱或用途）').fill('策略回測');
+        await picker.locator('button[data-idx]').filter({ hasText: '策略回測' }).click();
+        const research = page.getByLabel('日內回測研究', { exact: true });
+        await research.getByLabel('每口單邊手續費 NT$', { exact: true }).fill('16');
+        await research.getByRole('button', { name: '依對帳單保存費率', exact: true }).click();
+        await expect(research.getByText(/TMF 個人費率：每口單邊 \$16/)).toBeVisible();
+        await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue(String(frozenFee));
+        expect((await state()).config.fee_per_side).toBe(frozenFee);
+        await page.evaluate(value => localStorage.setItem('sj-pro-workspace-v3', value), workspace);
+        await page.reload();
+        await see('委託待確認');
+        await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue(String(frozenFee));
+        expect((await state()).config.fee_per_side).toBe(frozenFee);
+        feeFreezeChecked = true;
+        scenarios.push({ name: 'personal-fee-does-not-rewrite-entry-intent', frozenFee, updatedLocalProfile: 16 });
+    }
     await screenshot('pending');
     const filled = await fixture({ fill: 25022, ticks: 1 });
     expect(filled.state.position.entryPrice).toBe(25022);
@@ -247,7 +272,7 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     await page.screenshot({ path: path.join(artifacts, 'auto-select-open.png') });
     await page.getByRole('option', { name: 'TEST-AUTO', exact: true }).click();
     await expect(accountChoice).toHaveText('TEST-AUTO');
-    const strategyChoice = panel().getByRole('combobox', { name: '策略版本', exact: true });
+    const strategyChoice = panel().getByRole('combobox', { name: '權值股濾網', exact: true });
     await strategyChoice.focus(); await page.keyboard.press('Enter');
     await expect(page.getByRole('option', { name: '開盤區間突破', exact: true })).toBeFocused();
     await page.keyboard.press('ArrowDown');
@@ -257,6 +282,16 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     await expect(panel().getByLabel(/固定假設權重/)).toBeVisible();
     await strategyChoice.click(); await page.getByRole('option', { name: '開盤區間突破', exact: true }).click();
     await expect(strategyChoice).toHaveText('開盤區間突破');
+    const versionChoice = panel().getByRole('combobox', { name: '策略版本', exact: true });
+    await versionChoice.click(); await page.getByRole('option', { name: 'V2 波動風控（研究候選）', exact: true }).click();
+    await expect(panel().getByText(/V2：停損取設定下限/)).toBeVisible();
+    await versionChoice.click(); await page.getByRole('option', { name: 'V1 固定停損', exact: true }).click();
+    await panel().getByLabel('每口單邊手續費 NT$', { exact: true }).fill('12');
+    await button('依對帳單保存費率').click();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('fubon.contract-fees.v1')).TMF)).toMatchObject({ feePerSide: 12, source: 'statement' });
+    await page.reload(); await see('尚未啟動');
+    await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue('12');
+    await prepare();
     // Loading and backend validation errors travel through the real start route.
     await panel().getByLabel('單次交易日期', { exact: true }).fill('2026-11-14');
     await button('啟動／恢復 sandbox 策略').click();
@@ -374,6 +409,20 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     await expect(nextDate).toHaveValue('2026-11-16');
     await expect(button('啟動／恢復 sandbox 策略')).toBeEnabled();
     scenarios.push({ name: 'completed-next-date-editable', nextDate: await nextDate.inputValue() });
+
+    await reset();
+    await versionChoice.click(); await page.getByRole('option', { name: 'V2 波動風控（研究候選）', exact: true }).click();
+    await start();
+    const v2Pending = await fixture({ at: '2026-11-13T09:20:01+08:00', ticks: 1 });
+    expect(v2Pending.requests).toHaveLength(1);
+    expect(v2Pending.state.config.strategy_version).toBe('orb_atr_v2');
+    const v2Filled = await fixture({ fill: 25022, ticks: 1 });
+    expect(v2Filled.state.orders[0].stopPoints).toBeGreaterThan(30);
+    expect(v2Filled.state.position.referencePrice).toBe(25022);
+    await see('多 1 口'); await screenshot('v2-filled');
+    await button('停止並退出').click(); await fixture({ ticks: 1 });
+    await fixture({ fill: 25018, ticks: 1 }); await see('已停止');
+    scenarios.push({ name: 'v2-atr-plan', stopPoints: v2Filled.state.orders[0].stopPoints, strategyVersion: v2Filled.state.config.strategy_version });
 
     await reset();
     await start();

@@ -141,7 +141,7 @@ def test_fill_is_authoritative_and_repeated_queries_do_not_duplicate_exposure(se
     for _ in range(3):
         trader.tick()
     state = trader.snapshot()
-    assert state["position"]==dict(entryTag=gateway.requests[0]["tag"],side="Buy",quantity=1,entryPrice=25022,referencePrice=25023,stop=24993,target=25083)
+    assert state["position"]==dict(entryTag=gateway.requests[0]["tag"],side="Buy",quantity=1,entryPrice=25022,referencePrice=25022,referenceType='fill',stop=24992,target=25082)
     assert state["pending"] is None and len(gateway.requests)==1
 
 
@@ -438,3 +438,62 @@ def test_http_routes_require_passkey_session_and_non_sandbox_cannot_arm(tmp_path
         cfg = AutoConfig(account=ACCOUNT,contract_code='TMFK6',trade_date='2026-11-16')
         assert client.post('/api/v1/automation/start',json=cfg.model_dump(mode='json')).status_code==400
         assert not app.state.broker.paper.orders
+
+
+def test_legacy_intent_keeps_limit_anchor_after_upgrade(setup):
+    trader,gateway,clock,store,cfg = enter(setup)
+    entry = trader.state['orders'][0]
+    for key in ['anchorMode','stopPoints','targetPoints']:
+        entry.pop(key, None)
+    gateway.fill(25022)
+    trader.tick()
+    p=trader.snapshot()['position']
+    assert (p['entryPrice'],p['referencePrice'],p['referenceType'],p['stop'],p['target'])==(25022,25023,'limit',24993,25083)
+
+
+@pytest.mark.parametrize('price,limit_reason', [(25009,'開盤區間'),(25040,'偏離')])
+def test_fresh_quote_must_still_validate_signal_before_intent(setup,price,limit_reason):
+    trader,gateway,clock,store,cfg = setup
+    trader.start(cfg,HEADER)
+    clock.at = datetime(2026,11,13,9,20,1,tzinfo=TAIPEI)
+    gateway.price=price
+    trader.tick()
+    state=trader.snapshot()
+    assert gateway.requests==[] and state['entryCount']==0 and state['pending'] is None
+    assert limit_reason in state['reason']
+    assert store.events(state['id'])[0]['kind']=='signal_rejected'
+
+
+def test_v2_freezes_wider_distances_and_anchors_confirmed_fill(setup):
+    trader,gateway,clock,store,cfg=setup
+    cfg=cfg.model_copy(update={'strategy_version':'orb_atr_v2','fee_per_side':12,'fee_source':'statement'})
+    trader.start(cfg,HEADER)
+    clock.at=datetime(2026,11,13,9,20,1,tzinfo=TAIPEI)
+    trader.tick()
+    entry=trader.snapshot()['orders'][0]
+    assert entry['stopPoints']==33 and entry['targetPoints']==66 and entry['anchorMode']=='fill'
+    assert entry['estimatedRisk'] < cfg.loss_limit
+    gateway.fill(25022)
+    trader.tick()
+    p=trader.snapshot()['position']
+    assert p['stop']==24989 and p['target']==25088 and p['referenceType']=='fill'
+    gateway.candles[20]['high']=26000
+    trader.tick()
+    assert trader.snapshot()['position']['stop']==24989
+
+
+def test_v2_missing_contiguous_atr_and_fee_inclusive_budget_do_not_create_intent(setup):
+    trader,gateway,clock,store,cfg=setup
+    cfg=cfg.model_copy(update={'strategy_version':'orb_atr_v2','loss_limit':350})
+    trader.start(cfg,HEADER)
+    clock.at=datetime(2026,11,13,9,20,1,tzinfo=TAIPEI)
+    trader.tick()
+    assert gateway.requests==[] and trader.snapshot()['entryCount']==0
+    assert '預算' in trader.snapshot()['reason']
+    # Simulate another new 5m crossing with a hole outside opening range/last10 bars.
+    clock.at=datetime(2026,11,13,9,35,1,tzinfo=TAIPEI)
+    gateway.candles[29]['close']=25000
+    gateway.candles=[b for i,b in enumerate(gateway.candles) if i!=16]
+    trader.tick()
+    assert gateway.requests==[]
+    assert 'ATR14' in trader.snapshot()['reason'] and trader.snapshot()['entryCount']==0

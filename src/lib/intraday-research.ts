@@ -1,4 +1,6 @@
 // Specialized cash-session comparison harness, independent of broker orders and chart state.
+import { futuresTax } from './futures-costs';
+import { cashAtr, revisedEntry, REVISION_POLICY } from './intraday-policy';
 export interface ResearchBar { time: number; open: number; high: number; low: number; close: number; volume: number }
 export interface ResearchDataset {
     schema: 'fubon-intraday-v1'; id: string; source: string;
@@ -10,10 +12,10 @@ export interface ResearchDataset {
 }
 export interface ResearchConfig {
     stopPoints: number; targetR: number; quantity: number;
-    feePerSide: number; slippagePoints: number; taxRate: number;
+    feeSource?: 'assumed' | 'statement'; taxRounding?: 'per-contract-yuan'; feePerSide: number; slippagePoints: number; taxRate: number;
 }
 export const DEFAULT_RESEARCH_CONFIG: ResearchConfig = {
-    stopPoints: 30, targetR: 2, quantity: 1, feePerSide: 20, slippagePoints: 1, taxRate: 0.00002,
+    stopPoints: 30, targetR: 2, quantity: 1, feeSource: 'assumed', taxRounding: 'per-contract-yuan', feePerSide: 20, slippagePoints: 1, taxRate: 0.00002,
 };
 export interface ResearchTrade {
     side: 'long' | 'short'; entryTime: number; exitTime: number; entry: number; exit: number;
@@ -28,6 +30,7 @@ export interface ResearchComparison {
     context: Pick<ResearchDataset, 'id' | 'source' | 'product' | 'contractMonth' | 'start' | 'end' | 'weightDate'>;
     diagnostics: { completeDays: number; excludedDays: string[]; missingBasketTimes: number; filterRejected: number };
     warnings: string[];
+    revision?: { policy: typeof REVISION_POLICY; run: ResearchRun; stressBaseline: ResearchRun; stressRevised: ResearchRun; rejected: Record<string, number> } | null;
 }
 
 /** Descriptive net-of-cost sample statistics, never a forecast of future win probability. */
@@ -65,7 +68,7 @@ function validate(dataset: ResearchDataset, config: ResearchConfig) {
     if (dataset.schema !== 'fubon-intraday-v1' || dataset.multiplier !== ({ TMF: 10, MXF: 50, TXF: 200 })[dataset.product]) {
         throw new Error('回測資料版本或期貨乘數不符');
     }
-    if (!Object.values(config).every(Number.isFinite) || !Number.isInteger(config.stopPoints) || config.stopPoints < 1 || config.targetR <= 0
+    if (![config.stopPoints, config.targetR, config.quantity, config.feePerSide, config.slippagePoints, config.taxRate].every(Number.isFinite) || !Number.isInteger(config.stopPoints) || config.stopPoints < 1 || config.targetR <= 0
         || !Number.isInteger(config.quantity) || config.quantity < 1 || config.quantity > 100
         || config.feePerSide < 0 || !Number.isInteger(config.slippagePoints) || config.slippagePoints < 0 || config.taxRate < 0 || config.taxRate > .01) {
         throw new Error('請檢查停損、報酬倍數、口數與交易成本');
@@ -115,27 +118,36 @@ export function runIntradayComparison(dataset: ResearchDataset, config: Research
     const missing = new Set<number>();
     let filterRejected = 0;
 
-    function simulate(filtered: boolean): ResearchRun {
+    function simulate(filtered: boolean, revised = false, extraSlip = 0, rejected: Record<string, number> = {}): ResearchRun {
         const trades: ResearchTrade[] = [], equity: ResearchRun['equity'] = [];
         let balance = 0, peak = 0, drawdown = 0;
         const size = dataset.multiplier * config.quantity;
-        const cost = (price: number) => config.feePerSide * config.quantity + price * size * config.taxRate;
+        const slippage = config.slippagePoints + extraSlip;
+        const cost = (price: number) => config.feePerSide * config.quantity + futuresTax(price, dataset.multiplier, config.taxRate, config.quantity);
         for (const bars of days) {
+            const dayStartBalance = balance;
             const high = Math.max(...bars.slice(0, 15).map(b => b.high));
             const low = Math.min(...bars.slice(0, 15).map(b => b.low));
             const used = new Set<number>();
             let pending = 0;
+            let signal: { close: number; boundary: number; atr: number | null } | null = null;
             let position: { side: number; entry: number; entryTime: number; entryCost: number; stop: number; target: number } | null = null;
             for (let i = 0; i < bars.length; i++) {
                 const b = bars[i]!;
                 if (pending && !position) {
-                    const entry = b.open + pending * config.slippagePoints;
+                    const side = pending;
+                    const entry = b.open + side * slippage;
                     if (entry <= 0) throw new Error('滑價設定產生無效成交價格');
-                    position = { side: pending, entry, entryTime: b.time - MINUTE, entryCost: cost(entry),
-                        stop: entry - pending * config.stopPoints, target: entry + pending * Math.ceil(config.stopPoints * config.targetR) };
-                    balance -= position.entryCost;
-                    used.add(pending);
                     pending = 0;
+                    const plan = revised ? revisedEntry(config, side, entry, signal!.close, signal!.boundary, signal!.atr, balance - dayStartBalance, dataset.multiplier, slippage, b.open)
+                        : { reason: null, stopPoints: config.stopPoints, targetPoints: Math.ceil(config.stopPoints * config.targetR) };
+                    if (plan.reason) rejected[plan.reason] = (rejected[plan.reason] ?? 0) + 1;
+                    else {
+                        position = { side, entry, entryTime: b.time - MINUTE, entryCost: cost(entry),
+                            stop: entry - side * plan.stopPoints!, target: entry + side * plan.targetPoints! };
+                        balance -= position.entryCost;
+                        used.add(side);
+                    }
                 }
                 if (position) {
                     const p = position;
@@ -152,7 +164,7 @@ export function runIntradayComparison(dataset: ResearchDataset, config: Research
                     else if (targetHit) { exit = p.target; reason = '停利'; }
                     else if (i === bars.length - 1) { exit = b.close; reason = '13:20 日內平倉'; }
                     if (exit !== undefined) {
-                        exit -= p.side * config.slippagePoints;
+                        exit -= p.side * slippage;
                         if (exit <= 0) throw new Error('滑價設定產生無效平倉價格');
                         const gross = (exit - p.entry) * p.side * size;
                         const costs = p.entryCost + cost(exit);
@@ -174,9 +186,10 @@ export function runIntradayComparison(dataset: ResearchDataset, config: Research
                 else if (b.close < low && previous.close >= low) side = -1;
                 if (!side || used.has(side)) continue;
                 const score = basketMomentum(dataset, b.time, maps);
-                if (score === null) { missing.add(b.time); continue; }
+                if (score === null) { if (!revised && !extraSlip) missing.add(b.time); continue; }
                 if (filtered && score * side <= 0) { filterRejected++; continue; }
                 pending = side;
+                signal = { close: b.close, boundary: side > 0 ? high : low, atr: revised ? cashAtr(bars, b.time) : null };
             }
         }
         return { trades, equity, net: balance, gross: trades.reduce((s, t) => s + t.gross, 0),
@@ -184,7 +197,10 @@ export function runIntradayComparison(dataset: ResearchDataset, config: Research
             winRate: trades.length ? trades.filter(t => t.net > 0).length / trades.length : null };
     }
     const baseline = simulate(false), filtered = simulate(true);
-    return { config, baseline, filtered,
+    const rejected: Record<string, number> = {};
+    const revision = { policy: REVISION_POLICY, run: simulate(false, true, 0, rejected),
+        stressBaseline: simulate(false, false, 2), stressRevised: simulate(false, true, 2), rejected };
+    return { config: { ...config, taxRounding: 'per-contract-yuan' }, baseline, filtered, revision,
         context: { id: dataset.id, source: dataset.source, product: dataset.product, contractMonth: dataset.contractMonth,
             start: dataset.start, end: dataset.end, weightDate: dataset.weightDate },
         diagnostics: { completeDays: days.length, excludedDays, missingBasketTimes: missing.size, filterRejected },
@@ -193,8 +209,11 @@ export function runIntradayComparison(dataset: ResearchDataset, config: Research
             '權重為固定假設版本，並非已驗證的逐日歷史成分；有事後選股與權重偏誤。',
             ...(dataset.weightDate > dataset.start ? ['權重日期晚於回測開始日，屬事後假設情境。'] : []),
             '以 5 分收盤判斷、下一根 1 分開盤加不利滑價成交；不含行情傳輸延遲、排隊、部分成交與保證金限制。',
+            '日期完整性尚未比對交易所休市日曆；完整日僅計有觀測的日期，整日無資料不列入缺段日。',
+            '期交稅依每口每邊成交價計算、元以下四捨五入；保存舊版結果保留當時的未取整估計。',
             '停損停利同根觸及採停損；回撤以分鐘收盤估值，可能低估根內風險。',
-            '兩組均僅在權值股資料同步可用時進場；結果不包含樣本外驗證。',
+            '三組均僅在權值股資料同步可用時進場；結果不包含樣本外驗證。',
+            'V2 為固定規則的研究候選：1 分 Wilder ATR14 × 1.5、10 點偏離門檻、1000 元含成本預算；未自動調參。多 2 點每邊滑價為固定壓力情境，不代表實際 IOC 成交。',
         ],
     };
 }

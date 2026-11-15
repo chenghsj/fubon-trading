@@ -51,6 +51,8 @@ class RunConfig(BaseModel):
     stopPoints: int = Field(ge=1)
     targetR: float = Field(gt=0, allow_inf_nan=False)
     quantity: int = Field(ge=1, le=100)
+    taxRounding: Literal['per-contract-yuan'] | None = None
+    feeSource: Literal['assumed','statement'] = 'assumed'
     feePerSide: float = Field(ge=0, allow_inf_nan=False)
     slippagePoints: int = Field(ge=0)
     taxRate: float = Field(ge=0, le=.01, allow_inf_nan=False)
@@ -101,6 +103,22 @@ class RunDiagnostics(BaseModel):
     filterRejected: int = Field(ge=0)
 
 
+class RevisionPolicy(BaseModel):
+    version: Literal['orb_atr_v2']
+    atrPeriod: Literal[14]
+    atrMultiplier: Literal[1.5]
+    maxEntryDrift: Literal[10]
+    lossLimit: Literal[1000]
+
+
+class RevisionRecord(BaseModel):
+    policy: RevisionPolicy
+    run: RunSummary
+    stressBaseline: RunSummary
+    stressRevised: RunSummary
+    rejected: dict[str,int]
+
+
 class ComparisonRecord(BaseModel):
     config: RunConfig
     context: RunContext
@@ -108,6 +126,7 @@ class ComparisonRecord(BaseModel):
     filtered: RunSummary
     diagnostics: RunDiagnostics
     warnings: list[str]
+    revision: RevisionRecord | None = None
 
 
 def canonical(value):

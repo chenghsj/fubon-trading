@@ -1,8 +1,10 @@
+import { getContractFee } from './contract-fee';
 export interface AutoAccount { account_type: 'F'; broker_id: string; account_id: string }
 export interface AutoConfig {
     account: AutoAccount; contract_code: string; trade_date: string;
     stop_points: number; target_points: number; slippage_points: number;
     max_entries: number; loss_limit: number; fee_per_side: number; tax_rate: number;
+    strategy_version?: 'orb_v1' | 'orb_atr_v2'; fee_source?: 'assumed' | 'statement';
     use_basket: boolean; basket: { code: string; weight: number }[];
 }
 export interface AutoOrder {
@@ -15,9 +17,9 @@ export interface AutoState {
     reason: string; config: AutoConfig | null; mode: string; available: boolean; owned: boolean; monitoring: boolean;
     leaseSeconds: number; entryCount: number; pending: string | null; executionBlocked: boolean;
     realizedNet: number | null; unrealizedNet: number | null; updatedAt: string | null;
-    position: { side: 'Buy' | 'Sell'; quantity: number; entryPrice: number | null; referencePrice: number; stop: number; target: number } | null;
+    position: { side: 'Buy' | 'Sell'; quantity: number; entryPrice: number | null; referencePrice: number; referenceType?: 'fill' | 'limit'; stop: number; target: number } | null;
     quote: { price: number; time: number; bid: number; ask: number; trial: boolean } | null;
-    lastSignal: { time: number; side: 'Buy' | 'Sell' | null; high: number | null; low: number | null; score: number | null; reason: string } | null;
+    lastSignal: { time: number; side: 'Buy' | 'Sell' | null; high: number | null; low: number | null; score: number | null; close?: number; atr?: number | null; reason: string } | null;
     orders: AutoOrder[]; events: { id: number; time: string; kind: string; message: string }[];
 }
 export const AUTO_STATUS: Record<AutoState['status'], string> = {
@@ -31,11 +33,12 @@ export function nextAutoTradeDate(epoch = Date.now()): string {
     return local.toISOString().slice(0, 10);
 }
 export function initialAutoConfig(): AutoConfig {
-    const day = nextAutoTradeDate();
+    const day = nextAutoTradeDate(), fee = getContractFee('TMF');
     return { account: { account_type: 'F', broker_id: '', account_id: '' },
         contract_code: `TMF${'ABCDEFGHIJKL'[Number(day.slice(5, 7)) - 1]}${day[3]}`, trade_date: day,
         stop_points: 30, target_points: 60, slippage_points: 2, max_entries: 2, loss_limit: 1000,
-        fee_per_side: 20, tax_rate: .00002, use_basket: false,
+        strategy_version: 'orb_v1', fee_source: fee ? 'statement' : 'assumed',
+        fee_per_side: fee?.feePerSide ?? 20, tax_rate: .00002, use_basket: false,
         basket: [{ code: '2330', weight: .4 }, { code: '2454', weight: .04 }, { code: '2317', weight: .02 }, { code: '2881', weight: .01 }],
     };
 }

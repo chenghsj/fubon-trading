@@ -130,3 +130,20 @@ def test_latest_uses_common_cash_decision_time_not_futures_1345(tmp_path):
     latest = store.latest(saved["id"])
     assert ((latest["time"]+28800) % 86400)//60 == 790
     assert latest["weightedReturn"] is not None
+
+
+def test_revision_and_cost_provenance_roundtrip_without_rewriting_legacy_runs(tmp_path):
+    store=ResearchStore(tmp_path/'research.db')
+    data=load_history(Broker(Config()),store,request())
+    old=store.save_run(data['id'],record(data))
+    revised=record(data)
+    revised['config'].update(feePerSide=12,feeSource='statement',taxRounding='per-contract-yuan')
+    revised['revision']=dict(policy=dict(version='orb_atr_v2',atrPeriod=14,atrMultiplier=1.5,maxEntryDrift=10,lossLimit=1000),
+        run=revised['baseline'],stressBaseline=revised['baseline'],stressRevised=revised['baseline'],rejected=dict(budget=2))
+    new=store.save_run(data['id'],revised)
+    records={r['id']:r['result'] for r in store.runs()}
+    assert records[old['id']]['config']['feePerSide']==20
+    assert records[old['id']]['revision'] is None
+    assert records[new['id']]['config']['feePerSide']==12
+    assert records[new['id']]['config']['feeSource']=='statement'
+    assert records[new['id']]['revision']['rejected']==dict(budget=2)

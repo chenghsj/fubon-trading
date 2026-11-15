@@ -76,7 +76,7 @@ describe('cash-session intraday comparison', () => {
     it('tracks price-based tax on each fill and reports scenario provenance limitations', () => {
         const d = fixture(); d.weightDate = '2026-11-15';
         const result = runIntradayComparison(d, { ...config, taxRate: .00002 });
-        expect(result.baseline.trades[0]!.costs).toBeCloseTo(102 * 10 * .00002 * 2);
+        expect(result.baseline.trades[0]!.costs).toBeCloseTo(0);
         expect(result.warnings.join(' ')).toMatch(/事後假設/);
         expect(result.warnings.join(' ')).toMatch(/合成展示/);
     });
@@ -87,5 +87,31 @@ describe('cash-session intraday comparison', () => {
         const trade = runIntradayComparison(d, { ...config, stopPoints: 1, targetR: 1.5 }).baseline.trades[0]!;
         expect(trade).toMatchObject({ entry: 102, exit: 104, gross: 20 });
         expect(() => runIntradayComparison(d, { ...config, slippagePoints: .5 })).toThrow('請檢查');
+    });
+    it('rejects a failed breakout on both sides even when adverse slippage would push it outside the range', () => {
+        for (const side of [1, -1]) {
+            const d = fixture();
+            if (side < 0) for (const b of d.futures) {
+                const { open, high, low, close } = b;
+                Object.assign(b, { open: 200 - open, high: 200 - low, low: 200 - high, close: 200 - close });
+            }
+            d.futures[20] = { ...d.futures[20]!, open: 100, high: 101, low: 99, close: 100 };
+            const result = runIntradayComparison(d, { ...config, slippagePoints: 2 });
+            expect(result.baseline.trades).toHaveLength(1);
+            expect(result.revision?.run.trades).toHaveLength(0);
+            expect(result.revision?.rejected.breakout).toBe(1);
+            expect(result.revision?.stressRevised.trades).toHaveLength(0);
+        }
+    });
+    it('freezes the signal-time ATR distance and retains net-cost arithmetic in all scenarios', () => {
+        const d = fixture();
+        d.futures[21] = { ...d.futures[21]!, low: 98, high: 200 };
+        const result = runIntradayComparison(d, { ...config, stopPoints: 1, feePerSide: 12, feeSource: 'statement' });
+        expect(result.revision?.run.trades[0]).toMatchObject({ entry: 102, exit: 98, net: -64, ambiguous: true });
+        for (const run of [result.baseline, result.filtered, result.revision!.run, result.revision!.stressBaseline, result.revision!.stressRevised]) {
+            expect(run.net).toBeCloseTo(run.trades.reduce((sum, t) => sum + t.net, 0));
+            expect(run.gross - run.costs).toBeCloseTo(run.net);
+        }
+        expect(result.config).toMatchObject({ feePerSide: 12, feeSource: 'statement', taxRounding: 'per-contract-yuan' });
     });
 });

@@ -9,11 +9,13 @@ import math
 import threading
 import time
 import uuid
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .mapping import TAIPEI, now
 from .research import BasketMember
+from .intraday_strategy import cash_atr, entry_plan, futures_tax
 
 
 class AutoAccount(BaseModel):
@@ -34,8 +36,10 @@ class AutoConfig(BaseModel):
     max_entries: int = Field(default=2, ge=1, le=2)
     loss_limit: float = Field(default=1000, ge=10, le=100000)
     fee_per_side: float = Field(default=20, ge=0, le=1000)
+    fee_source: Literal['assumed','statement'] = 'assumed'
     tax_rate: float = Field(default=.00002, ge=0, le=.01)
     use_basket: bool = False
+    strategy_version: Literal['orb_v1','orb_atr_v2'] = 'orb_v1'
     basket: list[BasketMember] = Field(default_factory=lambda:[BasketMember(code="2330",weight=.4),BasketMember(code="2454",weight=.04),BasketMember(code="2317",weight=.02),BasketMember(code="2881",weight=.01)], min_length=1, max_length=12)
 
     @model_validator(mode="after")
@@ -69,7 +73,7 @@ def opening_signal(bars, decision, basket=None, stocks=None):
         side = "Buy"
     elif current<low and previous>=low:
         side = "Sell"
-    result.update(high=high,low=low,side=side,reason="沒有新的開盤區間穿越" if side is None else "5 分收盤突破開盤區間")
+    result.update(high=high,low=low,side=side,close=current,atr=cash_atr(bars,decision),reason="沒有新的開盤區間穿越" if side is None else "5 分收盤突破開盤區間")
     if side and basket:
         score = 0
         for member in basket:
@@ -102,7 +106,7 @@ class SandboxAutoTrader:
         try:
             self.state = (store.latest() if gateway.mode=="sandbox" else None) or empty_state()
             if self.state["id"]:
-                AutoConfig.model_validate(self.state["config"])
+                self.state["config"] = AutoConfig.model_validate(self.state["config"]).model_dump(mode="json")
                 assert isinstance(self.state["orders"],list)
                 if self.state.get("executionBlocked"):
                     self.execution_blocked.set()
@@ -150,6 +154,8 @@ class SandboxAutoTrader:
                 raise ValueError("已有執行中策略或未確認曝險；請先暫停、對帳與退出")
             self.store.claim(self.writer)
             previous = self.store.for_day(cfg["account"],cfg["trade_date"])
+            if previous:
+                previous['config']=AutoConfig.model_validate(previous['config']).model_dump(mode='json')
             if previous and previous.get("manualResolved"):
                 raise ValueError("本日已人工封存，不再重新啟動；請選擇下一交易日")
             if previous and previous["entryCount"] and previous["config"]!=cfg:
@@ -328,19 +334,20 @@ class SandboxAutoTrader:
                     known = False
                 else:
                     a,b = entry["fillPrice"],order["fillPrice"]
-                    realized += (b-a)*(1 if entry["action"]=="Buy" else -1)*10 - cfg["fee_per_side"]*2 - (a+b)*10*cfg["tax_rate"]
+                    realized += (b-a)*(1 if entry["action"]=="Buy" else -1)*10 - cfg["fee_per_side"]*2 - (futures_tax(a,10,cfg["tax_rate"])+futures_tax(b,10,cfg["tax_rate"]))
                 entry = None
         self.state["realizedNet"] = realized if known else None
         self.state["unrealizedNet"] = None
         if entry:
             side = 1 if entry["action"]=="Buy" else -1
-            anchor = entry["limit"]
+            anchor = entry['fillPrice'] if entry.get('anchorMode')=='fill' and entry['fillPrice'] is not None else entry['limit']
             self.state["position"] = dict(entryTag=entry["tag"],side=entry["action"],quantity=1,
                 entryPrice=entry["fillPrice"],referencePrice=anchor,
-                stop=anchor-side*cfg["stop_points"],target=anchor+side*cfg["target_points"])
+                stop=anchor-side*entry.get('stopPoints',cfg['stop_points']),target=anchor+side*entry.get('targetPoints',cfg['target_points']),
+                referenceType='fill' if entry.get('anchorMode')=='fill' and entry['fillPrice'] is not None else 'limit')
             if entry["fillPrice"] is not None and self._valid_quote():
                 price = self.state["quote"]["price"]
-                self.state["unrealizedNet"] = (price-entry["fillPrice"])*side*10-cfg["fee_per_side"]*2-(price+entry["fillPrice"])*10*cfg["tax_rate"]
+                self.state["unrealizedNet"] = (price-entry["fillPrice"])*side*10-cfg["fee_per_side"]*2-(futures_tax(price,10,cfg["tax_rate"])+futures_tax(entry["fillPrice"],10,cfg["tax_rate"]))
         else:
             self.state["position"] = None
             if not self.state["pending"]:
@@ -375,10 +382,18 @@ class SandboxAutoTrader:
             limit = max(limit,int(contract["limit_down"]))
         if limit<=0:
             raise ValueError("委託限價無效")
+        plan={}
+        if role=='entry':
+            plan,blocked=entry_plan(cfg,self.state['lastSignal'] or {},action,limit,q['price'],self.state['realizedNet'])
+            if blocked:
+                self.state['reason']=blocked
+                self._save(blocked,'signal_rejected')
+                return
         tag = "FA"+uuid.uuid4().hex[:8]
         order = dict(tag=tag,role=role,action=action,limit=limit,status="Sending",filled=0,fillPrice=None,
             orderId=None,submittedAt=at.timestamp(),cancelRequested=False,
             entryTag=self.state["position"]["entryTag"] if role=="exit" else None)
+        order.update(plan)
         self.state["orders"].append(order)
         self.state["pending"] = tag
         if role=="entry":

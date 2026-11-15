@@ -26,6 +26,7 @@ const transactionPaths = [];
 const readonlyOrderPaths = [];
 const pageErrors = [];
 const databaseReadResponses = [];
+const apiWrites = [];
 
 function run(command, args, env = {}) {
     const child = spawn(command, args, {
@@ -83,6 +84,7 @@ async function dbStats() {
     });
 }
 async function assertPanelFits() {
+    await expect.poll(() => panel().evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
     const layout = await panel().evaluate(el => ({ width: el.clientWidth, overflow: el.scrollWidth - el.clientWidth }));
     expect(layout.width).toBeGreaterThan(250);
     expect(layout.overflow).toBeLessThanOrEqual(1);
@@ -150,6 +152,10 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
     page = await context.newPage();
     page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('request', request => {
+        const pathname = new URL(request.url()).pathname;
+        if (pathname.startsWith('/api/v1/') && request.method() !== 'GET' && !pathname.startsWith('/api/v1/data/') && !/\/(trades|trade_cache_health)$/.test(pathname)) apiWrites.push(pathname);
+    });
     page.on('response', response => {
         const pathname = new URL(response.url()).pathname;
         if (response.request().method() === 'GET' && /^\/api\/v1\/research\/(database|runs)$/.test(pathname)) {
@@ -240,7 +246,13 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     await finishLoading();
     expect((await dbStats()).runs).toBe(1);
     const comparisonTable = panel().getByRole('table').first();
-    await expect(comparisonTable).toContainText('加入權值股濾網');
+    await expect(comparisonTable).toContainText('V1 權值股濾網');
+    await expect(comparisonTable).toContainText('V2 波動風控候選');
+    await expect(comparisonTable.getByRole('row')).toHaveCount(4);
+    const v2Status = panel().getByLabel('V2 驗證狀態', { exact: true });
+    await expect(v2Status).toContainText('固定壓力情境：每邊滑價再增加 2 點');
+    await expect(v2Status.getByRole('table')).toContainText('V2 候選');
+    await expect(v2Status).toContainText('研究候選');
     for (const name of ['平均每筆淨損益', '平均贏／輸', '獲利因子']) {
         await expect(comparisonTable.getByRole('columnheader', { name, exact: true })).toBeVisible();
     }
@@ -251,8 +263,8 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
         return (await response.json())[0];
     });
     const sampleMetrics = {};
-    for (const [index, key] of ['baseline', 'filtered'].entries()) {
-        const trades = storedRun.result[key].trades;
+    for (const [index, key] of ['baseline', 'filtered', 'revision'].entries()) {
+        const trades = (key === 'revision' ? storedRun.result.revision.run : storedRun.result[key]).trades;
         const wins = trades.map(t => t.net).filter(n => n > 0);
         const losses = trades.map(t => -t.net).filter(n => n > 0);
         const sum = values => values.reduce((total, value) => total + value, 0);
@@ -293,9 +305,47 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     await expect(panel().getByRole('region', { name: '回測結果' })).toBeVisible();
     await expect(panel().getByRole('region', { name: '回測結果' })).toContainText('TMF 202611');
     await expect(panel().getByRole('region', { name: '回測結果' })).toContainText('2026-11-02～2026-11-04');
-    await expect(panel().getByRole('region', { name: '回測結果' })).toContainText('每邊手續費 $20');
+    await expect(panel().getByRole('region', { name: '回測結果' })).toContainText('每口單邊手續費 $20');
     await expect(panel().getByRole('button', { name: '匯出資料與結果', exact: true })).toBeDisabled();
     expect((await dbStats()).runs).toBe(1);
+
+    // The synthetic statement fee belongs only to this temporary browser and
+    // the TMF product. It must not rewrite a previously saved comparison.
+    const feeField = panel().getByLabel('每口單邊手續費 NT$', { exact: true });
+    await feeField.fill('12');
+    const writesBeforeFee = apiWrites.length;
+    await panel().getByRole('button', { name: '依對帳單保存費率', exact: true }).click();
+    await expect(panel().getByText(/TMF 個人費率：每口單邊 \$12/)).toBeVisible();
+    expect(apiWrites.slice(writesBeforeFee)).toEqual([]);
+    const feeProfile = await page.evaluate(() => JSON.parse(localStorage.getItem('fubon.contract-fees.v1')));
+    expect(feeProfile.TMF).toMatchObject({ product: 'TMF', feePerSide: 12, source: 'statement' });
+    expect(Object.keys(feeProfile)).toEqual(['TMF']);
+    await productChoice.click(); await page.getByRole('option', { name: '小台 MXF · 每點 $50', exact: true }).click();
+    await expect(feeField).toHaveValue('20');
+    await expect(panel().getByText(/MXF 尚未保存個人費率/)).toBeVisible();
+    await productChoice.click(); await page.getByRole('option', { name: '微台 TMF · 每點 $10', exact: true }).click();
+    await expect(feeField).toHaveValue('12');
+    const workspace = await page.evaluate(() => localStorage.getItem('sj-pro-workspace-v3'));
+    await page.getByRole('button', { name: /新增面板/ }).first().click();
+    const autoPicker = page.getByRole('dialog', { name: '新增面板', exact: true });
+    await autoPicker.getByPlaceholder('搜尋面板（名稱或用途）').fill('自動交易');
+    await autoPicker.locator('button[data-idx]').filter({ hasText: '自動交易' }).click();
+    const auto = page.getByRole('region', { name: 'Sandbox 自動交易', exact: true });
+    await expect(auto.getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue('12');
+    await page.reload();
+    await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue('12');
+    await expect(auto.getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue('12');
+    await page.evaluate(value => localStorage.setItem('sj-pro-workspace-v3', value), workspace);
+    await page.reload();
+    await expect(feeField).toHaveValue('12');
+    await saved.click();
+    await expect(panel().getByRole('region', { name: '回測結果' })).toContainText('每口單邊手續費 $20');
+    expect(storedRun.result.config.feePerSide).toBe(20);
+    const preservedFee = await page.evaluate(async () => {
+        const response = await fetch('/api/v1/research/runs');
+        return (await response.json())[0].result.config.feePerSide;
+    });
+    expect(preservedFee).toBe(20);
 
     for (const theme of ['深色', '淺色']) {
         await setTheme(theme);
@@ -355,7 +405,7 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     expect(sdkCalls).toBe(0);
     const nativeUserControls = await panel().locator('select:not([aria-hidden="true"])').count();
     expect(nativeUserControls).toBe(0);
-    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, latest, latestUiElapsedMs, sdkCalls, nativeUserControls, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
+    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, feeProfile, preservedSavedRunFee: preservedFee, latest, latestUiElapsedMs, sdkCalls, nativeUserControls, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
     await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify(summary, null, 2));
 } catch (error) {
