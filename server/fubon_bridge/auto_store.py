@@ -32,6 +32,8 @@ class AutoStore:
                 db.execute("INSERT INTO research_auto_runs SELECT *, 'sandbox' FROM research_auto_runs_legacy")
                 db.execute('DROP TABLE research_auto_runs_legacy')
             db.execute('CREATE INDEX IF NOT EXISTS research_auto_mode ON research_auto_runs(mode,updated_at)')
+            db.execute('''CREATE TABLE IF NOT EXISTS research_auto_model_decisions (
+                run_id TEXT, time INTEGER, payload TEXT NOT NULL, PRIMARY KEY(run_id,time))''')
 
     def latest(self):
         with self._database() as db:
@@ -52,6 +54,10 @@ class AutoStore:
                 (state["id"], state["config"]["trade_date"], canonical(state["config"]["account"]), at, canonical(state),self.mode))
             if not changed.rowcount:
                 raise ValueError('策略紀錄模式不符，拒絕覆寫')
+            signal = state.get('lastSignal')
+            if signal and signal.get('model'):
+                db.execute('INSERT OR IGNORE INTO research_auto_model_decisions VALUES(?,?,?)',
+                    (state['id'], signal['time'], canonical(signal)))
             if message:
                 db.execute("INSERT INTO research_auto_events(run_id,time,kind,message) VALUES(?,?,?,?)", (state["id"], at, kind or "state", message))
 
@@ -59,6 +65,11 @@ class AutoStore:
         with self._database() as db:
             rows = db.execute("SELECT id,time,kind,message FROM research_auto_events WHERE run_id=? ORDER BY id DESC LIMIT 100", (run_id,)).fetchall()
         return [dict(id=i, time=t, kind=k, message=m) for i,t,k,m in rows]
+
+    def model_decisions(self, run_id):
+        with self._database() as db:
+            rows = db.execute('SELECT payload FROM research_auto_model_decisions WHERE run_id=? ORDER BY time DESC', (run_id,)).fetchall()
+        return [json.loads(row[0]) for row in rows]
 
     def claim(self, owner):
         # A second backend using the same DB cannot send orders for this strategy.

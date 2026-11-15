@@ -383,6 +383,11 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     def learning_overview():
         return learning.overview()
 
+    @app.get('/api/v1/automation/models')
+    def automation_models():
+        from .learning_inference import model_choices
+        return model_choices(learning.store)
+
     @app.post('/api/v1/research/learning/collect')
     def learning_collect(body: CollectionRequest):
         return learning.start('collect',body)

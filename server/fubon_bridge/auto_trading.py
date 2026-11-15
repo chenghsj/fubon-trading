@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .mapping import TAIPEI, now
 from .research import BasketMember
-from .intraday_strategy import cash_atr, entry_plan, futures_tax
+from .intraday_strategy import opening_signal, entry_plan, futures_tax
 
 
 class AutoAccount(BaseModel):
@@ -40,10 +40,13 @@ class AutoConfig(BaseModel):
     tax_rate: float = Field(default=.00002, ge=0, le=.01)
     use_basket: bool = False
     strategy_version: Literal['orb_v1','orb_atr_v2'] = 'orb_v1'
+    model_run_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
     basket: list[BasketMember] = Field(default_factory=lambda:[BasketMember(code="2330",weight=.4),BasketMember(code="2454",weight=.04),BasketMember(code="2317",weight=.02),BasketMember(code="2881",weight=.01)], min_length=1, max_length=12)
 
     @model_validator(mode="after")
     def valid_basket(self):
+        if self.model_run_id and (self.strategy_version != 'orb_atr_v2' or self.use_basket):
+            raise ValueError('LightGBM 濾網須使用 V2 並關閉權值股方向濾網')
         if len({m.code for m in self.basket}) != len(self.basket) or sum(m.weight for m in self.basket)>1.000001:
             raise ValueError("股票不可重複，權重合計不可超過 100%")
         return self
@@ -54,37 +57,6 @@ def empty_state():
         entryCount=0, usedSides=[], lastDecision=0, lastSignal=None, orders=[], pending=None,
         position=None, quote=None, realizedNet=0, unrealizedNet=None, exitRequested=False,
         exitReason="", updatedAt=None, manualResolved=False,executionBlocked=False)
-
-
-def opening_signal(bars, decision, basket=None, stocks=None):
-    """Same 09:00 cash-aligned range/cross as the historical harness; exact completed bars."""
-    at = datetime.fromtimestamp(decision, TAIPEI)
-    start = int(at.replace(hour=9,minute=0,second=0,microsecond=0).timestamp())
-    index = {b["time"]:b for b in bars if start < b["time"] <= decision}
-    required = {start+i*60 for i in range(1,16)} | {decision-i*60 for i in range(10)}
-    result = dict(time=decision, side=None, high=None, low=None, score=None, reason="等待完整已收盤分 K")
-    if not required.issubset(index):
-        return result
-    high = max(index[start+i*60]["high"] for i in range(1,16))
-    low = min(index[start+i*60]["low"] for i in range(1,16))
-    previous, current = index[decision-300]["close"], index[decision]["close"]
-    side = None
-    if current>high and previous<=high:
-        side = "Buy"
-    elif current<low and previous>=low:
-        side = "Sell"
-    result.update(high=high,low=low,side=side,close=current,atr=cash_atr(bars,decision),reason="沒有新的開盤區間穿越" if side is None else "5 分收盤突破開盤區間")
-    if side and basket:
-        score = 0
-        for member in basket:
-            quotes = {b["time"]:b for b in (stocks or {}).get(member["code"],[])}
-            if decision not in quotes or decision-300 not in quotes:
-                return dict(result,side=None,reason=f"{member['code']} 缺少同步資料，跳過此訊號")
-            score += member["weight"]*(quotes[decision]["close"]/quotes[decision-300]["close"]-1)
-        result["score"] = score
-        if score*(1 if side=="Buy" else -1)<=0:
-            result.update(side=None,reason="權值股假設籃子未同向，跳過此訊號")
-    return result
 
 
 class SandboxAutoTrader:
@@ -103,6 +75,7 @@ class SandboxAutoTrader:
         self.entries_blocked = threading.Event()
         self.last_heartbeat_received = float('-inf')
         self.load_error = False
+        self.entry_filter = None
         try:
             self.state = (store.latest() if gateway.mode in {"sandbox","paper"} else None) or empty_state()
             if self.state["id"]:
@@ -155,6 +128,7 @@ class SandboxAutoTrader:
             self.store.claim(self.writer)
             prior_state = deepcopy(self.state)
             prior_control = self.monitoring,self.owner,self.lease_until,self.last_heartbeat_received
+            prior_filter = self.entry_filter
             try:
                 previous = self.store.for_day(cfg["account"],cfg["trade_date"])
                 if previous:
@@ -167,6 +141,11 @@ class SandboxAutoTrader:
                     raise ValueError("本日仍有未確認委託或曝險，請先重新對帳")
                 if previous and sum(o["filled"]*(1 if o["action"]=="Buy" else -1) for o in previous["orders"]):
                     raise ValueError("本日成交紀錄仍有曝險，請先重新對帳")
+                entry_filter = None
+                if cfg.get('model_run_id'):
+                    from .learning_inference import EntryFilter
+                    from .learning_store import LearningStore
+                    entry_filter = EntryFilter(LearningStore(self.store.research), cfg['model_run_id'], cfg)
                 contract = self.gateway.prepare(cfg)
                 self.state = previous or empty_state()
                 self.state.update(id=self.state["id"] or uuid.uuid4().hex,config=cfg,contract=contract,
@@ -175,10 +154,12 @@ class SandboxAutoTrader:
                 self.last_heartbeat_received = self.monotonic()
                 self.entries_blocked.clear()
                 self.monitoring = True
+                self.entry_filter = entry_filter
                 self._save(f"啟動 {self.gateway.mode} 策略；不追補啟動前訊號","control")
                 return self.snapshot(header)
             except Exception:
                 self.state = prior_state
+                self.entry_filter = prior_filter
                 self.monitoring,self.owner,self.lease_until,self.last_heartbeat_received = prior_control
                 if not self.monitoring:
                     self.store.release(self.writer)
@@ -393,6 +374,8 @@ class SandboxAutoTrader:
                 entryPrice=entry["fillPrice"],referencePrice=anchor,
                 stop=anchor-side*entry.get('stopPoints',cfg['stop_points']),target=anchor+side*entry.get('targetPoints',cfg['target_points']),
                 referenceType='fill' if entry.get('anchorMode')=='fill' and entry['fillPrice'] is not None else 'limit')
+            if entry.get('exitDeadline') is not None:
+                self.state['position']['exitDeadline'] = entry['exitDeadline']
             if entry["fillPrice"] is not None and self._valid_quote():
                 price = self.state["quote"]["price"]
                 self.state["unrealizedNet"] = (price-entry["fillPrice"])*side*10-cfg["fee_per_side"]*2-(futures_tax(price,10,cfg["tax_rate"])+futures_tax(entry["fillPrice"],10,cfg["tax_rate"]))
@@ -435,11 +418,23 @@ class SandboxAutoTrader:
             raise ValueError("委託限價無效")
         plan={}
         if role=='entry':
-            plan,blocked=entry_plan(cfg,self.state['lastSignal'] or {},action,limit,q['price'],self.state['realizedNet'])
+            if cfg.get('model_run_id'):
+                model = (self.state['lastSignal'] or {}).get('model') or {}
+                if (self.entry_filter is None or model.get('runId') != cfg['model_run_id']
+                    or model.get('hash') != self.entry_filter.hash or model.get('accepted') is not True
+                    or self.state['lastSignal']['time'] != int(at.timestamp())//300*300):
+                    raise ValueError('缺少本次已確認模型訊號，禁止進場')
+            # Keep the trained R before rounding the ATR-adjusted target. The UI's
+            # integer target_points only describes the nominal minimum distance.
+            entry_config = dict(cfg, target_points=cfg['stop_points']*self.entry_filter.target_r) if cfg.get('model_run_id') else cfg
+            plan,blocked=entry_plan(entry_config,self.state['lastSignal'] or {},action,limit,q['price'],self.state['realizedNet'])
             if blocked:
                 self.state['reason']=blocked
                 self._save(blocked,'signal_rejected')
                 return
+            if cfg.get('model_run_id'):
+                plan.update(modelRunId=model['runId'], modelHash=model['hash'], modelScore=model['score'],
+                    modelThreshold=model['threshold'], exitDeadline=self.state['lastSignal']['time']+20*60)
         tag = "FA"+uuid.uuid4().hex[:8]
         order = dict(tag=tag,role=role,action=action,limit=limit,status="Sending",filled=0,fillPrice=None,
             orderId=None,submittedAt=at.timestamp(),cancelRequested=False,
@@ -530,6 +525,8 @@ class SandboxAutoTrader:
                 self.state.update(exitRequested=True,exitReason="策略停損")
             elif target_hit:
                 self.state.update(exitRequested=True,exitReason="策略停利")
+            if position.get('exitDeadline') is not None and at.timestamp() >= position['exitDeadline']:
+                self.state.update(exitRequested=True,exitReason='模型20分鐘退出期限')
             if self.state["exitRequested"] and not self.state["pending"]:
                 attempts = sum(o["role"]=="exit" and o["entryTag"]==position["entryTag"] for o in self.state["orders"])
                 if attempts>=3:
@@ -561,15 +558,30 @@ class SandboxAutoTrader:
         month = self.state["contract"].get("delivery_date", "").replace("-", "")[:6]
         self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"FUT","TMF",month,"regular"),closed)
         stocks = {}
-        if cfg["use_basket"]:
-            for member in cfg["basket"]:
-                values = self.gateway.bars(member["code"],cfg["trade_date"],"STK")
-                stocks[member["code"]] = [b for b in values if b["time"]<=decision]
-                self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"STK",member["code"],"","regular"),stocks[member["code"]])
+        if cfg["use_basket"] or cfg.get('model_run_id'):
+            from .learning_data import STOCKS
+            codes = STOCKS if cfg.get('model_run_id') else [member['code'] for member in cfg['basket']]
+            for code in codes:
+                values = self.gateway.bars(code,cfg["trade_date"],"STK")
+                stocks[code] = [b for b in values if b["time"]<=decision]
+                self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"STK",code,"","regular"),stocks[code])
         signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks)
+        if signal['side'] and cfg.get('model_run_id'):
+            if self.entry_filter is None or self.entry_filter.ident != cfg['model_run_id']:
+                raise ValueError('所選模型尚未載入，禁止進場')
+            from .learning_inference import ModelInferenceError
+            try:
+                signal['model'] = self.entry_filter.evaluate(closed, decision, stocks)
+            except ModelInferenceError as error:
+                signal['model'] = error.decision
+                signal['reason'] = str(error)
+                self.state.update(lastSignal=signal, status='attention', reason=str(error))
+                self._save(self.state['reason'], 'model_error')
+                return
+            signal['reason'] = signal['model']['reason']
         self.state["lastSignal"] = signal
         self._save(signal["reason"],"signal")
-        if signal["side"] and signal["side"] not in self.state["usedSides"]:
+        if signal["side"] and signal["side"] not in self.state["usedSides"] and (not cfg.get('model_run_id') or signal['model']['accepted']):
             # Re-read current quotes after candle requests; stale HTTP success cannot arm an order.
             self.state["quote"] = self.gateway.quote(self.state["contract"])
             self._send(signal["side"],"entry",signal["reason"])
