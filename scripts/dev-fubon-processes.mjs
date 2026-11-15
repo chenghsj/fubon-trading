@@ -147,7 +147,7 @@ export function printStatus(status) {
         console.log(`${service.role === 'ui' ? '前端' : 'API'}：127.0.0.1:${service.port} · PID ${pids}`);
     }
     console.log(`網址：${status.config.origin}`);
-    const args = ` --ui-port ${status.config.uiPort} --api-port ${status.config.apiPort}`;
+    const args = ` -- --ui-port ${status.config.uiPort} --api-port ${status.config.apiPort}`;
     console.log(`查詢：pnpm status${args}\n停止：pnpm stop${args}\n重啟：pnpm restart${args}`);
 }
 

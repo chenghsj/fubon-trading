@@ -70,7 +70,7 @@ try {
     if (process.env.npm_command === 'restart' && ['stop', 'start'].includes(process.env.npm_lifecycle_event)) {
         // The explicit restart script performs both operations once.
     } else if (config.help) {
-        console.log('pnpm start／status／stop／restart [--ui-port 5189] [--api-port 21429] [--no-browser]\n主 checkout 使用 5179/21323；worktree 依路徑分配固定獨立埠。所有 worktree 沿用本機共用 Passkey。\n重複 start 只顯示現有服務；stop／restart 只操作已確認屬於目前專案的程序。');
+        console.log('pnpm start／status／stop／restart [-- --ui-port 5189 --api-port 21429 --no-browser]\n主 checkout 使用 5179/21323；worktree 依路徑分配固定獨立埠。所有 worktree 沿用本機共用 Passkey。\n重複 start 只顯示現有服務；stop／restart 只操作已確認屬於目前專案的程序。');
     } else if (action === 'status') {
         printStatus(await inspectServices(root, config));
     } else if (action === 'stop') {

@@ -45,8 +45,15 @@ async function fixture(ports?: [number, number]) {
     const env = { ...process.env, PATH: `${root}/bin:${process.env.PATH}`, FUBON_MODE: 'demo' };
     const command = (action: string) => exec(process.execPath, ['scripts/dev-fubon.mjs', ...(action === 'start' ? [] : [action]), ...args], { cwd: root, env, timeout: 12000 }).then(r => ({ ...r, code: 0 })).catch(e => ({ stdout: e.stdout as string, stderr: e.stderr as string, code: e.code as number }));
     cleanup.stop = () => command('stop');
-    const packageCommand = (action: string) => exec('pnpm', [action, ...args], { cwd: root, env, timeout: 12000 }).then(r => ({ ...r, code: 0 })).catch(e => ({ stdout: e.stdout as string, stderr: e.stderr as string, code: e.code as number }));
-    const packageStart = (action: string) => { const child = spawn('pnpm', [action, ...args], { cwd: root, env, stdio: 'ignore' }); children.push(child); return child; };
+    const packageCommand = (action: string) => exec('pnpm', [action, '--', ...args], { cwd: root, env, timeout: 12000 }).then(r => ({ ...r, code: 0 })).catch(e => ({ stdout: e.stdout as string, stderr: e.stderr as string, code: e.code as number }));
+    const packageStart = (action: string) => {
+        const child = spawn('pnpm', [action, '--', ...args], { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] });
+        let logs = '';
+        child.stdout.on('data', chunk => { logs += chunk; });
+        child.stderr.on('data', chunk => { logs += chunk; });
+        children.push(child);
+        return Object.assign(child, { logs: () => logs });
+    };
     const start = (action = 'start') => {
         const child = spawn(process.execPath, ['scripts/dev-fubon.mjs', ...(action === 'start' ? [] : [action]), ...args], { cwd: root, env, stdio: 'ignore' });
         children.push(child);
@@ -69,6 +76,7 @@ afterEach(async () => {
         await stop?.();
         for (const child of children) if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
         for (let i = 0; i < 100 && children.some(c => c.exitCode === null && c.signalCode === null); i++) await delay(30);
+        await stop?.();
         await rm(root, { recursive: true, force: true });
     }
 });
@@ -183,7 +191,7 @@ describe.skipIf(!supported)('dev service commands with real isolated processes',
         const restart = f.packageStart('restart');
         let after = before;
         for (let i = 0; i < 150 && after.pid === before.pid; i++) { await delay(50); try { after = await f.ready(); } catch { /* restarting */ } }
-        expect(after.pid).not.toBe(before.pid);
+        expect(after.pid, restart.logs()).not.toBe(before.pid);
         const stop = await f.packageCommand('stop');
         expect(stop.code, stop.stderr).toBe(0);
         for (let i = 0; i < 100 && restart.exitCode === null; i++) await delay(30);

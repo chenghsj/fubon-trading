@@ -34,7 +34,7 @@ pnpm restart  # 明確停止後，按目前設定重新啟動
 
 `stop`／`restart` 會中斷目前工作階段；重啟後需要再次以 Passkey 解鎖，paper 模擬狀態會重設。停止服務不會自動取消券商端的委託或平倉。啟動器不會自動重啟、強制殺掉其他程序或掃描替代埠。舊版背景服務也能依工作目錄與執行指令辨識；若沒有啟動記錄，模式會明確標示為「未記錄」，並另外列出目前設定，避免把設定檔當成執行中的模式。
 
-指定其他埠啟動時，查詢／停止／重啟都帶上同一組參數，例如 `pnpm stop --ui-port 5189 --api-port 21429`。Windows 保留原有啟動行為，尚不提供上述程序控制。
+指定其他埠啟動時，查詢／停止／重啟都帶上同一組參數，例如 `pnpm stop -- --ui-port 5189 --api-port 21429`；`--` 將參數交給專案腳本，兼容 pnpm 10 與更新版本。Windows 保留原有啟動行為，尚不提供上述程序控制。
 
 ### 在 worktree 開發
 
@@ -45,9 +45,9 @@ pnpm restart  # 明確停止後，按目前設定重新啟動
 需要自行指定埠時：
 
 ```sh
-pnpm start --ui-port 5189 --api-port 21429
+pnpm start -- --ui-port 5189 --api-port 21429
 # 僅啟動服務、不開啟瀏覽器：
-pnpm start --no-browser
+pnpm start -- --no-browser
 ```
 
 新 worktree 沒有 `.env` 時使用展示模式；需要富邦行情時再按下節設定 `paper`。供人試用請使用正常啟動流程與平常的瀏覽器；`test:ui` 的臨時資料庫和虛擬 Passkey 只供自動測試，無法用你的既有 Passkey 解鎖。
