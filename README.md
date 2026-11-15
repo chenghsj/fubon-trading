@@ -46,6 +46,14 @@ pnpm 12 若阻擋 esbuild 安裝腳本，可執行 `pnpm approve-builds esbuild 
 
 ## 使用富邦行情
 
+策略回測面板另提供 LightGBM 微台研究：跨月分批下載、資料品質、按日期訓練／驗證／測試、固定滑價壓力與版本保存。它只產生研究報告與本機模型，不自動啟動或替換交易策略，操作方式見[模型研究規格](docs/design/lightgbm-research.md)。macOS 需先安裝 OpenMP：
+
+```sh
+brew install libomp
+```
+
+`pnpm start` 會帶入 `learning` Python extra；缺原生依賴時，面板會顯示訓練不可用原因。
+
 ```sh
 uv sync --directory server --extra fubon
 ```
@@ -104,6 +112,7 @@ macOS 公開驗證資料保存在 `~/Library/Application Support/Fubon Trading/p
 | 選擇權篩選／歷史分 K、排行、指數成分與籌碼分析 | 尚未完成轉接 |
 | 圖表／條件單引擎的括號、觸價／定時／兩腳執行 | 停用，待成交回報與明細相容性驗證 |
 | 日內回測研究與 SQLite 資料庫 | 新增公開面板；歷史 1 分 K 快取、固定假設權重、ORB 濾網對照、成本／滑價與紀錄保存，見 [規格](docs/design/intraday-research.md) |
+| LightGBM 微台訊號研究 | 跨月資料、固定事件標籤、時間切分、成本壓力、模型保存／匯出；研究模型不核准自動交易 |
 | Sandbox 策略自動交易 | 「新增面板 → 自動交易」；微台單口、指定日盤、限價 IOC、啟停／對帳與本機退出監控，見 [執行流程](docs/design/sandbox-auto-trading.md) |
 | 自動產生策略、最佳化與樣本外驗證 | 後續工作；研究面板不包含上游私有完整回測模組 |
 
@@ -118,7 +127,7 @@ pnpm server           # 只啟動 Python bridge，開啟 Passkey 解鎖的 dist/
 pnpm dev              # 只啟動前端，不會單獨取得本機 API 授權；完整開發用 pnpm start
 pnpm build            # TypeScript + 正式 Web build
 pnpm test             # 既有前端測試
-uv run --directory server --extra test --extra fubon pytest
+uv run --directory server --extra test --extra fubon --extra learning pytest
 ```
 
 建置後亦可執行 `pnpm server`，會自動開啟 http://localhost:21323 的 `dist/` 靜態終端，需以 Passkey 解鎖。API 文件在 http://localhost:21323/docs；API 呼叫仍需工作階段權限。

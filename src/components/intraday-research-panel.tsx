@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { IntradayResearchResults } from './intraday-research-results';
 import { ContractFeeNote } from './contract-fee-note';
+import { IntradayLearningPanel } from './intraday-learning-panel';
 import { getContractFee, useContractFee } from '../lib/contract-fee';
 import { apiGet } from '../lib/api';
 import { fubonPost as researchPost } from '../lib/fubon-api-detail';
@@ -124,6 +125,7 @@ export function IntradayResearchPanel() {
         {dataset && <div className={s.notice}>{dataset.source === 'synthetic' ? '合成展示資料：僅驗證流程，不代表真實績效。' : `富邦歷史資料（${dataset.source}）`}<br />{dataset.product} {dataset.contractMonth} · {dataset.start}～{dataset.end} · {dataset.futures.length.toLocaleString()} 根期貨 K 棒 · 快取命中 {dataset.cacheHits}/{dataset.assetCount}<br />資料版本 {dataset.id.slice(0, 12)}</div>}
         {latest && <div className={s.notice}><strong>歷史資料判讀 · 不是即時訊號</strong><br />資料時間 {dateTime(latest.time)} · 期貨 {latest.price.toFixed(0)}<br />{latest.weightedReturn === null ? `資料不足：${latest.missing.join('、')}` : `權值股近 5 分鐘加權變化 ${(latest.weightedReturn * 100).toFixed(4)}%（固定籃子對指數的估計貢獻）`}<br />本地讀取與計算 {latest.elapsedMs} ms</div>}
         {result && <IntradayResearchResults result={result} />}
+        {product === 'TMF' && <IntradayLearningPanel config={config} />}
         <h3 className={s.subhead}>最近保存的回測</h3>
         <div className={s.records}>{records.map(r => <Button size="compact" className={s.recordButton} variant="outline" key={r.id} disabled={!!busy} onClick={() => { setResult(r.result); setDataset(null); setLatest(null); setError(''); }}>{new Date(r.createdAt).toLocaleString('zh-TW')} · 基準 {cash(r.result.baseline.net)} / 濾網 {cash(r.result.filtered.net)}{r.result.revision ? ` / V2 ${cash(r.result.revision.run.net)}` : ''}</Button>)}{!records.length && <p className={s.muted}>完成比較後會自動保存結果，重新開啟仍可查看。</p>}</div>
     </div>;

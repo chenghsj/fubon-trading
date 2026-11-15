@@ -323,6 +323,21 @@ class Broker:
                     return []
                 raise ValueError(f"{symbol} 歷史行情查詢失敗；請確認行情權限、連線與日期") from None
 
+    def learning_candles(self, kind, symbol, start, end):
+        """Read-only continuous history, preserving actual contract months per row."""
+        if self.config.mode == 'demo':
+            rows = self.research_candles(kind,symbol,'',start,end)
+            return [dict(row,contractMonth=row['date'][:7].replace('-','')) for row in rows] if kind=='FUT' else rows
+        with self.lock:
+            params = dict(timeframe='1',sort='asc',**{'from':start,'to':end})
+            params.update(dict(symbol=symbol) if kind=='STK' else dict(product=symbol,contractMonth='1!',session='regular'))
+            try:
+                return self._client(kind).historical.candles(**params).get('data',[])
+            except Exception as error:
+                if getattr(error,'status_code',None)==404:
+                    return []
+                raise ValueError('跨月歷史下載失敗，請檢查行情權限、日期或稍後重試；已保存批次可續傳') from None
+
     def ticks(self, key, requested_date, count=500):
         contract = self.contract(key)
         result = dict(datetime=[], close=[], volume=[], bid_price=[], bid_volume=[], ask_price=[], ask_volume=[], tick_type=[])

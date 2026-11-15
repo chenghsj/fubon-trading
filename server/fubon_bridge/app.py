@@ -20,6 +20,10 @@ from .research import HistoryRequest, ResearchStore, load_history
 from .auto_gateway import SandboxGateway
 from .auto_store import AutoStore
 from .auto_trading import AutoConfig, SandboxAutoTrader
+from .learning_store import LearningStore
+from .learning_service import LearningService
+from .learning_data import CollectionRequest
+from .learning_train import TrainingRequest
 from pydantic import BaseModel
 from typing import Literal
 
@@ -65,6 +69,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     broker = Broker(cfg, publish, sdk_factory)
     research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
     automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(SandboxGateway(broker), AutoStore(research), session.authorize)
+    learning = LearningService(broker,LearningStore(research),automation)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -86,6 +91,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         try:
             yield
         finally:
+            await asyncio.to_thread(learning.shutdown)
             automation.closing.set()
             await asyncio.to_thread(automation.shutdown)
             for pending in (task, auto_task):
@@ -100,6 +106,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     app.state.broker = broker
     app.state.session = session
     app.state.automation = automation
+    app.state.learning = learning
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
@@ -281,7 +288,10 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.post("/api/v1/automation/start")
     def automation_start(request: Request, body: AutoConfig):
-        return automation.start(body, request.headers.get("authorization", ""))
+        with learning.lock:
+            if learning.busy():
+                raise ValueError('歷史研究工作執行中，完成後才能啟動自動交易')
+            return automation.start(body, request.headers.get("authorization", ""))
 
     @app.post("/api/v1/automation/heartbeat")
     def automation_heartbeat(request: Request, body: AutoHeartbeat):
@@ -306,6 +316,26 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.post("/api/v1/research/runs")
     def save_research_run(body: dict = Body(...)):
         return research.save_run(str(body.get("datasetId", "")), body.get("result", {}))
+
+    @app.get('/api/v1/research/learning')
+    def learning_overview():
+        return learning.overview()
+
+    @app.post('/api/v1/research/learning/collect')
+    def learning_collect(body: CollectionRequest):
+        return learning.start('collect',body)
+
+    @app.post('/api/v1/research/learning/train')
+    def learning_train(body: TrainingRequest):
+        return learning.start('train',body)
+
+    @app.get('/api/v1/research/learning/runs/{ident}')
+    def learning_run(ident: str):
+        return learning.store.run(ident)
+
+    @app.get('/api/v1/research/learning/models/{ident}')
+    def learning_model(ident: str):
+        return dict(format='lightgbm-text',model=learning.store.model(ident))
 
     @app.post("/api/v1/data/ticks")
     def ticks(body: dict = Body(...)):

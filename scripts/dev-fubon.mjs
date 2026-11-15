@@ -53,7 +53,7 @@ async function start({ uiPort, apiPort, origin, noBrowser }) {
         await new Promise(resolve => setTimeout(resolve, 100));
     }
     if (!ready) throw new Error('前端啟動逾時');
-    run('uv', ['run', '--directory', 'server', 'fubon-bridge', '--ui-url', origin, ...(noBrowser ? ['--no-browser'] : [])], { FUBON_PORT: String(apiPort) });
+    run('uv', ['run', '--directory', 'server', '--extra', 'learning', 'fubon-bridge', '--ui-url', origin, ...(noBrowser ? ['--no-browser'] : [])], { FUBON_PORT: String(apiPort) });
     console.log(`\nFubon Trading：${origin}（API 127.0.0.1:${apiPort}）\n沿用本機共用 Passkey；請以既有 Passkey 解鎖。${noBrowser ? '' : '將在預設瀏覽器開啟。'}\n`);
 }
 try {
