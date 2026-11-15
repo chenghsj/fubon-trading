@@ -4,6 +4,16 @@
 import { style, styleVariants } from '@vanilla-extract/css';
 import { vars } from '../theme.css';
 
+const NARROW = 'screen and (max-width: 600px)';
+
+// These dialogs own their geometry instead of inheriting the terminal's w-full.
+const dialogPosition = style({
+    position: 'fixed',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
+});
+
 export const overlay = style({
     position: 'fixed',
     inset: 0,
@@ -15,22 +25,23 @@ export const overlay = style({
     paddingTop: '10vh',
 });
 
-export const dialog = style({
+export const dialog = style([dialogPosition, {
     display: 'flex',
     flexDirection: 'column',
-    width: 'min(42rem, 92vw)',
-    maxHeight: 'min(34rem, 78vh)',
+    width: 'min(42rem, calc(100vw - 32px))',
+    maxHeight: ['min(34rem, calc(100vh - 32px))', 'min(34rem, calc(100dvh - 32px))'],
     background: vars.color.panelRaised,
     border: `1px solid ${vars.color.borderBright}`,
     borderRadius: vars.radius.lg,
     boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)',
     overflow: 'hidden',
-});
+}]);
 
 export const header = style({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexShrink: 0,
     padding: `${vars.space.md} ${vars.space.lg}`,
     fontFamily: vars.font.display,
     fontSize: '0.9rem',
@@ -53,6 +64,7 @@ export const closeBtn = style({
 export const searchWrap = style({
     display: 'flex',
     alignItems: 'center',
+    flexShrink: 0,
     gap: '8px',
     margin: `0 ${vars.space.lg} ${vars.space.md}`,
     padding: `0 ${vars.space.md}`,
@@ -80,6 +92,9 @@ export const body = style({
     flex: 1,
     minHeight: 0,
     borderTop: `1px solid ${vars.color.border}`,
+    '@media': {
+        [NARROW]: { flexDirection: 'column' },
+    },
 });
 
 export const sidebar = style({
@@ -91,6 +106,16 @@ export const sidebar = style({
     padding: vars.space.md,
     borderRight: `1px solid ${vars.color.border}`,
     overflowY: 'auto',
+    '@media': {
+        [NARROW]: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            width: '100%',
+            padding: vars.space.sm,
+            borderRight: 'none',
+            borderBottom: `1px solid ${vars.color.border}`,
+        },
+    },
 });
 
 export const sideTitle = style({
@@ -101,6 +126,9 @@ export const sideTitle = style({
     color: vars.color.mutedForeground,
     padding: '8px 8px 3px',
     userSelect: 'none',
+    '@media': {
+        [NARROW]: { display: 'none' },
+    },
 });
 
 const sideItemBase = style({
@@ -130,6 +158,7 @@ export const sideItem = styleVariants({
 export const list = style({
     flex: 1,
     minWidth: 0,
+    minHeight: 0,
     overflowY: 'auto',
     padding: `${vars.space.sm} 0`,
 });
@@ -155,6 +184,84 @@ export const row = style({
     border: 'none',
     padding: `7px ${vars.space.lg}`,
     ':hover': { background: vars.color.muted },
+});
+
+export const maPresets = style({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: vars.space.sm,
+    padding: `${vars.space.xs} ${vars.space.lg} ${vars.space.md}`,
+});
+
+export const maPresetOptions = style({
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: vars.space.xs,
+});
+
+export const maPresetButton = style({
+    selectors: {
+        '&&': {
+            minHeight: '1.75rem',
+            padding: `${vars.space.xs} ${vars.space.sm}`,
+            gap: vars.space.xs,
+            fontSize: '0.7rem',
+        },
+    },
+});
+
+export const maPresetGroup = style({
+    color: vars.color.accent,
+    maxWidth: '100%',
+    selectors: {
+        '&&': {
+            minHeight: '1.75rem',
+            whiteSpace: 'normal',
+            textAlign: 'left',
+            justifyContent: 'flex-start',
+            padding: `${vars.space.xs} ${vars.space.sm}`,
+        },
+    },
+});
+
+export const maPresetHint = style({
+    fontFamily: vars.font.body,
+    fontSize: '0.66rem',
+    color: vars.color.mutedForeground,
+});
+
+export const maGroupRow = style({
+    display: 'flex',
+    alignItems: 'center',
+    gap: vars.space.xs,
+    width: '100%',
+    minWidth: 0,
+});
+
+export const maGroupApply = style({
+    selectors: { '&&': { flex: 1, minWidth: 0, justifyContent: 'flex-start', textAlign: 'left', whiteSpace: 'normal', overflowWrap: 'anywhere', padding: vars.space.sm } },
+});
+
+export const maGroupLine = style({
+    display: 'grid',
+    gridTemplateColumns: 'auto minmax(0, 1fr) 4rem 1.75rem',
+    alignItems: 'center',
+    gap: vars.space.sm,
+});
+
+export const maGroupError = style({ color: vars.color.danger, fontSize: '0.74rem' });
+
+export const maHistoryNotice = style({
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: vars.space.sm,
+    padding: vars.space.sm,
+    fontFamily: vars.font.body,
+    fontSize: '0.68rem',
+    color: vars.color.mutedForeground,
+    background: vars.color.inset,
 });
 
 export const rowSwatch = style({
@@ -209,6 +316,9 @@ export const newCustomBtn = style([
     sideItemBase,
     {
         marginTop: 'auto',
+        '@media': {
+            [NARROW]: { marginTop: 0 },
+        },
         color: vars.color.accent,
         border: `1px dashed ${vars.color.border}`,
         ':hover': {
@@ -274,6 +384,9 @@ export const footer = style({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    flexShrink: 0,
+    gap: `${vars.space.xs} ${vars.space.md}`,
     padding: `${vars.space.sm} ${vars.space.lg}`,
     borderTop: `1px solid ${vars.color.border}`,
     fontFamily: vars.font.body,
@@ -281,9 +394,13 @@ export const footer = style({
     color: vars.color.mutedForeground,
 });
 
+export const footerHint = style({
+    flexBasis: '100%',
+});
+
 // ---- settings modal ----
 
-export const settingsDialog = style({
+export const settingsDialog = style([dialogPosition, {
     display: 'flex',
     flexDirection: 'column',
     width: 'min(27rem, 92vw)',
@@ -293,7 +410,7 @@ export const settingsDialog = style({
     borderRadius: vars.radius.lg,
     boxShadow: '0 24px 64px rgba(0, 0, 0, 0.5)',
     overflow: 'hidden',
-});
+}]);
 
 export const tabs = style({
     display: 'flex',
@@ -491,38 +608,6 @@ export const colorPanel = style({
     borderRadius: vars.radius.md,
 });
 
-export const colorGrid = style({
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '3px',
-});
-
-export const colorGridRow = style({
-    display: 'flex',
-    gap: '3px',
-});
-
-const gridSwatchBase = style({
-    width: '18px',
-    height: '18px',
-    borderRadius: '3px',
-    cursor: 'pointer',
-    border: '1px solid rgba(255,255,255,0.08)',
-    padding: 0,
-    ':hover': { transform: 'scale(1.15)' },
-});
-
-export const gridSwatch = styleVariants({
-    normal: [gridSwatchBase],
-    active: [
-        gridSwatchBase,
-        {
-            outline: `2px solid ${vars.color.accent}`,
-            outlineOffset: '1px',
-        },
-    ],
-});
-
 export const colorTools = style({
     display: 'flex',
     alignItems: 'center',
@@ -535,19 +620,6 @@ export const colorToolLabel = style({
     color: vars.color.mutedForeground,
     width: '3.2rem',
     flexShrink: 0,
-});
-
-export const hexInput = style({
-    width: '5.4rem',
-    fontFamily: vars.font.mono,
-    fontSize: '0.7rem',
-    color: vars.color.foreground,
-    background: vars.color.panelRaised,
-    border: `1px solid ${vars.color.border}`,
-    borderRadius: vars.radius.sm,
-    padding: '3px 6px',
-    outline: 'none',
-    ':focus': { borderColor: vars.color.accent },
 });
 
 export const opacitySlider = style({

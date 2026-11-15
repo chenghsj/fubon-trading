@@ -11,6 +11,7 @@ import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // per-instance settings modal（輸入 / 樣式 分頁、確定/取消）.
 
 import {
+    Check,
     ChevronDown,
     LineChart,
     Pencil,
@@ -21,7 +22,7 @@ import {
     Waves,
     X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
     CUSTOM_PREFIX,
     customType,
@@ -46,6 +47,13 @@ import {
 } from '../lib/indicator-defs';
 import { CustomIndicatorEditor } from './custom-indicator-editor';
 import { bandColors } from '../lib/price-band';
+import { MA_PRESETS, MA_PRESET_GROUP, type MAPeriod, type MALinePreset } from '../lib/ma-presets';
+import { listMAGroups, subscribeMAGroups, type MAGroup } from '../lib/ma-groups';
+import type { MAHistoryStatus } from '../lib/ma-history';
+import { MAGroupEditor } from './ma-group-editor';
+import { MAHistoryNotice } from './ma-history-notice';
+import { IndicatorColorPalette } from './indicator-color-picker';
+export { COLOR_GRID } from './indicator-color-picker';
 import * as styles from './indicator-dialog.css';
 
 const WIDTHS: (1 | 2 | 3 | 4)[] = [1, 2, 3, 4];
@@ -62,26 +70,6 @@ const PLOT_KINDS: PlotKind[] = ['line', 'step', 'area', 'histogram', 'circles'];
 
 const PRECISIONS: (number | undefined)[] = [undefined, 0, 1, 2, 3, 4];
 
-// TradingView-style color grid: grayscale row + 10 hues × 7 lightness tiers
-function hslHex(h: number, s: number, l: number): string {
-    const a = (s / 100) * Math.min(l / 100, 1 - l / 100);
-    const f = (n: number) => {
-        const k = (n + h / 30) % 12;
-        const c = l / 100 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
-        return Math.round(255 * c)
-            .toString(16)
-            .padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-}
-
-const HUES = [0, 25, 48, 95, 150, 178, 210, 245, 280, 330];
-export const COLOR_GRID: string[][] = [
-    [100, 95, 85, 70, 55, 40, 30, 20, 10, 0].map((l) => hslHex(0, 0, l)),
-    HUES.map((h) => hslHex(h, 82, 58)),
-    ...[84, 74, 64, 50, 38, 28].map((l) => HUES.map((h) => hslHex(h, 62, l))),
-];
-
 type Category = 'all' | 'fav' | 'overlay' | 'pane' | 'custom';
 
 const CATEGORIES: { key: Category; label: string }[] = [
@@ -95,11 +83,19 @@ const CATEGORIES: { key: Category; label: string }[] = [
 export function IndicatorDialog({
     instances,
     onAdd,
+    onAddMAPreset,
+    onAddMAGroup,
+    maHistoryStatus,
+    onRetryMAHistory,
     onClose,
     onSaveDefaults,
 }: {
     instances: IndicatorInstance[];
     onAdd: (type: string) => void;
+    onAddMAPreset: (periods: readonly MAPeriod[]) => void;
+    onAddMAGroup: (lines: readonly MALinePreset[]) => void;
+    maHistoryStatus?: MAHistoryStatus | null;
+    onRetryMAHistory?: () => void;
     onClose: () => void;
     onSaveDefaults?: () => void;
 }) {
@@ -112,6 +108,17 @@ export function IndicatorDialog({
     } | null>(null);
     const [, setCustomVer] = useState(0); // 自訂指標增刪改 → 重新渲染列表
     const inputRef = useRef<HTMLInputElement>(null);
+    const groups = useSyncExternalStore(subscribeMAGroups, listMAGroups);
+    const [groupEditor, setGroupEditor] = useState<{ group?: MAGroup; initialLines: MALinePreset[] } | null>(null);
+    const editGroup = (group?: MAGroup) => {
+        const seen = new Set<number>();
+        const current = instances.filter(instance => {
+            if (instance.type !== 'sma' || seen.has(instance.params.period!)) return false;
+            seen.add(instance.params.period!);
+            return true;
+        }).slice(0, 12).map(instance => ({ period: instance.params.period!, color: outputStyle(instance, DEF_BY_TYPE.get('sma')!, 'line').color }));
+        setGroupEditor({ group, initialLines: current.length ? current : MA_PRESETS.filter(p => MA_PRESET_GROUP.some(period => period === p.period)).map(p => ({ ...p })) });
+    };
 
     useEffect(() => subscribeCustoms(() => setCustomVer((v) => v + 1)), []);
 
@@ -136,12 +143,20 @@ export function IndicatorDialog({
     }, [instances]);
 
     const q = query.trim().toLowerCase();
+    const maQuery = q.replace(/[\s()（）]/g, '');
+    const matchesMAPreset = MA_PRESETS.some(({ period }) =>
+        [`ma${period}`, `sma${period}`, `${period}期`, String(period)].includes(maQuery),
+    );
+    const maPeriods = new Set(instances.filter(i => i.type === 'sma').map(i => i.params.period));
+    const groupAdded = MA_PRESET_GROUP.every(period => maPeriods.has(period));
+    const showAllMAGroups = !q || matchesMAPreset || [DEF_BY_TYPE.get('sma')!.label, ...DEF_BY_TYPE.get('sma')!.aliases].some(alias => alias.toLowerCase().includes(q));
     const matches = (d: IndicatorDef) =>
         !q ||
         d.label.toLowerCase().includes(q) ||
         d.short.toLowerCase().includes(q) ||
         d.desc.toLowerCase().includes(q) ||
-        d.aliases.some((a) => a.toLowerCase().includes(q));
+        d.aliases.some((a) => a.toLowerCase().includes(q)) ||
+        (d.type === 'sma' && (matchesMAPreset || groups.some(group => group.name.toLowerCase().includes(q))));
 
     const isCustom = (d: IndicatorDef) => d.type.startsWith(CUSTOM_PREFIX);
 
@@ -165,8 +180,8 @@ export function IndicatorDialog({
     const renderRow = (d: IndicatorDef) => {
         const added = counts.get(d.type) ?? 0;
         return (
+            <Fragment key={d.type}>
             <Button size="compact" variant="ghost"
-                key={d.type}
                 className={styles.row}
                 onClick={() => onAdd(d.type)}
             >
@@ -236,6 +251,49 @@ export function IndicatorDialog({
                     />
                 </span>
             </Button>
+            {d.type === 'sma' && (
+                <div className={styles.maPresets} role="group" aria-label="MA 預設週期">
+                    <div className={styles.maPresetHint}>預設週期，點選直接加入</div>
+                    <div className={styles.maPresetOptions}>
+                        {MA_PRESETS.map(({ period, color }) => {
+                            const exists = maPeriods.has(period);
+                            return <Button key={period} size="compact" variant="outline"
+                                className={styles.maPresetButton}
+                                disabled={exists}
+                                aria-label={exists ? `MA${period}（已加入）` : `加入 MA${period}`}
+                                title={exists ? '已加入，可從圖表圖例調整或顯示' : `加入 ${period} 期簡單移動平均線`}
+                                onClick={() => onAddMAPreset([period])}>
+                                <span className={styles.rowSwatch} style={{ background: color }} />
+                                MA{period}
+                                {exists && <Check size={12} />}
+                            </Button>;
+                        })}
+                    </div>
+                    <Button size="compact" variant="ghost" className={styles.maPresetGroup}
+                        disabled={groupAdded} onClick={() => onAddMAPreset(MA_PRESET_GROUP)}>
+                        {groupAdded ? <Check size={13} /> : <Plus size={13} />}
+                        {groupAdded ? '5／10／20／60 已齊全' : '一鍵加入 5／10／20／60'}
+                    </Button>
+                    <div className={styles.maPresetHint}>已有相同週期會略過；週期以目前 K 棒時框計算。</div>
+                    {groups.filter(group => showAllMAGroups || group.name.toLowerCase().includes(q)).map(group => {
+                        const exists = group.lines.every(line => maPeriods.has(line.period));
+                        return <div key={group.id} className={styles.maGroupRow}>
+                            <Button size="compact" variant="outline" className={styles.maGroupApply} disabled={exists}
+                                aria-label={exists ? `${group.name}（已加入）` : `套用 ${group.name}`} onClick={() => onAddMAGroup(group.lines)}>
+                                {exists ? <Check size={13} /> : <Plus size={13} />}
+                                <span className={styles.rowMain}>
+                                    <span>{group.name}</span>
+                                    <span className={styles.maPresetHint}>{group.lines.map(line => line.period).join('／')}</span>
+                                </span>
+                            </Button>
+                            <Button size="compact-icon" variant="ghost" className={styles.closeBtn} aria-label={`編輯 ${group.name}`} onClick={() => editGroup(group)}><Pencil size={13} /></Button>
+                        </div>;
+                    })}
+                    <Button size="compact" variant="outline" onClick={() => editGroup()}><Plus size={13} />建立均線組合</Button>
+                    {maHistoryStatus && onRetryMAHistory && <MAHistoryNotice status={maHistoryStatus} onRetry={onRetryMAHistory} />}
+                </div>
+            )}
+            </Fragment>
         );
     };
 
@@ -243,10 +301,10 @@ export function IndicatorDialog({
     // overlay 困在面板的 containing block / stacking context 裡 —
     // 視窗溢出面板又被其他面板蓋住（issue #39）
     return (
-        <TerminalDialog title="技術指標" onClose={onClose} className={styles.dialog}>
+        <TerminalDialog title="技術指標" onClose={onClose} layout="custom" className={styles.dialog}>
                 <div className={styles.header}>
                     技術指標
-                    <Button size="compact" variant="ghost" className={styles.closeBtn} onClick={onClose}>
+                    <Button size="compact" variant="ghost" aria-label="關閉技術指標" className={styles.closeBtn} onClick={onClose}>
                         <X size={16} />
                     </Button>
                 </div>
@@ -336,7 +394,7 @@ export function IndicatorDialog({
                     </div>
                 </div>
                 <div className={styles.footer}>
-                    <span>點擊指標開啟設定，確定後加入；同型可加多個（不同參數）</span>
+                    <span className={styles.footerHint}>一般指標開啟設定後加入；MA 預設可直接加入。</span>
                     <span>已啟用 {instances.length} 個</span>
                     {onSaveDefaults && <Button size="compact" variant="ghost" type='button' onClick={onSaveDefaults}>存為新圖／回測預設</Button>}
                 </div>
@@ -347,6 +405,7 @@ export function IndicatorDialog({
                     onClose={() => setEditorFor(null)}
                 />
             )}
+            {groupEditor && <MAGroupEditor {...groupEditor} onClose={() => setGroupEditor(null)} />}
         </TerminalDialog>
     );
 }
@@ -364,48 +423,9 @@ function ColorPanel({
     showWidth: boolean;
     onChange: (patch: OutputStyle) => void;
 }) {
-    const [hex, setHex] = useState(s.color);
     return (
         <div className={styles.colorPanel}>
-            <div className={styles.colorGrid}>
-                {COLOR_GRID.map((row, ri) => (
-                    <div key={ri} className={styles.colorGridRow}>
-                        {row.map((c) => (
-                            <Button size="compact-icon" variant="ghost"
-                                key={c}
-                                className={
-                                    styles.gridSwatch[
-                                        s.color.toLowerCase() ===
-                                        c.toLowerCase()
-                                            ? 'active'
-                                            : 'normal'
-                                    ]
-                                }
-                                style={{ background: c }}
-                                onClick={() => {
-                                    setHex(c);
-                                    onChange({ color: c });
-                                }}
-                            />
-                        ))}
-                    </div>
-                ))}
-            </div>
-            <div className={styles.colorTools}>
-                <span className={styles.colorToolLabel}>自訂</span>
-                <Input
-                    className={styles.hexInput}
-                    value={hex}
-                    spellCheck={false}
-                    onChange={(e) => {
-                        const v = e.target.value.trim();
-                        setHex(v);
-                        if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                            onChange({ color: v });
-                        }
-                    }}
-                />
-            </div>
+            <IndicatorColorPalette color={s.color} onChange={color => onChange({ color })} />
             <div className={styles.colorTools}>
                 <span className={styles.colorToolLabel}>透明度</span>
                 <Slider
@@ -498,7 +518,7 @@ export function IndicatorSettingsModal({
 
     // 同 IndicatorDialog：portal 到 body 逃出面板的 transform 陷阱
     return (
-        <TerminalDialog title="指標設定" onClose={onCancel} className={styles.settingsDialog}>
+        <TerminalDialog title="指標設定" onClose={onCancel} layout="custom" className={styles.settingsDialog}>
                 <div className={styles.header}>
                     {def.label}
                     <Button size="compact" variant="ghost" className={styles.closeBtn} onClick={onCancel}>

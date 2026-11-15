@@ -78,6 +78,10 @@ import {
     type IndicatorInstance,
 } from '../lib/indicator-defs';
 import { IndicatorInstanceContext } from '../lib/indicator-instance-context';
+import { addMAPresets, addMALines, type MAPeriod, type MALinePreset } from '../lib/ma-presets';
+import { requiredMABars, type HistoryPaging } from '../lib/ma-history';
+import { useMAHistoryBackfill } from '../hooks/use-ma-history-backfill';
+import { MAHistoryNotice } from './ma-history-notice';
 import {
     daySessionLabel,
     filterDaySession,
@@ -299,6 +303,11 @@ export function CandleChart({
     // 歷史斷層自癒（issue #18）：開盤前抓的歷史可能缺少上游尚未發布的
     // 跨午夜夜盤段，live 進來出現大斷層時補抓一次
     const [historySeq, setHistorySeq] = useState(0);
+    const [maHistoryGeneration, setMAHistoryGeneration] = useState(0);
+    const refreshHistory = () => {
+        setMAHistoryGeneration(value => value + 1);
+        setHistorySeq(nextChartHistoryRevision());
+    };
     const gapReloadAtRef = useRef(0);
     // 覆蓋率自癒（issue #18 二報）：live 斷層觸發的那次補抓常常太早
     // （上游還沒發布），live bar 一堆積洞就變「內部洞」再也偵測不到 —
@@ -497,6 +506,9 @@ export function CandleChart({
     );
     useEffect(() => panelService && panelId ? panelService.registerPanel(panelId) : undefined, [panelService, panelId]);
     const savedInstances = panelState?.instances ?? legacyInstances;
+    const maRequired = requiredMABars(savedInstances, tf.minutes);
+    const maRequiredRef = useRef(maRequired);
+    maRequiredRef.current = maRequired;
     const [settingsDraft, setSettingsDraft] = useState<IndicatorInstance | null>(null);
     const settingsRevisionRef = useRef('');
     const settingsNewRef = useRef(false);
@@ -543,7 +555,8 @@ export function CandleChart({
     // raw 1-min candles backing the current view — history pages merge here
     // and re-aggregate so buckets spanning a page seam stay correct
     const rawRef = useRef<Candle[]>([]);
-    const loadMoreRef = useRef<(() => void) | null>(null);
+    const loadMoreRef = useRef<(() => boolean) | null>(null);
+    const [historyPaging, setHistoryPaging] = useState<HistoryPaging>({ busy: false, error: false, exhausted: false });
     const indSeriesRef = useRef<ISeriesApi<'Line' | 'Histogram'>[]>([]);
     const triggers = useTriggers().filter((t) => t.code === contract.code);
     const workingOrders = useMemo(
@@ -819,7 +832,9 @@ export function CandleChart({
         // TradingView-style infinite history: panning near the left edge
         // pulls an older page of kbars (handler injected by the load effect)
         chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-            if (range && range.from < 30) loadMoreRef.current?.();
+            // While warming up a visible MA, its bounded runner owns paging.
+            // setData can emit range changes without a user scrolling.
+            if (range && range.from < 30 && maRequiredRef.current <= barsRef.current.length) loadMoreRef.current?.();
         });
 
         return () => {
@@ -948,6 +963,7 @@ export function CandleChart({
         setEmpty(false);
         setLoading(true);
         setHistoryError(false);
+        setHistoryPaging({ busy: false, error: false, exhausted: false });
         const clearSeries = () => {
             // the series must never keep a stale timeframe's data — a later
             // tick bucketed for the new timeframe would be "older" than the
@@ -983,12 +999,14 @@ export function CandleChart({
         // ---- older-history paging (TradingView-style infinite scroll) ----
         let oldestDay: number = tf.days; // days-ago covered so far
         let fetching = false;
+        let pageError = false;
         let dryPages = 0; // consecutive empty pages → assume exhausted
         const loadMore = () => {
-            if (fetching || cancelled) return;
-            if (loadedKeyRef.current !== loadKey) return;
-            if (dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS) return;
+            if (fetching || cancelled || pageError) return false;
+            if (loadedKeyRef.current !== loadKey) return false;
+            if (dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS) return false;
             fetching = true;
+            setHistoryPaging({ busy: true, error: false, exhausted: false });
             const from = Math.min(oldestDay + tf.days, MAX_HISTORY_DAYS);
             fetchChartHistory(
                 contract,
@@ -996,7 +1014,7 @@ export function CandleChart({
                 dateStrOffset(oldestDay + 1),
                 // 長區間翻頁量大 — 放寬 timeout，timeout 誤計 dryPages
                 // 會讓無限捲動提早罷工
-                { timeoutMs: 30_000 },
+                { timeoutMs: 30_000, revision: historySeq },
             )
                 .then((k) => {
                     if (cancelled || loadedKeyRef.current !== loadKey) return;
@@ -1024,13 +1042,18 @@ export function CandleChart({
                         else if (b.time > lastAgg) bars.push(b);
                     }
                     applyBars(bars);
+                    setEmpty(false);
+                    setHistoryError(false);
+                    lastBarRef.current = bars[bars.length - 1] ?? null;
                 })
                 .catch(() => {
-                    dryPages += 1;
+                    if (!cancelled) pageError = true;
                 })
                 .finally(() => {
                     fetching = false;
+                    if (!cancelled) setHistoryPaging({ busy: false, error: pageError, exhausted: dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS });
                 });
+            return true;
         };
 
         fetchChartHistory(contract, dateStrOffset(tf.days), dateStrOffset(0), {
@@ -1075,6 +1098,15 @@ export function CandleChart({
             cancelled = true;
         };
     }, [contract, tf, historySeq, dayOnly]);
+
+    const { status: maHistoryStatus, retryBackfill: retryMAHistory } = useMAHistoryBackfill({
+        // Automatic gap healing may reload history, but only a user refresh
+        // or a different chart context starts a fresh MA paging budget.
+        contextKey: `${contract.security_type}|${contract.code}|${tf.minutes}|${dayOnly}|${maHistoryGeneration}`,
+        required: maRequired, available: barsRef.current.length,
+        loading, historyError, paging: historyPaging, loadMore: loadMoreRef,
+        restart: refreshHistory,
+    });
 
     // Live trade/index quote -> update the current bar. Index products use
     // quote_idx rather than the regular tick stream in Shioaji 1.7.
@@ -1167,7 +1199,8 @@ export function CandleChart({
         // 歷史載入失敗後 live bar 已開始堆 — 圖上有東西就不該再掛
         // 「無 K 線資料」（同值 setState React 會 bail out）
         setEmpty(false);
-        setHistoryError(false);
+        // Live candles do not repair a failed history read. Keep its retry
+        // state until history succeeds, including for MA warmup.
     }, [liveQuote, quote?.tick?.volume, contract.code, tf.minutes, dayOnly]);
 
     // 自訂指標增刪改 → 重算指標 effect；被刪掉的型別把殘留實例一併清掉
@@ -1566,6 +1599,14 @@ export function CandleChart({
         setSettingsDraft(inst);
         setPickerOpen(false);
         setSettingsFor(inst.id);
+    };
+    const addMAPreset = (periods: readonly MAPeriod[]) => {
+        const next = addMAPresets(savedInstances, periods);
+        if (next !== savedInstances) commitInstances(next);
+    };
+    const addMAGroup = (lines: readonly MALinePreset[]) => {
+        const next = addMALines(savedInstances, lines);
+        if (next !== savedInstances) commitInstances(next);
     };
     const removeIndicator = (id: string) => {
         if (settingsFor === id) { setSettingsFor(null); setSettingsDraft(null); }
@@ -2331,12 +2372,16 @@ export function CandleChart({
                     >
                         指標
                     </Button>
-                    <RefreshButton label="更新歷史" loading={loading} onClick={() => setHistorySeq(nextChartHistoryRevision())} />
+                    <RefreshButton label="更新歷史" loading={loading} onClick={refreshHistory} />
                 </div>
                 {pickerOpen && (
                     <IndicatorDialog
                         instances={instances}
                         onAdd={addIndicator}
+                        onAddMAPreset={addMAPreset}
+                        onAddMAGroup={addMAGroup}
+                        maHistoryStatus={maHistoryStatus}
+                        onRetryMAHistory={retryMAHistory}
                         onClose={() => setPickerOpen(false)}
                         onSaveDefaults={panelService ? () => {
                             saveInstances(savedInstances);
@@ -2359,7 +2404,9 @@ export function CandleChart({
                         onCancel={cancelSettings}
                     />
                 )}
+
             </div>
+            <MAHistoryNotice status={maHistoryStatus} onRetry={retryMAHistory} />
             <div className={styles.chartRow}>
             <ChartDrawingTools api={drawings} />
             <div ref={hostRef} className={styles.chartHost}>

@@ -90,7 +90,9 @@ afterEach(() => {
 });
 
 const BARS = kbars([['2026-09-25T09:00:00', '2026-09-25T13:30:00', () => 1000]]);
-const fromDays = () => fetchMock.mock.calls.map((c) => c[1]);
+// MA warmup can append older pages. Interval persistence owns the initial
+// request ending today, independently of subsequent history pagination.
+const fromDays = () => fetchMock.mock.calls.filter(c => c[2] === dateStrOffset(0)).map(c => c[1]);
 
 describe('CandleChart interval persistence (#331)', () => {
     it('defaults to 5m when the panel has no stored interval', async () => {
