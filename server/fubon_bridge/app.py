@@ -177,7 +177,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get("/api/v1/passkeys/status")
     def passkey_status():
-        return {"enrolled": passkeys.enrolled(), "origin": public_origin, "instance_id": broker.instance_id}
+        return {"enrolled": passkeys.enrolled(), "origin": public_origin, "instance_id": broker.instance_id, "mode": cfg.mode}
 
     def require_enrollment(request):
         header = request.headers.get("authorization", "")

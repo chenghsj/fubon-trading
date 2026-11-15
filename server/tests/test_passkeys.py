@@ -75,10 +75,22 @@ def register(client, authenticator):
     return result.json()['access_token'], headers
 
 
+@pytest.mark.parametrize('mode', ['demo', 'paper', 'sandbox', 'live'])
+def test_public_status_reports_resolved_mode_without_granting_a_session(tmp_path, mode):
+    app = create_app(Config(mode=mode, live_enabled=mode == 'live'),
+                     passkey_store=PasskeyStore(tmp_path / 'passkeys.sqlite3'))
+    with TestClient(app, base_url=ORIGIN) as client:
+        assert client.get('/api/v1/passkeys/status').json() == {
+            'enrolled': False, 'origin': ORIGIN, 'mode': mode, 'instance_id': app.state.broker.instance_id,
+        }
+        assert client.get('/api/v1/info').status_code == 401
+
+
 def test_real_registration_authentication_logout_and_restart(setup):
     client, app, store, auth = setup
     status = client.get('/api/v1/passkeys/status')
     assert status.json()['enrolled'] is False
+    assert status.json()['mode'] == 'demo'
     assert status.headers['x-frame-options'] == 'DENY'
     assert status.headers['content-security-policy'] == "frame-ancestors 'none'"
     assert client.post('/api/v1/passkeys/register/options', json={}, headers={'Origin': ORIGIN}).status_code == 401
@@ -174,7 +186,7 @@ def test_existing_passkey_works_across_worktree_origins_without_reenrollment(set
         origin = f'http://localhost:{port}'
         worktree_app = create_app(Config(port=21429 + index), public_origin=origin)
         with TestClient(worktree_app, base_url=origin) as preview:
-            assert preview.get('/api/v1/passkeys/status').json() == {'enrolled': True, 'origin': origin, 'instance_id': worktree_app.state.broker.instance_id}
+            assert preview.get('/api/v1/passkeys/status').json() == {'enrolled': True, 'origin': origin, 'instance_id': worktree_app.state.broker.instance_id, 'mode': 'demo'}
             assert preview.get('/api/v1/info').status_code == 401
             if previous_token:
                 assert preview.get('/api/v1/info', headers={'Authorization': f'Bearer {previous_token}'}).status_code == 401
