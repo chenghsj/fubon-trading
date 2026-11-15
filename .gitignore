@@ -38,3 +38,4 @@ server/.venv/
 __pycache__/
 .pytest_cache/
 server/.research.sqlite3*
+server/.mode-settings.json

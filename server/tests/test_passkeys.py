@@ -174,7 +174,7 @@ def test_existing_passkey_works_across_worktree_origins_without_reenrollment(set
         origin = f'http://localhost:{port}'
         worktree_app = create_app(Config(port=21429 + index), public_origin=origin)
         with TestClient(worktree_app, base_url=origin) as preview:
-            assert preview.get('/api/v1/passkeys/status').json() == {'enrolled': True, 'origin': origin}
+            assert preview.get('/api/v1/passkeys/status').json() == {'enrolled': True, 'origin': origin, 'instance_id': worktree_app.state.broker.instance_id}
             assert preview.get('/api/v1/info').status_code == 401
             if previous_token:
                 assert preview.get('/api/v1/info', headers={'Authorization': f'Bearer {previous_token}'}).status_code == 401
@@ -190,17 +190,20 @@ def test_existing_passkey_works_across_worktree_origins_without_reenrollment(set
     assert store.credential()[0] == auth.id
 
 
-def test_cli_accepts_explicit_localhost_worktree_ui_port(monkeypatch):
+def test_cli_accepts_explicit_localhost_worktree_ui_port(monkeypatch, tmp_path):
     import fubon_bridge.__main__ as cli
 
     monkeypatch.setattr(sys, 'argv', ['fubon-bridge', '--ui-url', 'http://localhost:5189/', '--no-browser'])
     monkeypatch.setattr(cli.Config, 'from_env', lambda: Config(port=21429))
-    factory, run = Mock(), Mock()
+    monkeypatch.setattr(cli, 'ROOT', tmp_path)
+    factory, server = Mock(), Mock(force_exit=False, _captured_signals=[])
     monkeypatch.setattr(cli, 'create_app', factory)
-    monkeypatch.setattr(cli.uvicorn, 'run', run)
+    server_factory = Mock(return_value=server)
+    monkeypatch.setattr(cli.uvicorn, 'Server', server_factory)
     cli.main()
     assert factory.call_args.kwargs['public_origin'] == 'http://localhost:5189'
-    assert run.call_args.kwargs['port'] == 21429
+    assert server_factory.call_args.args[0].port == 21429
+    server.run.assert_called_once()
 
 
 @pytest.mark.parametrize('origin', [

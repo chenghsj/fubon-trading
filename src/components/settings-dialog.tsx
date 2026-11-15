@@ -473,9 +473,9 @@ function RiskSection() {
                 >
                     手動下單確認
                 </span>
-                <Switch  checked={risk.confirmManualOrders}  aria-label={'手動下單確認'}
+                <Switch  checked={risk.confirmManualOrders} disabled={risk.manualConfirmationRequired} aria-label={'手動下單確認'}
                     title={
-                        risk.confirmManualOrders
+                        risk.manualConfirmationRequired ? '正式交易或環境尚未確認，必須確認每筆手動委託' : risk.confirmManualOrders
                             ? '關閉手動下單確認'
                             : '啟用手動下單確認'
                     }
@@ -487,7 +487,7 @@ function RiskSection() {
                 />
             </Field>
             <span className={hud.emptyHint}>
-                預設關閉（維持快速下單）。開啟後閃電下單、下單面板、
+                富邦正式交易每筆手動委託必須確認，無法關閉。其他模式預設關閉。開啟後閃電下單、下單面板、
                 圖表點價、平倉與鋪單都會先跳委託確認；停損/停利等
                 自動觸發單與 Agent 下單不經過此確認。
             </span>

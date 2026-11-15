@@ -32,6 +32,7 @@ class Broker:
         self.sockets = {}
         self.connected_sockets = set()
         self.error = None
+        self.transitioning = False
         self.paper = PaperBook(emit,paper_store,costs=config.mode=='paper')
         self.instance_id = uuid.uuid4().hex
         if config.mode == "demo":
@@ -522,6 +523,8 @@ class Broker:
 
     def place(self, contract_key, order, account, *, client_tag=None, paper_cost=None, strategy_day=None):
         with self.lock:
+            if self.transitioning:
+                raise ValueError("交易模式正在切換，請重新解鎖後確認帳戶")
             if client_tag is not None and (self.config.mode not in {"sandbox","paper"} or not re.fullmatch(r"FA[a-f0-9]{8}", client_tag)):
                 raise ValueError("策略委託識別碼僅供 sandbox 或 paper 使用")
             if paper_cost is not None and self.config.mode!='paper':
@@ -636,6 +639,8 @@ class Broker:
 
     def mutate(self, ident, action, value=None, *, client_tag=None):
         with self.lock:
+            if self.transitioning:
+                raise ValueError("交易模式正在切換，請重新解鎖後確認帳戶")
             if client_tag is not None and (self.config.mode not in {"sandbox","paper"} or not re.fullmatch(r"FA[a-f0-9]{8}",client_tag) or action!="cancel"):
                 raise ValueError("策略改刪僅支援取消自有模擬委託")
             if not self.config.broker_orders:
@@ -680,6 +685,26 @@ class Broker:
                 obj = client.make_modify_lot_obj(raw, int(effective - value))
                 row = unwrap(client.modify_lot(self.raw_account(account), obj))
             return self._remember(row, current["contract"], account)
+
+    def assert_mode_switch_idle(self):
+        if not self.config.broker_orders:
+            book = self.paper.overview()
+            if book['positions'] or any(t['status']['status'] in ACTIVE for t in book['orders']):
+                raise ValueError("模擬帳簿仍有持倉或未完成委託，請先平倉與取消委託再切換")
+            return
+        if not self.accounts_raw and not self.trades:
+            # Login never established an account in this process.
+            return
+        self.ready()
+        for account in self.account_rows():
+            raw = self.raw_account(account)
+            client = self.sdk.futopt if account['account_type'] == 'F' else self.sdk.stock
+            orders = unwrap(client.get_order_results(raw))
+            inventory = unwrap(self.sdk.futopt_accounting.query_single_position(raw) if account['account_type'] == 'F' else self.sdk.accounting.inventories(raw))
+            if not isinstance(orders, list) or not isinstance(inventory, list):
+                raise ValueError("無法確認券商委託與庫存，請恢復連線並核對後再切換")
+            if inventory or any(int(field(row, 'status', -1)) not in {30, 40, 50, 90} for row in orders):
+                raise ValueError("券商帳戶仍有庫存或未完成委託，請先處理並核對後再切換")
 
     def positions(self, account):
         with self.lock:

@@ -8,6 +8,7 @@ import uuid
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from .broker import Broker
 from .config import Config, ROOT
@@ -25,6 +26,7 @@ from .learning_store import LearningStore
 from .learning_service import LearningService
 from .learning_data import CollectionRequest
 from .learning_train import TrainingRequest
+from .mode_settings import ModeChange, ModeSettings, ensure_idle
 from pydantic import BaseModel
 from typing import Literal
 
@@ -42,7 +44,7 @@ class AutoHeartbeat(BaseModel):
     execution_allowed: bool
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None):
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None, mode_store=None, on_restart=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
     public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
@@ -50,6 +52,9 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     passkeys = Passkeys(passkey_store if passkey_store is not None else PasskeyStore(), public_origin)
     login_lock = asyncio.Lock()
     login_attempted = False
+    request_lock = asyncio.Lock()
+    switching = False
+    settings = mode_store or ModeSettings(ROOT / 'server' / '.mode-settings.json')
     clients = set()
     loop = None
 
@@ -133,7 +138,18 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             if not session.authorize(request.headers.get("authorization", "")):
                 return JSONResponse({"detail": "本機工作階段未授權，請使用啟動時開啟的視窗"}, status_code=401,
                                     headers={"Cache-Control": "no-store"})
-        response = await call_next(request)
+        if switching and request.url.path.startswith('/api/'):
+            return JSONResponse({'detail': '交易模式正在切換，請等待重新解鎖'}, status_code=503)
+        if request.url.path == '/api/v1/settings/mode' and request.method == 'POST':
+            # Serialize only mode changes. Ordinary quote requests must never
+            # delay a heartbeat or cancellation. Broker and worker locks guard
+            # requests already admitted before the transition was committed.
+            async with request_lock:
+                if switching:
+                    return JSONResponse({'detail': '交易模式正在切換，請等待重新解鎖'}, status_code=503)
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -161,7 +177,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get("/api/v1/passkeys/status")
     def passkey_status():
-        return {"enrolled": passkeys.enrolled(), "origin": public_origin}
+        return {"enrolled": passkeys.enrolled(), "origin": public_origin, "instance_id": broker.instance_id}
 
     def require_enrollment(request):
         header = request.headers.get("authorization", "")
@@ -214,6 +230,44 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
             supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin"],
             limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
+
+    @app.get('/api/v1/settings/mode')
+    def mode_settings():
+        return dict(mode=cfg.mode, live_enabled=cfg.live_enabled, instance_id=broker.instance_id,
+                    available=on_restart is not None, saved=settings.path.exists(),
+                    sandbox_configured=bool(cfg.test_id and cfg.test_cert_path and Path(cfg.test_cert_path).expanduser().is_file()))
+
+    @app.post('/api/v1/settings/mode')
+    def change_mode(body: ModeChange):
+        nonlocal switching
+        if on_restart is None:
+            raise HTTPException(409, '此啟動方式不支援介面切換，請使用 pnpm start')
+        if body.instance_id != broker.instance_id:
+            raise HTTPException(409, '服務已更新，請重新開啟設定並確認目前模式')
+        if body.mode == cfg.mode and body.live_enabled == cfg.live_enabled:
+            return dict(restarting=False)
+        expected = '確認啟用正式下單' if body.mode == 'live' else '確認切換交易環境'
+        if body.acknowledgement != expected:
+            raise ValueError('請先明確確認切換；正式交易需確認啟用正式下單')
+        if body.mode == 'sandbox' and not (cfg.test_id and cfg.test_cert_path and Path(cfg.test_cert_path).expanduser().is_file()):
+            raise ValueError('尚未備妥官方測試憑證，請依設定說明配置 sandbox 後再切換')
+        with learning.lock, automation.lock, broker.lock:
+            ensure_idle(broker, automation, learning)
+            settings.save(body)
+            switching = True
+            broker.transitioning = True
+            automation.closing.set()
+            learning.closing = True
+        def restart():
+            # End long-lived SSE before uvicorn waits for graceful shutdown.
+            def disconnect():
+                for queue in list(clients):
+                    while not queue.empty():
+                        queue.get_nowait()
+                    queue.put_nowait(None)
+            loop.call_soon_threadsafe(disconnect)
+            on_restart()
+        return JSONResponse(dict(restarting=True), background=BackgroundTask(restart))
 
     @app.get("/api/v1/health")
     def health():
@@ -367,7 +421,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         async def events():
             try:
                 yield 'retry: 2000\n\n'
-                while session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
+                while not switching and session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
                     needed = {sub["kind"] for sub in list(broker.subscriptions.values())}
                     if cfg.mode != "demo" and needed and not needed.issubset(broker.connected_sockets):
                         yield 'event: fubon_connection_status\ndata: {"market_connected":false}\n\n'

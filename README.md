@@ -75,6 +75,8 @@ pnpm credentials delete   # 刪除儲存資料；另需停止服務才能結束�
 - `paper`：富邦真實行情，委託只進本機 SQLite 模擬帳簿，保存委託／持倉／成交費稅；支援微台策略，見 [Paper 操作規格](docs/design/paper-trading.md)。
 - `sandbox`：使用官方測試帳戶登入固定的 `neoapitest.fbs.com.tw`，委託送到富邦測試主機，不讀正式 Keychain；設定方式見 [FUBON.md](docs/FUBON.md#官方測試環境)。
 - `live`：必須同時設 `FUBON_MODE=live` 與 `FUBON_ENABLE_LIVE_TRADING=true` 才能發送正式委託。修改後需重啟。
+
+也可在畫面上方「交易模式設定」選擇模式，無須手動修改 `.env`。切入正式交易必須另外開啟「允許正式下單」、輸入「確認啟用正式下單」並套用；正式模式每筆手動委託仍必須經過委託確認，不能關閉。套用會自動重啟這個服務並要求既有 Passkey 重新解鎖；有策略監控、研究工作、未完成委託或持倉時阻擋切換。本機選擇保存在各工作目錄的 `server/.mode-settings.json`，之後啟動優先沿用，`.env` 作為初始設定；不更改 Keychain 或其他 worktree 的服務。
 - 夜盤另設 `FUBON_SESSION=afterhours`。
 - 登入失敗時顯示錯誤，不會退回合成行情。
 - 金鑰與憑證只在 Python 服務使用，不會送給瀏覽器。不要將秘密放進 `VITE_*`。
