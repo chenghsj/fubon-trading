@@ -1,4 +1,6 @@
 from datetime import date
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -22,6 +24,17 @@ def record(dataset):
         context={key:dataset[key] for key in ("id", "source", "product", "contractMonth", "start", "end", "weightDate")},
         baseline=summary, filtered=summary,
         diagnostics=dict(completeDays=1, excludedDays=[], missingBasketTimes=0, filterRejected=0), warnings=[])
+
+
+def test_first_concurrent_requests_initialize_sqlite_once(tmp_path):
+    store = ResearchStore(tmp_path / "new-research.db")
+    barrier = Barrier(8)
+    def first_read(index):
+        barrier.wait(timeout=10)
+        return store.stats() if index % 2 else store.runs()
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(first_read, range(8)))
+    assert results == [[] if i % 2 == 0 else dict(bars=0, datasets=0, weights=0, runs=0, signals=0) for i in range(8)]
 
 
 def test_database_reuses_download_without_network_and_preserves_exact_dataset(tmp_path):

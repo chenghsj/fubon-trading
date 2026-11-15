@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 import sqlite3
+import threading
 import time
 from typing import Literal
 import zlib
@@ -151,13 +152,20 @@ def normalize(rows, start, end):
 class ResearchStore:
     def __init__(self, path):
         self.path = Path(path)
+        self._schema_lock = threading.Lock()
+        self._initialized = False
 
     @contextmanager
     def connect(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(self.path, timeout=20)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.executescript("""
+        try:
+            # Concurrent first panel requests must not race the journal-mode transition.
+            # Initialize once; regular reads need neither DDL nor another WAL transition.
+            with self._schema_lock:
+                if not self._initialized:
+                    db.execute("PRAGMA journal_mode=WAL")
+                    db.executescript("""
             CREATE TABLE IF NOT EXISTS research_bars (
                 source TEXT, kind TEXT, symbol TEXT, month TEXT, session TEXT, time INTEGER,
                 open REAL, high REAL, low REAL, close REAL, volume REAL,
@@ -175,8 +183,8 @@ class ResearchStore:
             CREATE TABLE IF NOT EXISTS research_signals (
                 dataset_id TEXT, time INTEGER, source TEXT, price REAL, weighted_return REAL, missing TEXT,
                 PRIMARY KEY(dataset_id,time));
-        """)
-        try:
+                    """)
+                    self._initialized = True
             with db:
                 yield db
         finally:

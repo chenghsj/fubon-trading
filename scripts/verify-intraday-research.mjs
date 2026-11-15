@@ -25,6 +25,7 @@ let closing;
 const transactionPaths = [];
 const readonlyOrderPaths = [];
 const pageErrors = [];
+const databaseReadResponses = [];
 
 function run(command, args, env = {}) {
     const child = spawn(command, args, {
@@ -146,6 +147,12 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     const context = await browser.newContext({ viewport: { width: 1440, height: 1050 } });
     page = await context.newPage();
     page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('response', response => {
+        const pathname = new URL(response.url()).pathname;
+        if (response.request().method() === 'GET' && /^\/api\/v1\/research\/(database|runs)$/.test(pathname)) {
+            databaseReadResponses.push({ path: pathname, status: response.status() });
+        }
+    });
     await page.route('**/api/v1/order/**', async route => {
         const pathname = new URL(route.request().url()).pathname;
         if (/\/(?:place_order|place_comboorder|cancel_order|cancel_comboorder|update_price|update_qty|reserve_stock|reserve_earmarking)$/.test(pathname)) {
@@ -165,8 +172,16 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     await page.getByRole('button', { name: /新增面板/ }).first().click();
     const picker = page.getByRole('dialog', { name: '新增面板', exact: true });
     await picker.getByPlaceholder('搜尋面板（名稱或用途）').fill('策略回測');
+    const coldReads = Promise.all(['database', 'runs'].map(endpoint => page.waitForResponse(response =>
+        response.request().method() === 'GET' && response.url().endsWith(`/api/v1/research/${endpoint}`))));
     await picker.locator('button[data-idx]').filter({ hasText: '策略回測' }).click();
     await expect(panel()).toBeVisible();
+    const coldStartReadStatuses = (await coldReads).map(response => response.status());
+    expect(coldStartReadStatuses).toEqual([200, 200]);
+    await expect(panel().getByText(/本地保存 0 根 K 棒/)).toBeVisible();
+    await expect(panel().getByRole('alert')).toBeHidden();
+    const coldStartStats = await dbStats();
+    expect(coldStartStats).toEqual({ bars: 0, datasets: 0, weights: 0, runs: 0, signals: 0 });
     // A legitimate single-panel workspace isolates the feature from unrelated terminal panels.
     await page.evaluate(() => {
         const workspace = JSON.parse(localStorage.getItem('sj-pro-workspace-v3'));
@@ -305,7 +320,8 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
 
     expect(transactionPaths).toEqual([]);
     expect(pageErrors).toEqual([]);
-    const summary = { passed: true, initialStats, sampleMetrics, latest, latestUiElapsedMs, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
+    expect(databaseReadResponses.every(response => response.status === 200)).toBe(true);
+    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, latest, latestUiElapsedMs, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
     await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify(summary, null, 2));
 } catch (error) {
