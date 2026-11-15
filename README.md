@@ -22,11 +22,23 @@ pnpm start
 
 頂端「鎖定介面」會撤銷該工作階段，之後需再次驗證；不會取消既有委託或平倉。Passkey 驗證成功後，paper/live 才讀取 Keychain 並嘗試登入富邦。Passkey 不取代富邦 API Key 與憑證。
 
-僅綁定本機，API 使用 `21323` 埠；埠被占用時停止啟動，不會接手其他交易服務。
+僅綁定本機，API 使用 `21323` 埠。macOS／Linux 再次執行 `pnpm start` 時，若確認同一個 checkout 的前端與 API 都正常，會顯示現有網址、PID 與操作指令並成功結束，不會額外啟動或重啟服務。只有部分服務在跑、無法確認程序身分或其他專案占用時，會保留程序並說明原因。
+
+查詢與明確控制目前 checkout 的服務（macOS／Linux，需有 `lsof` 與 `ps`）：
+
+```sh
+pnpm status   # 專案路徑、模式、前端／API 埠、PID、網址及連線狀態
+pnpm stop     # 核對程序身分後，停止這個 checkout 的前端與 API
+pnpm restart  # 明確停止後，按目前設定重新啟動
+```
+
+`stop`／`restart` 會中斷目前工作階段；重啟後需要再次以 Passkey 解鎖，paper 模擬狀態會重設。停止服務不會自動取消券商端的委託或平倉。啟動器不會自動重啟、強制殺掉其他程序或掃描替代埠。舊版背景服務也能依工作目錄與執行指令辨識；若沒有啟動記錄，模式會明確標示為「未記錄」，並另外列出目前設定，避免把設定檔當成執行中的模式。
+
+指定其他埠啟動時，查詢／停止／重啟都帶上同一組參數，例如 `pnpm stop --ui-port 5189 --api-port 21429`。Windows 保留原有啟動行為，尚不提供上述程序控制。
 
 ### 在 worktree 開發
 
-在新 worktree 執行同一個 `pnpm start` 即可。啟動器會依 worktree 路徑選擇固定的一組前端／API 埠，印出網址並用預設瀏覽器開啟；主 checkout 仍使用 `5179`／`21323`。不會因其他服務占用而接手或停止它。
+在新 worktree 執行同一個 `pnpm start` 即可。啟動器會依 worktree 路徑選擇固定的一組前端／API 埠，印出網址並用預設瀏覽器開啟；主 checkout 仍使用 `5179`／`21323`。`status`／`stop`／`restart` 也依目前 worktree 選擇相同端點，不會停止另一個 worktree 的服務。
 
 所有 worktree 都沿用本機應用程式資料夾中的同一份 Passkey 公開驗證資料，因此使用原本的 Passkey 解鎖即可，**不需複製資料庫、重設或重新註冊**。前端網址固定使用 `localhost`；每個服務仍只接受自己指定的精確 Origin，登入工作階段各自獨立。
 
