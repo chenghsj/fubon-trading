@@ -1000,6 +1000,7 @@ export function CandleChart({
         let oldestDay: number = tf.days; // days-ago covered so far
         let fetching = false;
         let pageError = false;
+        let pagingRevision = historySeq;
         let dryPages = 0; // consecutive empty pages → assume exhausted
         const loadMore = () => {
             if (fetching || cancelled) return false;
@@ -1007,6 +1008,8 @@ export function CandleChart({
             if (dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS) return false;
             fetching = true;
             // MA warmup pauses via paging.error; a new user scroll can retry.
+            // Failed history is cached, so the retry needs a fresh request key.
+            if (pageError) pagingRevision = nextChartHistoryRevision();
             pageError = false;
             setHistoryPaging({ busy: true, error: false, exhausted: false });
             const from = Math.min(oldestDay + tf.days, MAX_HISTORY_DAYS);
@@ -1016,7 +1019,7 @@ export function CandleChart({
                 dateStrOffset(oldestDay + 1),
                 // 長區間翻頁量大 — 放寬 timeout，timeout 誤計 dryPages
                 // 會讓無限捲動提早罷工
-                { timeoutMs: 30_000, revision: historySeq },
+                { timeoutMs: 30_000, revision: pagingRevision },
             )
                 .then((k) => {
                     if (cancelled || loadedKeyRef.current !== loadKey) return;

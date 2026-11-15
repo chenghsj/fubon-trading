@@ -12,7 +12,8 @@ vi.hoisted(() => {
     (globalThis as any).document = { addEventListener() {}, removeEventListener() {}, createElement: () => ({ style: {}, getContext: () => null }), body: {} };
 });
 vi.mock('../lib/trade', () => ({ notify: () => {}, placeQuickOrder: async () => {} }));
-vi.mock('../lib/shioaji', () => ({ cancelOrder: async () => {}, updateOrderPrice: async () => {} }));
+const { historyBackend } = vi.hoisted(() => ({ historyBackend: vi.fn() }));
+vi.mock('../lib/shioaji', () => ({ cancelOrder: async () => {}, updateOrderPrice: async () => {}, fetchKbars: (...args: unknown[]) => historyBackend(...args) }));
 vi.mock('lightweight-charts', async () => (await import('./chart-session.test-harness')).lwMock());
 
 let quote: any = undefined;
@@ -79,6 +80,7 @@ beforeEach(() => {
     logicalRangeHandlers.length = 0;
     quote = undefined;
     fetchMock.mockReset();
+    historyBackend.mockReset();
     const sma = newInstance('sma');
     sma.params = { ...sma.params, period: 20 };
     saveInstances([sma, newInstance('vwap')]);
@@ -145,7 +147,9 @@ describe('CandleChart interval persistence (#331)', () => {
 it('retries the same older-history page after a transient scroll failure', async () => {
     setNow('2026-09-25T20:00:00');
     saveInstances([]);
-    fetchMock.mockResolvedValueOnce(BARS).mockRejectedValueOnce(new Error('timeout')).mockResolvedValue(BARS);
+    const history = await vi.importActual<typeof import('../lib/chart-history')>('../lib/chart-history');
+    fetchMock.mockImplementation(history.fetchChartHistory);
+    historyBackend.mockResolvedValueOnce(BARS).mockRejectedValueOnce(new Error('timeout')).mockResolvedValue(BARS);
     mount({ contract: { ...stk }, onIntervalChange: () => {} });
     await flush();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -157,4 +161,5 @@ it('retries the same older-history page after a transient scroll failure', async
     await flush();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls[2]!.slice(1, 3)).toEqual(failedRange);
+    expect(historyBackend).toHaveBeenCalledTimes(3);
 });
