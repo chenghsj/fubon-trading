@@ -59,8 +59,8 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
                 <CardDescription className={styles.description}>{description}</CardDescription>
             </CardHeader>
             <CardContent className={styles.content}>
-                {!local && <Button asChild size="sm" className={styles.action} variant="outline"><a href={`http://localhost:${location.port}/`}>開啟 localhost 介面</a></Button>}
-                {local && connected && supported && (enrolled || canEnrollPasskey()) && <Button size="sm" className={styles.action} disabled={busy} onClick={() => { void unlock(); }}>{busy ? '等待裝置驗證…' : enrolled ? '使用 Passkey 解鎖' : '建立 Passkey 並解鎖'}</Button>}
+                {!local && <Button asChild className={styles.action} variant="outline"><a href={`http://localhost:${location.port}/`}>開啟 localhost 介面</a></Button>}
+                {local && connected && supported && (enrolled || canEnrollPasskey()) && <Button className={styles.action} disabled={busy} onClick={() => { void unlock(); }}>{busy ? '等待裝置驗證…' : enrolled ? '使用 Passkey 解鎖' : '建立 Passkey 並解鎖'}</Button>}
                 {problem && <Alert variant="destructive"><AlertDescription>{problem}</AlertDescription></Alert>}
                 <Separator />
             </CardContent>

@@ -111,12 +111,13 @@ async function passkeyShot(name) {
             descriptionFont: getComputedStyle(header.lastElementChild).fontSize,
             buttonHeight: button.getBoundingClientRect().height, coarse: matchMedia('(pointer: coarse)').matches };
     });
-    expect(geometry.cardWidth).toBeLessThanOrEqual(Math.min(380, geometry.width - 32));
-    expect(geometry.scroll).toBeLessThanOrEqual(geometry.client + 1); expect(geometry.iconWidth).toBe(24);
-    expect(geometry.headerPadding).toBe('16px'); expect(geometry.contentPadding).toBe('0px 16px 12px'); expect(geometry.footerPadding).toBe('0px 16px 16px');
+    expect(geometry.cardWidth).toBeLessThanOrEqual(Math.min(460, geometry.width - 32));
+    expect(geometry.scroll).toBeLessThanOrEqual(geometry.client + 1); expect(geometry.iconWidth).toBe(28);
+    expect(geometry.headerPadding).toBe('22px'); expect(geometry.contentPadding).toBe('0px 22px 16px'); expect(geometry.footerPadding).toBe('0px 22px 22px');
     const expectedScale = name.endsWith('scale1.3') ? 1.3 : 1;
-    expect(Math.abs(Number.parseFloat(geometry.descriptionFont) - 12 * expectedScale)).toBeLessThan(.01);
-    expect(geometry.buttonHeight).toBeGreaterThanOrEqual(geometry.coarse ? 44 : 32);
+    expect(Math.abs(Number.parseFloat(geometry.descriptionFont) - 13 * expectedScale)).toBeLessThan(.01);
+    expect(Math.abs(Number.parseFloat(geometry.headingFont) - 18 * expectedScale)).toBeLessThan(.01);
+    expect(geometry.buttonHeight).toBeGreaterThanOrEqual(geometry.coarse ? 44 : 36);
     const button = card.getByRole('button'); await button.scrollIntoViewIfNeeded();
     const action = await button.boundingBox(); expect(action.y).toBeGreaterThanOrEqual(0); expect(action.y + action.height).toBeLessThanOrEqual(geometry.height);
     passkeyGeometry.push({ name, ...geometry });
