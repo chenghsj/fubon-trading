@@ -1,6 +1,6 @@
 import { execFile, spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFileSync, writeFileSync, mkdirSync, lstatSync, unlinkSync, realpathSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, lstatSync, unlinkSync, realpathSync, existsSync, readlinkSync } from 'node:fs';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -29,8 +29,20 @@ async function processIdentity(pid) {
     const cwd = cwdLines.split('\n').find(line => line.startsWith('n'))?.slice(1);
     const uid = Number(stamp.match(/^\d+/)?.[0]);
     if (!stamp || !command || !cwd || !Number.isInteger(uid)) return undefined;
+    let executablePath = executable;
+    // procps comm on Linux is only a name; never resolve it relative to the checkout.
+    if (!path.isAbsolute(executablePath)) {
+        try { executablePath = readlinkSync(`/proc/${pid}/exe`); }
+        catch {
+            const text = await output('lsof', ['-a', '-p', String(pid), '-d', 'txt', '-Fn']);
+            const candidates = [...new Set(text.split('\n').filter(line => line.startsWith('n')).map(line => line.slice(1)))]
+                .filter(file => path.basename(file) === executable);
+            if (candidates.length !== 1) return undefined;
+            executablePath = candidates[0];
+        }
+    }
     const fingerprint = createHash('sha256').update(`${stamp}\0${command}\0${cwd}`).digest('hex');
-    return { pid, command, executable: path.basename(executable), executablePath: executable, cwd, uid, fingerprint };
+    return { pid, command, executable: path.basename(executablePath), executablePath, cwd, uid, fingerprint };
 }
 
 function executesScript(identity, script) {

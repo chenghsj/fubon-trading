@@ -210,6 +210,21 @@ describe.skipIf(!supported)('dev service commands with real isolated processes',
         expect(result.stdout).toContain('模式：未記錄（目前設定：paper）');
     }, 25000);
 
+    it('recognizes absolute executable arguments when ps comm returns only the executable name', async () => {
+        const f = await fixture();
+        const python = execFileSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).trim();
+        const ps = execFileSync('which', ['ps'], { encoding: 'utf8' }).trim();
+        await writeFile(path.join(f.root, 'bin/ps'), `#!${python}\nimport os,subprocess,sys\nr=subprocess.run([${JSON.stringify(ps)}]+sys.argv[1:],capture_output=True,text=True)\nsys.stdout.write(os.path.basename(r.stdout.strip())+'\\n' if sys.argv[-1]=='comm=' and r.stdout.strip() else r.stdout)\nsys.stderr.write(r.stderr)\nsys.exit(r.returncode)\n`);
+        await chmod(path.join(f.root, 'bin/ps'), 0o700);
+        f.start();
+        const before = await f.ready();
+        const repeated = await f.command('start');
+        expect(repeated.code, repeated.stderr).toBe(0);
+        expect(repeated.stdout).toContain('已在執行');
+        expect((await f.ready()).pid).toBe(before.pid);
+        expect((await f.command('stop')).code).toBe(0);
+    }, 25000);
+
     it('serializes stale-record recovery so a paused remover cannot delete a new reservation', async () => {
         const f = await fixture();
         const root = await realpath(f.root);
