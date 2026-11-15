@@ -16,9 +16,10 @@ from .models import ContractKey, Mutation, PlaceOrder
 from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
+from .research import HistoryRequest, ResearchStore, load_history
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None):
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
     public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
@@ -66,6 +67,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         await asyncio.to_thread(broker.close)
 
     app = FastAPI(title="Fubon Trading local bridge", lifespan=lifespan)
+    research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
     app.state.broker = broker
     app.state.session = session
 
@@ -236,6 +238,26 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.post("/api/v1/data/kbars")
     def kbars(body: dict = Body(...)):
         return broker.kbars(ContractKey.model_validate(body["contract"]).model_dump(), body["start"], body["end"])
+
+    @app.post("/api/v1/research/history")
+    def research_history(body: HistoryRequest):
+        return load_history(broker, research, body)
+
+    @app.get("/api/v1/research/database")
+    def research_database():
+        return research.stats()
+
+    @app.post("/api/v1/research/latest")
+    def research_latest(body: dict = Body(...)):
+        return research.latest(str(body.get("datasetId", "")))
+
+    @app.get("/api/v1/research/runs")
+    def research_runs():
+        return research.runs()
+
+    @app.post("/api/v1/research/runs")
+    def save_research_run(body: dict = Body(...)):
+        return research.save_run(str(body.get("datasetId", "")), body.get("result", {}))
 
     @app.post("/api/v1/data/ticks")
     def ticks(body: dict = Body(...)):

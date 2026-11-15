@@ -55,6 +55,7 @@ import * as panel from './components/panel.css';
 import { PnlPanel } from './components/pnl-panel';
 import { QuoteBoard } from './components/quote-board';
 import { ReplayPanel } from './components/replay-panel';
+import { IntradayResearchPanel } from './components/intraday-research-panel';
 import { ScannerPanel } from './components/scanner-panel';
 import { SectorHeatmap } from './components/sector-heatmap';
 import { StockFuturesPanel } from './components/stock-futures-panel';
@@ -555,6 +556,7 @@ function BlockBody({
             return <MarketSignalPanel onPick={onSelectCode} />;
         case 'backtest': {
             const BtPanel = backtestModule?.Panel;
+            if (!BtPanel) return <IntradayResearchPanel />;
             return (
                 <FeatureGate feature='backtest'>
                     {BtPanel ? (

@@ -287,6 +287,42 @@ class Broker:
                 result["Amount"].append(0)
         return result
 
+    def research_candles(self, kind, symbol, month, start, end):
+        """Read explicit expired contract months without resolving a live ticker."""
+        if self.config.mode == "demo":
+            rows = []
+            first, last = date.fromisoformat(start), date.fromisoformat(end)
+            for day in range((last-first).days+1):
+                current = first+timedelta(days=day)
+                if current.weekday() >= 5:
+                    continue
+                base = 25000 if kind == "FUT" else 100 + int(symbol) % 400
+                for minute in range(270):
+                    at = datetime.combine(current, datetime.min.time(), TAIPEI)+timedelta(hours=9, minutes=minute)
+                    # Synthetic correlated paths exercise both filter outcomes, never market performance.
+                    x = minute / 12 + current.toordinal() % 7
+                    scale = 1 if kind == "FUT" else base / 25000
+                    o = base + scale * (30*math.sin(x)+minute*.15)
+                    c = base + scale * (30*math.sin(x+.09)+minute*.15)
+                    if kind == "FUT":
+                        o, c = round(o), round(c)
+                    rows.append(dict(date=at.isoformat(), open=o, high=max(o,c)+2*scale,
+                        low=min(o,c)-2*scale, close=c, volume=10+minute%17))
+            return rows
+        with self.lock:
+            client = self._client(kind)
+            params = dict(timeframe="1", sort="asc", **{"from": start, "to": end})
+            if kind == "STK":
+                params["symbol"] = symbol
+            else:
+                params.update(product=symbol, contractMonth=month, session="regular")
+            try:
+                return client.historical.candles(**params).get("data", [])
+            except Exception as error:
+                if getattr(error, "status_code", None) == 404:
+                    return []
+                raise ValueError(f"{symbol} 歷史行情查詢失敗；請確認行情權限、連線與日期") from None
+
     def ticks(self, key, requested_date, count=500):
         contract = self.contract(key)
         result = dict(datetime=[], close=[], volume=[], bid_price=[], bid_volume=[], ask_price=[], ask_volume=[], tick_type=[])
