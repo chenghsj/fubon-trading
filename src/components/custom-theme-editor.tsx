@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useEscClose } from '../hooks/use-esc-close';
 // src/components/custom-theme-editor.tsx — 外觀設定「自訂」主題的編輯區：
 // 預設組合、六個顏色與即時預覽。
 
@@ -36,6 +37,7 @@ const filterPreset = (value: string, search: string, keywords?: string[]) => {
 export function CustomThemeEditor() {
     const presetId = useId();
     const [presetOpen, setPresetOpen] = useState(false);
+    useEscClose(() => setPresetOpen(false), presetOpen);
     const settings = useThemeSettings();
     const custom = settings.custom ?? CUSTOM_BASES.dark;
     const selectedPreset = CUSTOM_PRESETS.find(p => same(p.theme, custom));
@@ -77,7 +79,8 @@ export function CustomThemeEditor() {
                                 <ChevronsUpDown data-icon="inline-end" aria-hidden="true" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0">
+                        <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] p-0"
+                            onEscapeKeyDown={event => event.preventDefault()}>
                             <Command size="compact" loop label="搜尋 Codex 主題" filter={filterPreset} defaultValue={selectedPreset ? presetValue(selectedPreset) : undefined}>
                                 <CommandInput placeholder="搜尋主題名稱或深淺色…" aria-label="搜尋 Codex 主題" />
                                 <CommandList className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height,24rem)-2.5rem))]">
