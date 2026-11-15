@@ -11,7 +11,7 @@ PARAMETERS = dict(objective='binary',num_leaves=7,max_depth=3,min_data_in_leaf=1
 
 def implementation_hashes():
     return {name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in
-        ['learning_data.py','learning_features.py','learning_train.py','intraday_strategy.py','auto_trading.py','research.py']}
+        ['learning_data.py','learning_features.py','learning_train.py','learning_inference.py','intraday_strategy.py','auto_trading.py','research.py']}
 
 
 class TrainingRequest(BaseModel):
@@ -66,7 +66,10 @@ def train(store, request, progress=lambda *_:None):
     text=model.model_to_string()
     restored=lgb.Booster(model_str=text)
     report['model']=dict(hash=hashlib.sha256(text.encode()).hexdigest(),bytes=len(text.encode()),
+        splitCount=int(model.feature_importance(importance_type='split').sum()),
         importance=dict(zip(FEATURES,[float(v) for v in model.feature_importance(importance_type='gain')])))
+    if not report['model']['splitCount']:
+        report['reasons'].append('模型沒有有效樹分裂，目前只輸出固定分數；需要更多有差異的訓練事件')
     gates=[]
     for name,values in [('validation',validation),('test',test)]:
         progress(f'計算{name}封存時段與成本壓力',.7 if name=='validation' else .9)
@@ -94,6 +97,6 @@ def train(store, request, progress=lambda *_:None):
         report['reasons'].append('研究比較門檻不足：需60完整日及60/20/20個訓練/驗證/測試事件；這仍不是統計充分條件')
     if not all(gates):
         report['reasons'].append('驗證或測試未同時通過淨損益、回撤、交易數與滑價壓力比較')
-    report['reasons'] += ['目前為研究模型，尚未完成來源獨立核對、固定選股偏誤與盤中前測；不核准自動交易',
+    report['reasons'] += ['目前為研究模型，尚未完成來源獨立核對、固定選股偏誤與盤中前測；不核准正式交易，可手動選入 Paper／Sandbox 實驗',
         '測試日期已用於本報告，後續調整須保留新的未見期間；分數未校準為未來勝率']
     return store.save_run(request.dataset_id,fingerprint,report,text)

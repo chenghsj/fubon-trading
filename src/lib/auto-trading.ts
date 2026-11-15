@@ -5,6 +5,7 @@ export interface AutoConfig {
     stop_points: number; target_points: number; slippage_points: number;
     max_entries: number; loss_limit: number; fee_per_side: number; tax_rate: number;
     strategy_version?: 'orb_v1' | 'orb_atr_v2'; fee_source?: 'assumed' | 'statement';
+    model_run_id?: string | null;
     use_basket: boolean; basket: { code: string; weight: number }[];
 }
 export interface AutoOrder {
@@ -17,9 +18,10 @@ export interface AutoState {
     reason: string; config: AutoConfig | null; mode: string; available: boolean; owned: boolean; monitoring: boolean;
     leaseSeconds: number; entryCount: number; pending: string | null; executionBlocked: boolean;
     realizedNet: number | null; unrealizedNet: number | null; updatedAt: string | null;
-    position: { side: 'Buy' | 'Sell'; quantity: number; entryPrice: number | null; referencePrice: number; referenceType?: 'fill' | 'limit'; stop: number; target: number } | null;
+    position: { side: 'Buy' | 'Sell'; quantity: number; entryPrice: number | null; referencePrice: number; referenceType?: 'fill' | 'limit'; stop: number; target: number; exitDeadline?: number } | null;
     quote: { price: number; time: number; bid: number; ask: number; trial: boolean } | null;
-    lastSignal: { time: number; side: 'Buy' | 'Sell' | null; high: number | null; low: number | null; score: number | null; close?: number; atr?: number | null; reason: string } | null;
+    lastSignal: { time: number; side: 'Buy' | 'Sell' | null; high: number | null; low: number | null; score: number | null; close?: number; atr?: number | null; reason: string;
+        model?: { runId: string; hash: string; score: number | null; threshold: number; accepted: boolean; reason: string } } | null;
     orders: AutoOrder[]; events: { id: number; time: string; kind: string; message: string }[];
 }
 export const AUTO_STATUS: Record<AutoState['status'], string> = {

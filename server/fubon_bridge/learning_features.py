@@ -1,13 +1,54 @@
 """Cash-session event features and cost labels; all features end at signal time."""
 from collections import defaultdict
 from datetime import datetime
-from .auto_trading import opening_signal
-from .intraday_strategy import entry_plan, futures_tax
+import math
+from .intraday_strategy import opening_signal, entry_plan, futures_tax
 from .learning_data import STOCKS, quality
 from .mapping import TAIPEI
 
 FEATURES = ['return5','return15','atrRatio','rangeRatio','breakoutAtr','bodyRatio','volumeRatio','sessionTime',*[f'stock{c}Return5' for c in STOCKS]]
 POLICY = dict(version='orb-lightgbm-v1',horizonMinutes=20,threshold=.5,lossLimit=1000,atrPeriod=14,atrMultiplier=1.5)
+
+
+def signal_features(bars, decision, stocks):
+    """Identical closed-bar input for historical training and online inference."""
+    start = int(datetime.fromtimestamp(decision, TAIPEI).replace(hour=9, minute=0, second=0, microsecond=0).timestamp())
+    closed = [b for b in bars if start < b['time'] <= decision]
+    index = {b['time']: b for b in closed}
+    count = (decision-start)//60
+    if decision % 300 or count < 20 or count > 250 or len(index) != len(closed):
+        raise ValueError('模型需要09:20–13:10的唯一已收盤5分訊號')
+    if set(index) != {start+i*60 for i in range(1, count+1)}:
+        raise ValueError('模型所需期貨分鐘資料缺漏')
+    ordered = [index[start+i*60] for i in range(1, count+1)]
+    for b in ordered:
+        if (not all(math.isfinite(b[k]) for k in ('open','high','low','close','volume'))
+            or min(b[k] for k in ('open','high','low','close')) <= 0 or b['volume'] < 0
+            or b['high'] < max(b['open'],b['close']) or b['low'] > min(b['open'],b['close'])):
+            raise ValueError('模型期貨分鐘資料無效')
+    signal = opening_signal(ordered, decision)
+    atr = signal.get('atr')
+    if not signal['side'] or atr is None or not math.isfinite(atr) or atr <= 0:
+        raise ValueError('沒有有效突破或ATR尚未暖身')
+    stock_index = {}
+    for code in STOCKS:
+        values = [b for b in stocks.get(code, []) if b['time'] in {decision, decision-300}]
+        rows = {b['time']: b for b in values}
+        if (len(values) != 2 or len(rows) != 2
+            or any(not math.isfinite(b['close']) or b['close'] <= 0 for b in values)):
+            raise ValueError(f'{code} 缺少模型所需同步收盤資料')
+        stock_index[code] = rows
+    side = 1 if signal['side'] == 'Buy' else -1
+    b = ordered[-1]
+    boundary = signal['high'] if side > 0 else signal['low']
+    average_volume = sum(row['volume'] for row in ordered[-20:])/20
+    x = [side*(b['close']/index[decision-300]['close']-1), side*(b['close']/index[decision-900]['close']-1),
+        atr/b['close'], (signal['high']-signal['low'])/b['close'], side*(b['close']-boundary)/atr,
+        side*(b['close']-b['open'])/max(1,b['high']-b['low']), b['volume']/max(1,average_volume), count/260]
+    x += [side*(stock_index[c][decision]['close']/stock_index[c][decision-300]['close']-1) for c in STOCKS]
+    if len(x) != len(FEATURES) or not all(math.isfinite(value) for value in x):
+        raise ValueError('模型特徵包含無效數值')
+    return signal, x
 
 
 def build_events(data):
@@ -30,17 +71,11 @@ def build_events(data):
                 continue
             if any(b['time'] not in stocks[c] or b['time']-300 not in stocks[c] for c in STOCKS):
                 missing += 1; continue
-            side = 1 if signal['side']=='Buy' else -1
-            atr = signal.get('atr')
-            if atr is None or atr <= 0:
+            try:
+                signal, x = signal_features(bars[:i+1], b['time'],
+                    {c:[stocks[c][t] for t in (b['time']-300,b['time'])] for c in STOCKS})
+            except ValueError:
                 continue
-            average_volume = sum(x['volume'] for x in bars[i-19:i+1])/20
-            high,low = signal['high'],signal['low']
-            boundary = high if side>0 else low
-            x = [side*(b['close']/bars[i-5]['close']-1),side*(b['close']/bars[i-15]['close']-1),
-                atr/b['close'],(high-low)/b['close'],side*(b['close']-boundary)/atr,
-                side*(b['close']-b['open'])/max(1,b['high']-b['low']),b['volume']/max(1,average_volume),(minute-540)/260]
-            x += [side*(stocks[c][b['time']]['close']/stocks[c][b['time']-300]['close']-1) for c in STOCKS]
             events.append(dict(day=day,time=b['time'],side=signal['side'],signal=signal,x=x,
                 path=bars[i+1:min(i+21,len(bars))],month=b['month']))
     return events,dict(q,events=len(events),missingStockEvents=missing)

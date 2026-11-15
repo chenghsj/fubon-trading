@@ -8,7 +8,7 @@ export function IntradayLearningResults({ report }: { report: LearningReport }) 
         <div className={s.notice}><strong>{({ insufficient: '資料不足，未建立模型', diagnostic: '已訓練，未取得採用資格', research_candidate: '通過數值比較，保留研究候選' })[report.status]}</strong><br />
             版本 {report.id.slice(0, 12)} · {report.source} · LightGBM {report.packages.lightgbm}<br />
             單邊費用 ${report.config.feePerSide}（{report.config.feeSource === 'statement' ? '對帳單核對' : '假設'}）· 滑價 {report.config.slippagePoints} 點 · 每口每邊稅額取整<br />
-            數值比較：{report.metricsPassed ? '通過，來源與前測資格仍待核對' : '未通過／資料不足'}。模型沒有核准自動交易；分數未校準為未來勝率。</div>
+            數值比較：{report.metricsPassed ? '通過，來源與前測資格仍待核對' : '未通過／資料不足'}。模型未核准正式交易；可手動選入 Paper／Sandbox 實驗，分數未校準為未來勝率。</div>
         <p className={s.muted}>訓練 {report.counts.train} 筆（{span(report.split.trainDates)}）；驗證 {report.counts.validation} 筆（{span(report.split.validationDates)}）；封存測試 {report.counts.test} 筆（{span(report.split.testDates)}）。跨界標籤排除 {report.split.purged.reduce((a, b) => a + b, 0)} 筆。</p>
         <p className={s.muted}>可標記事件 {report.diagnostics.labeledEvents}；股票不同步跳過 {report.diagnostics.missingStockEvents}；一般情境風控跳過 {report.diagnostics.riskRejectedEvents}。20分鐘事件出場，與上方日內回測的出場期限不同。</p>
         <ul>{report.reasons.map(reason => <li key={reason}>{reason}</li>)}</ul>

@@ -206,10 +206,32 @@ def advance(request:Request,body:dict):
             clock.at=datetime(2026,11,13,9,19,tzinfo=TAIPEI)
             clock.mono=0
             gateway.__init__(clock)
+            gateway.__dict__.pop('bars',None)
             trader.state=empty_state()
             trader.owner=None
             trader.lease_until=0
-        if 'at' in body: clock.at=datetime.fromisoformat(body['at'])
+        if body.get('trainModel'):
+            from test_learning import fixture as learning_fixture,CONFIG
+            from fubon_bridge.learning_data import quality
+            from fubon_bridge.learning_train import train,TrainingRequest
+            data=learning_fixture();data['source']='fubon-sandbox'
+            dataset=app.state.learning.store.save_dataset(data,quality(data))
+            report=train(app.state.learning.store,TrainingRequest(dataset_id=dataset['id'],config=CONFIG))
+            return dict(modelId=report['id'],metricsPassed=report['metricsPassed'],sdkCalls=sdk_calls)
+        if 'modelWinning' in body:
+            from test_learning import fixture as learning_fixture
+            from copy import deepcopy
+            data=learning_fixture(2)
+            day=data['end'] if body['modelWinning'] else data['start']
+            base=int(datetime.fromisoformat(day).replace(tzinfo=TAIPEI).timestamp())
+            offset=int(clock.at.replace(hour=0,minute=0,second=0).timestamp())-base
+            def shift(rows):
+                return [dict(b,time=b['time']+offset) for b in rows if datetime.fromtimestamp(b['time'],TAIPEI).date().isoformat()==day]
+            gateway.candles=shift(data['futures'])
+            stocks={code:shift(rows) for code,rows in data['stocks'].items()}
+            gateway.bars=lambda code,_day,kind='FUT':deepcopy(stocks[code] if kind=='STK' else gateway.candles)
+            gateway.price=25010
+        if 'at' in body: clock.at=datetime.fromisoformat(body['at']).astimezone(TAIPEI)
         if 'mono' in body: clock.mono=body['mono']
         if 'price' in body: gateway.price=body['price']
         if 'unknown' in body: gateway.unknown=body['unknown']
@@ -474,6 +496,35 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     expect(archived.requests).toHaveLength(1);
     scenarios.push({ name: 'archived-next-date-editable-and-stale-control-rejected', nextDate: await nextDate.inputValue(), staleControlStatus: stale.status });
 
+    await reset();
+    const trainedModel = await fixture({ trainModel: true });
+    for (const winning of [true, false]) {
+        await reset();
+        await fixture({ modelWinning: winning });
+        const modelControl = panel().getByRole('combobox', { name: '進場模型', exact: true });
+        await modelControl.click();
+        await page.getByRole('option', { name: new RegExp(trainedModel.modelId.slice(0, 12)) }).click();
+        await expect(versionChoice).toHaveText('V2 波動風控（研究候選）');
+        await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue('12');
+        await expect(panel()).toContainText(trainedModel.metricsPassed ? '數值比較通過，持續前測仍待驗證' : '數值比較未通過或資料不足');
+        await start();
+        const decision = await fixture({ at: '2026-11-13T09:20:01+08:00', ticks: 1 });
+        expect(decision.state.config.model_run_id).toBe(trainedModel.modelId);
+        expect(decision.state.lastSignal.model.accepted).toBe(winning);
+        expect(decision.requests.length).toBe(Number(winning));
+        await expect(panel().getByText(new RegExp(`模型 ${trainedModel.modelId.slice(0, 12)} · 分數`))).toBeVisible();
+        await screenshot(winning ? 'lightgbm-accepted' : 'lightgbm-rejected');
+        if (winning) {
+            await fixture({ fill: 25011, ticks: 1 });
+            await expect(modelControl).toBeDisabled();
+            const deadline = decision.state.orders[0].exitDeadline;
+            const expired = await fixture({ at: new Date(deadline * 1000).toISOString(), price: 25011, ticks: 1 });
+            expect(expired.requests.map(row => row.role)).toEqual(['entry', 'exit']);
+            expect(expired.state.exitReason).toBe('模型20分鐘退出期限');
+            await fixture({ fill: 25011, ticks: 1 });
+        }
+        scenarios.push({ name: winning ? 'lightgbm-real-score-entry-and-20m-exit' : 'lightgbm-real-score-rejects-entry', score: decision.state.lastSignal.model.score });
+    }
     expect((await fixture()).sdkCalls).toBe(0);
     expect(mutations).toEqual([]);
     expect(pageErrors).toEqual([]);
