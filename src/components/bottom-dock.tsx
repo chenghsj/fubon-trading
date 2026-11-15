@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { canTrade } from '../lib/account-tradable';
 import { remainingWorkingOrderQuantity } from '../lib/working-order-quantity';
 // src/components/bottom-dock.tsx — positions / orders / account tabs.
@@ -228,12 +228,12 @@ export function BottomDock({
                 <RefreshButton label={`更新${tabLabel}`} loading={refreshing} onClick={refreshTab} />
             </div>
             <div className={styles.filters}>
-                <NativeSelect
+                <SelectControl
                     className={styles.accountSelect}
                     title='帳戶範圍（選個別帳戶會同步下單面板）'
                     value={scope}
-                    onChange={(e) => {
-                        const v = e.target.value;
+                    onValueChange={(selectedValue) => {
+                        const v = selectedValue;
                         setScope(v);
                         const acc = tradable.find(
                             (a) => refKey(accountToRef(a)) === v,
@@ -245,21 +245,21 @@ export function BottomDock({
                         }
                     }}
                 >
-                    <NativeSelectOption value=''>全部帳戶</NativeSelectOption>
+                    <SelectOption value=''>全部帳戶</SelectOption>
                     {tradable.map((a) => {
                         const key = refKey(accountToRef(a));
                         return (
-                            <NativeSelectOption key={key} value={key}>
+                            <SelectOption key={key} value={key}>
                                 {a.account_type === 'S' ? '[證]' : '[期]'}{' '}
                                 {a.broker_id}-
                                 {maskAccountId(a.account_id, priv)}
-                            </NativeSelectOption>
+                            </SelectOption>
                         );
                     })}
                     {unsigned.map((a) => {
                         const key = refKey(accountToRef(a));
                         return (
-                            <NativeSelectOption
+                            <SelectOption
                                 key={key}
                                 value={key}
                                 disabled
@@ -268,10 +268,10 @@ export function BottomDock({
                                 {a.account_type === 'S' ? '[證]' : '[期]'}{' '}
                                 {a.broker_id}-
                                 {maskAccountId(a.account_id, priv)} · {UNSIGNED_LABEL}
-                            </NativeSelectOption>
+                            </SelectOption>
                         );
                     })}
-                </NativeSelect>
+                </SelectControl>
                 <span className={styles.ctrlGroup}>
                     <Button size="compact" variant="ghost"
                         className={

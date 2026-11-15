@@ -46,6 +46,14 @@ pnpm 12 若阻擋 esbuild 安裝腳本，可執行 `pnpm approve-builds esbuild 
 
 ## 使用富邦行情
 
+策略回測面板另提供 LightGBM 微台研究：跨月分批下載、資料品質、按日期訓練／驗證／測試、固定滑價壓力與版本保存。它只產生研究報告與本機模型，不自動啟動或替換交易策略，操作方式見[模型研究規格](docs/design/lightgbm-research.md)。macOS 需先安裝 OpenMP：
+
+```sh
+brew install libomp
+```
+
+`pnpm start` 會帶入 `learning` Python extra；缺原生依賴時，面板會顯示訓練不可用原因。
+
 ```sh
 uv sync --directory server --extra fubon
 ```
@@ -64,9 +72,11 @@ pnpm credentials delete   # 刪除儲存資料；另需停止服務才能結束�
 
 舊版 `.env` 的四個登入欄位已停用；若其中仍有值，paper/live 會拒絕啟動。請先執行 `pnpm credentials set`，確認設定成功，再自行清除舊檔與備份中的明文資料。程式不會自動搬移或刪除你的秘密。
 
-- `paper`：富邦真實行情，委託只進本機模擬帳簿。
+- `paper`：富邦真實行情，委託只進本機 SQLite 模擬帳簿，保存委託／持倉／成交費稅；支援微台策略，見 [Paper 操作規格](docs/design/paper-trading.md)。
 - `sandbox`：使用官方測試帳戶登入固定的 `neoapitest.fbs.com.tw`，委託送到富邦測試主機，不讀正式 Keychain；設定方式見 [FUBON.md](docs/FUBON.md#官方測試環境)。
 - `live`：必須同時設 `FUBON_MODE=live` 與 `FUBON_ENABLE_LIVE_TRADING=true` 才能發送正式委託。修改後需重啟。
+
+也可在畫面上方「交易模式設定」選擇模式，無須手動修改 `.env`。切入正式交易必須另外開啟「允許正式下單」、輸入「確認啟用正式下單」並套用；正式模式每筆手動委託仍必須經過委託確認，不能關閉。套用會自動重啟這個服務並要求既有 Passkey 重新解鎖；有策略監控、研究工作、未完成委託或持倉時阻擋切換。本機選擇保存在各工作目錄的 `server/.mode-settings.json`，之後啟動優先沿用，`.env` 作為初始設定；不更改 Keychain 或其他 worktree 的服務。
 - 夜盤另設 `FUBON_SESSION=afterhours`。
 - 登入失敗時顯示錯誤，不會退回合成行情。
 - 金鑰與憑證只在 Python 服務使用，不會送給瀏覽器。不要將秘密放進 `VITE_*`。
@@ -99,15 +109,18 @@ macOS 公開驗證資料保存在 `~/Library/Application Support/Fubon Trading/p
 | 股票現股整股／零股委託、期貨單式委託 | 已實作；整股張數轉成富邦股數 |
 | 委託查詢、改價、取消、期貨減量 | 已實作；改刪前重新向券商查詢 |
 | 股票部位、銀行餘額、期貨部位與權益 | 已實作 SDK 轉接；銀行餘額受交割銀行支援限制 |
-| 本機模擬交易 | 已實作；不會呼叫券商下單 API |
+| 本機模擬交易 | Paper 保存委託、持倉與費稅；不會呼叫券商下單 API |
 | 複式單、信用下單、股票改量、零股即時行情 | 尚未支援，明確拒絕 |
 | 選擇權篩選／歷史分 K、排行、指數成分與籌碼分析 | 尚未完成轉接 |
-| 括號停損停利、觸價／定時／兩腳自動執行 | 停用，待成交回報與明細相容性驗證 |
-| 自動產生策略、批次回測與樣本外驗證 | 後續工作，不包含在這次 API 遷移 |
+| 圖表／條件單引擎的括號、觸價／定時／兩腳執行 | 停用，待成交回報與明細相容性驗證 |
+| 日內回測研究與 SQLite 資料庫 | 新增公開面板；歷史 1 分 K 快取、固定假設權重、ORB 濾網對照、成本／滑價與紀錄保存，見 [規格](docs/design/intraday-research.md) |
+| LightGBM 微台訊號研究 | 跨月資料、固定事件標籤、時間切分、成本壓力、模型保存／匯出；研究模型不核准自動交易 |
+| Paper／Sandbox 策略自動交易 | 「新增面板 → 自動交易」；微台單口、指定日盤、限價 IOC、啟停／對帳與本機退出監控，見 [執行流程](docs/design/sandbox-auto-trading.md) |
+| 自動產生策略、最佳化與樣本外驗證 | 後續工作；研究面板不包含上游私有完整回測模組 |
 
-上游 Tauri 外殼、AI Agent、策略回測是未公開的專屬模組，fork 不會取得；這裡交付 Web 交易終端。
+上游 Tauri 外殼、AI Agent、完整策略回測是未公開的專屬模組，fork 不會取得；公開 fork 另外提供範圍受限的日內研究面板與 Web 交易終端。
 
-模擬帳簿、自選清單存於服務記憶體，重啟即重設。撮合不模擬委託佇列、部分成交、手續費、稅或市場衝擊，不能用於評估策略績效。試撮或超過兩分鐘的舊報價不產生模擬成交。括號停損停利、觸價自動單、定時平倉與兩腳價差自動執行目前停用；不能視為部位已有自動保護。
+Paper 委託、持倉、凍結成本與策略紀錄保存在本機資料庫；demo 帳簿及自選清單仍為記憶體資料。臺指／小台／微台逐口計算成交手續費與期交稅；其他商品未設定的成本會明示，不能視為零成本。撮合不模擬委託佇列、部分成交、保證金占用或市場衝擊。試撮或超過兩分鐘的舊報價不產生模擬成交；策略另要求15秒內報價。圖表與條件單引擎的括號停損停利、觸價自動單、定時平倉及兩腳價差執行目前停用；paper／sandbox 策略面板另由後端監控，重啟不自動接管。
 
 ## 開發與測試
 
@@ -116,7 +129,7 @@ pnpm server           # 只啟動 Python bridge，開啟 Passkey 解鎖的 dist/
 pnpm dev              # 只啟動前端，不會單獨取得本機 API 授權；完整開發用 pnpm start
 pnpm build            # TypeScript + 正式 Web build
 pnpm test             # 既有前端測試
-uv run --directory server --extra test --extra fubon pytest
+uv run --directory server --extra test --extra fubon --extra learning pytest
 ```
 
 建置後亦可執行 `pnpm server`，會自動開啟 http://localhost:21323 的 `dist/` 靜態終端，需以 Passkey 解鎖。API 文件在 http://localhost:21323/docs；API 呼叫仍需工作階段權限。

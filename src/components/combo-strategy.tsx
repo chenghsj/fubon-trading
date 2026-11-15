@@ -1,4 +1,4 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Button } from '@/components/ui/button';
 // src/components/combo-strategy.tsx — 選擇權策略快建（issue #32 追加）
 //
@@ -249,56 +249,56 @@ export function OptionStrategyBuilder({
         onChange: (v: number) => void,
         label: string,
     ) => (
-        <NativeSelect
+        <SelectControl
             className={dx.select}
             aria-label={label}
             value={value ?? ''}
-            onChange={(e) => onChange(Number(e.target.value))}
+            onValueChange={(selectedValue) => onChange(Number(selectedValue))}
         >
             {strikes.map((s) => (
-                <NativeSelectOption key={s} value={s}>
+                <SelectOption key={s} value={s}>
                     {s}
                     {nearestIdx >= 0 && strikes[nearestIdx] === s
                         ? '（ATM）'
                         : ''}
-                </NativeSelectOption>
+                </SelectOption>
             ))}
-        </NativeSelect>
+        </SelectControl>
     );
 
     return (
         <div className={css.section}>
             <div className={styles.fieldRow}>
                 <span className={styles.fieldLabel}>商品</span>
-                <NativeSelect
+                <SelectControl
                     className={dx.select}
                     value={root}
-                    onChange={(e) => {
-                        setRoot(e.target.value);
-                        localStorage.setItem(SB_ROOT_KEY, e.target.value);
+                    onValueChange={(selectedValue) => {
+                        setRoot(selectedValue);
+                        localStorage.setItem(SB_ROOT_KEY, selectedValue);
                     }}
                 >
                     {!roots.some((r) => r.root === root) && (
-                        <NativeSelectOption value={root}>{root}</NativeSelectOption>
+                        <SelectOption value={root}>{root}</SelectOption>
                     )}
                     {roots.map((r) => (
-                        <NativeSelectOption key={r.root} value={r.root}>
+                        <SelectOption key={r.root} value={r.root}>
                             {r.name.replace(/\s*\d{6}$/, '')}（{r.root}）
-                        </NativeSelectOption>
+                        </SelectOption>
                     ))}
-                </NativeSelect>
-                <NativeSelect
+                </SelectControl>
+                <SelectControl
                     className={dx.select}
                     aria-label='月份'
                     value={month}
-                    onChange={(e) => setMonth(e.target.value)}
+                    onValueChange={(selectedValue) => setMonth(selectedValue)}
                 >
                     {months.map((m) => (
-                        <NativeSelectOption key={m} value={m}>
+                        <SelectOption key={m} value={m}>
                             {m.slice(0, 4)}/{m.slice(4)}
-                        </NativeSelectOption>
+                        </SelectOption>
                     ))}
-                </NativeSelect>
+                </SelectControl>
             </div>
             <div className={styles.fieldRow}>
                 <span className={styles.fieldLabel}>策略</span>
@@ -352,20 +352,20 @@ export function OptionStrategyBuilder({
                         {strikeSelect(k1, setK1, '履約價')}
                         {needK2 && strikeSelect(k2, (v) => setK2(v), '第二履約價')}
                         {strategy === 'calendar' && (
-                            <NativeSelect
+                            <SelectControl
                                 className={dx.select}
                                 aria-label='遠月'
                                 value={farMonth}
-                                onChange={(e) => setFarMonth(e.target.value)}
+                                onValueChange={(selectedValue) => setFarMonth(selectedValue)}
                             >
                                 {months
                                     .filter((m) => m > month)
                                     .map((m) => (
-                                        <NativeSelectOption key={m} value={m}>
+                                        <SelectOption key={m} value={m}>
                                             遠 {m.slice(0, 4)}/{m.slice(4)}
-                                        </NativeSelectOption>
+                                        </SelectOption>
                                     ))}
-                            </NativeSelect>
+                            </SelectControl>
                         )}
                     </>
                 )}

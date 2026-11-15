@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react';
 import { isOddLot, riskLots } from './odd-lot';
 import { secretMoney } from './privacy';
 import type { StockOrderLot } from './types/order';
+import { knownServerInfo, subscribeServerInfo } from './server-info-store';
 
 export interface RiskSettings {
     enabled: boolean; // master switch for the rules below
@@ -93,10 +94,23 @@ export function getDailyPnlKnown(): boolean {
 /** Every change of the settings or the daily PnL (also from other windows). */
 export function subscribeRiskSettings(listener: () => void): () => void {
     listeners.add(listener);
-    return () => { listeners.delete(listener); };
+    const off = subscribeServerInfo(listener);
+    return () => { listeners.delete(listener); off(); };
 }
 
-export function getRiskSettings(): RiskSettings {
+type EffectiveRiskSettings = RiskSettings & { manualConfirmationRequired?: true };
+let liveSettings: EffectiveRiskSettings | undefined;
+let liveSource: RiskSettings | undefined;
+export function getRiskSettings(): EffectiveRiskSettings {
+    const info = knownServerInfo();
+    // An unknown environment must pass the dialog's fresh /info check too.
+    if (!info || info.broker === 'fubon' && (!info.mode || info.mode === 'live')) {
+        if (liveSource !== settings) {
+            liveSettings = { ...settings, confirmManualOrders: true, manualConfirmationRequired: true };
+            liveSource = settings;
+        }
+        return liveSettings!;
+    }
     return settings;
 }
 
@@ -104,7 +118,7 @@ export function getDailyPnl(): number {
     return dailyPnl;
 }
 
-export function useRiskSettings(): RiskSettings {
+export function useRiskSettings(): EffectiveRiskSettings {
     return useSyncExternalStore(subscribeRiskSettings, getRiskSettings);
 }
 

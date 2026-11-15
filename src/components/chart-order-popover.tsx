@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Input } from '@/components/ui/input';
 // src/components/chart-order-popover.tsx — 下單設定按鈕與彈出面板（#204）
 // K 線圖與閃電下單共用：OrderSettingsButton 是通用的按鈕＋面板，只列該面板
@@ -326,20 +326,20 @@ export function OrderSettingsPanel({
             {account && (
                 <div className={styles.row}>
                     <span className={styles.label}>帳號</span>
-                    <NativeSelect
+                    <SelectControl
                         wrapperClassName="w-full" className={styles.select}
                         aria-label={`${layout.title.replace('設定', '')}帳號`}
                         value={settings.accountKey ?? FOLLOW}
-                        onChange={e => set({ accountKey: e.target.value === FOLLOW ? undefined : e.target.value })}
+                        onValueChange={selectedValue => set({ accountKey: selectedValue === FOLLOW ? undefined : selectedValue })}
                     >
-                        <NativeSelectOption value={FOLLOW}>
+                        <SelectOption value={FOLLOW}>
                             {account.following && account.active ? `跟隨主畫面 ${account.short(account.active)}` : '跟隨主畫面'}
-                        </NativeSelectOption>
-                        {account.missing && settings.accountKey && <NativeSelectOption value={settings.accountKey}>帳戶不可用</NativeSelectOption>}
+                        </SelectOption>
+                        {account.missing && settings.accountKey && <SelectOption value={settings.accountKey}>帳戶不可用</SelectOption>}
                         {account.eligible.map(a => (
-                            <NativeSelectOption key={flashAccountKey(a)} value={flashAccountKey(a)}>{account.long(a)}</NativeSelectOption>
+                            <SelectOption key={flashAccountKey(a)} value={flashAccountKey(a)}>{account.long(a)}</SelectOption>
                         ))}
-                    </NativeSelect>
+                    </SelectControl>
                 </div>
             )}
             {layout.unit && (

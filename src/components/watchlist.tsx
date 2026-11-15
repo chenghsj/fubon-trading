@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // src/components/watchlist.tsx — server-backed editable watchlists.
 // Pick a list, add symbols (type auto-detected), hover a row to remove,
 // drag rows to reorder (persisted to the server).
@@ -601,22 +601,22 @@ export function Watchlist({
                     />
                 ) : (
                     <>
-                        <NativeSelect
+                        <SelectControl
                             wrapperClassName="flex-[1_0_8rem]" className={styles.listSelect}
                             aria-label="自選清單"
                             value={activeListId}
                             disabled={structureBusy}
-                            onChange={(e) => {
+                            onValueChange={(selectedValue) => {
                                 setConfirmDelete(false);
-                                onSelectList(e.target.value);
+                                onSelectList(selectedValue);
                             }}
                         >
                             {serverLists.map((l) => (
-                                <NativeSelectOption key={l.id} value={l.id}>
+                                <SelectOption key={l.id} value={l.id}>
                                     {l.name}（{l.contracts.length}）
-                                </NativeSelectOption>
+                                </SelectOption>
                             ))}
-                        </NativeSelect>
+                        </SelectControl>
                         <div className={styles.listActions} role="group" aria-label="清單操作">
                             {onReload && (
                                 <RefreshButton

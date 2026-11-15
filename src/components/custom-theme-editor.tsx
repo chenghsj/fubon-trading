@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -142,11 +142,11 @@ export function CustomThemeEditor() {
             <div className={styles.settingRow}>
                 <span className={styles.rowLabel}>強調色</span>
                 <div className={styles.accentControls}>
-                    <NativeSelect aria-label="強調色來源" value={settings.accent ? 'custom' : 'theme'} className={styles.accentSelect}
-                        onChange={event => setThemeSettings({ accent: event.target.value === 'custom' ? custom.accent : undefined })}>
-                        <NativeSelectOption value="theme">主題預設</NativeSelectOption>
-                        <NativeSelectOption value="custom">自訂</NativeSelectOption>
-                    </NativeSelect>
+                    <SelectControl aria-label="強調色來源" value={settings.accent ? 'custom' : 'theme'} className={styles.accentSelect}
+                        onValueChange={selectedValue => setThemeSettings({ accent: selectedValue === 'custom' ? custom.accent : undefined })}>
+                        <SelectOption value="theme">主題預設</SelectOption>
+                        <SelectOption value="custom">自訂</SelectOption>
+                    </SelectControl>
                     <Label className={styles.accentPicker}>
                         <Input type="color" className={styles.colorInput} value={custom.accent} aria-label="強調色顏色"
                             onChange={event => setThemeSettings({ accent: event.target.value })} />

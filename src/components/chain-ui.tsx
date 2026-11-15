@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // src/components/chain-ui.tsx — shared pieces of the 產業鏈資金流向 panel:
 // preferences, direction tokens, canvas plumbing, visibility pause and
 // reduced-motion detection.
@@ -186,13 +186,13 @@ export function Select<T extends string>({
     title?: string;
 }) {
     return (
-        <NativeSelect className={s.select} value={value} aria-label={label} title={title ?? label} onChange={(e) => onChange(e.target.value as T)}>
+        <SelectControl className={s.select} value={value} aria-label={label} title={title ?? label} onValueChange={(selectedValue) => onChange(selectedValue as T)}>
             {options.map((option) => (
-                <NativeSelectOption key={option.value} value={option.value}>
+                <SelectOption key={option.value} value={option.value}>
                     {option.label}
-                </NativeSelectOption>
+                </SelectOption>
             ))}
-        </NativeSelect>
+        </SelectControl>
     );
 }
 

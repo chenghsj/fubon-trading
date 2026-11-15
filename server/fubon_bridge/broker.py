@@ -13,7 +13,7 @@ from .paper import ACTIVE, PaperBook
 
 
 class Broker:
-    def __init__(self, config: Config, emit=lambda *_: None, sdk_factory=None):
+    def __init__(self, config: Config, emit=lambda *_: None, sdk_factory=None, *, paper_store=None):
         self.config = config
         self.emit = emit
         self.sdk_factory = sdk_factory
@@ -32,7 +32,8 @@ class Broker:
         self.sockets = {}
         self.connected_sockets = set()
         self.error = None
-        self.paper = PaperBook(emit)
+        self.transitioning = False
+        self.paper = PaperBook(emit,paper_store,costs=config.mode=='paper')
         self.instance_id = uuid.uuid4().hex
         if config.mode == "demo":
             self._demo_catalog()
@@ -72,6 +73,15 @@ class Broker:
             self.sdk.set_on_order_futopt_changed(self._on_order)
             self.sdk.set_on_order_changed(self._on_order)
             self.sdk.set_on_event(self._on_sdk_event)
+            if cfg.mode=='paper':
+                self.paper.refresh()
+                for trade in list(self.paper.orders.values()):
+                    if trade['status']['status'] in ACTIVE:
+                        # Expire old ROD before allowing a fresh quote to reach it.
+                        self.paper.tick(trade['contract']['code'],{})
+                        if self.paper.orders[trade['order']['id']]['status']['status'] in ACTIVE:
+                            self.subscribe(trade['contract'],'Tick')
+                            self.subscribe(trade['contract'],'BidAsk')
         except Exception:
             # SDK errors can contain identity/certificate details. Keep them out
             # of browser responses and logs; diagnose login locally with the SDK.
@@ -101,9 +111,12 @@ class Broker:
 
     def account_rows(self):
         if not self.config.broker_orders:
-            return [dict(account_type=kind, broker_id="LOCAL", account_id=f"{self.config.mode.upper()}-{kind}",
+            rows = [dict(account_type=kind, broker_id="LOCAL", account_id=f"{self.config.mode.upper()}-{kind}",
                 person_id="", username="展示模擬帳戶" if self.config.mode == "demo" else "富邦行情／本機模擬帳戶",
                 signed=self.config.mode == "demo" or bool(self.sdk and not self.error)) for kind in ("F", "S")]
+            if self.config.mode=='paper':
+                rows.append(dict(rows[0],account_id='PAPER-AUTO-F',username='Paper 策略專用模擬帳戶'))
+            return rows
         return [dict(account_type=kind, broker_id=branch, account_id=account_id,
                 person_id="", username=field(raw, "name", "富邦帳戶"), signed=True)
                 for (kind, branch, account_id), raw in self.accounts_raw.items()]
@@ -171,7 +184,7 @@ class Broker:
                 self.catalog_loaded.add(kind)
             return [deepcopy(x) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
 
-    def contract(self, key):
+    def contract(self, key, *, refresh=False):
         code = key["code"].strip().upper()
         kind = key.get("security_type")
         if not re.fullmatch(r"[A-Z0-9!]{2,24}", code):
@@ -182,7 +195,7 @@ class Broker:
             raise ValueError("此富邦轉接器支援股票、期貨與選擇權行情")
         with self.lock:
             cached = self.catalog.get(code)
-            if cached and not cached.get("target_code") and (self.config.mode == "demo" or code in self.catalog_full):
+            if cached and not refresh and not cached.get("target_code") and (self.config.mode == "demo" or code in self.catalog_full):
                 if cached["security_type"] != kind:
                     raise ValueError("商品類型不符")
                 return deepcopy(cached)
@@ -286,6 +299,57 @@ class Broker:
                     result[column].append(number(row.get(column.lower())))
                 result["Amount"].append(0)
         return result
+
+    def research_candles(self, kind, symbol, month, start, end):
+        """Read explicit expired contract months without resolving a live ticker."""
+        if self.config.mode == "demo":
+            rows = []
+            first, last = date.fromisoformat(start), date.fromisoformat(end)
+            for day in range((last-first).days+1):
+                current = first+timedelta(days=day)
+                if current.weekday() >= 5:
+                    continue
+                base = 25000 if kind == "FUT" else 100 + int(symbol) % 400
+                for minute in range(270):
+                    at = datetime.combine(current, datetime.min.time(), TAIPEI)+timedelta(hours=9, minutes=minute)
+                    # Synthetic correlated paths exercise both filter outcomes, never market performance.
+                    x = minute / 12 + current.toordinal() % 7
+                    scale = 1 if kind == "FUT" else base / 25000
+                    o = base + scale * (30*math.sin(x)+minute*.15)
+                    c = base + scale * (30*math.sin(x+.09)+minute*.15)
+                    if kind == "FUT":
+                        o, c = round(o), round(c)
+                    rows.append(dict(date=at.isoformat(), open=o, high=max(o,c)+2*scale,
+                        low=min(o,c)-2*scale, close=c, volume=10+minute%17))
+            return rows
+        with self.lock:
+            client = self._client(kind)
+            params = dict(timeframe="1", sort="asc", **{"from": start, "to": end})
+            if kind == "STK":
+                params["symbol"] = symbol
+            else:
+                params.update(product=symbol, contractMonth=month, session="regular")
+            try:
+                return client.historical.candles(**params).get("data", [])
+            except Exception as error:
+                if getattr(error, "status_code", None) == 404:
+                    return []
+                raise ValueError(f"{symbol} 歷史行情查詢失敗；請確認行情權限、連線與日期") from None
+
+    def learning_candles(self, kind, symbol, start, end):
+        """Read-only continuous history, preserving actual contract months per row."""
+        if self.config.mode == 'demo':
+            rows = self.research_candles(kind,symbol,'',start,end)
+            return [dict(row,contractMonth=row['date'][:7].replace('-','')) for row in rows] if kind=='FUT' else rows
+        with self.lock:
+            params = dict(timeframe='1',sort='asc',**{'from':start,'to':end})
+            params.update(dict(symbol=symbol) if kind=='STK' else dict(product=symbol,contractMonth='1!',session='regular'))
+            try:
+                return self._client(kind).historical.candles(**params).get('data',[])
+            except Exception as error:
+                if getattr(error,'status_code',None)==404:
+                    return []
+                raise ValueError('跨月歷史下載失敗，請檢查行情權限、日期或稍後重試；已保存批次可續傳') from None
 
     def ticks(self, key, requested_date, count=500):
         contract = self.contract(key)
@@ -442,7 +506,7 @@ class Broker:
 
     def order_list(self, account, refresh=True):
         if not self.config.broker_orders:
-            return [deepcopy(t) for t in self.paper.orders.values() if t["order"]["account"] == account]
+            return self.paper.order_rows(account)
         with self.lock:
             if refresh:
                 raw_account = self.raw_account(account)
@@ -457,8 +521,21 @@ class Broker:
                 self.cache_health[account["account_id"]] = True
             return [deepcopy(t) for t in self.trades.values() if t["order"]["account"] == account]
 
-    def place(self, contract_key, order, account):
+    def place(self, contract_key, order, account, *, client_tag=None, paper_cost=None, strategy_day=None):
         with self.lock:
+            if self.transitioning:
+                raise ValueError("交易模式正在切換，請重新解鎖後確認帳戶")
+            if client_tag is not None and (self.config.mode not in {"sandbox","paper"} or not re.fullmatch(r"FA[a-f0-9]{8}", client_tag)):
+                raise ValueError("策略委託識別碼僅供 sandbox 或 paper 使用")
+            if paper_cost is not None and self.config.mode!='paper':
+                raise ValueError('paper 成本設定僅供本機模擬')
+            if self.config.mode=='paper' and (account.get('account_id')=='PAPER-AUTO-F') != (client_tag is not None):
+                raise ValueError('策略專用模擬帳戶只接受策略委託；手動請選 PAPER-F')
+            if client_tag is not None and (self.config.session!="regular" or account.get("account_type")!="F"
+                or not re.fullmatch(r"TMF[A-L]\d",contract_key.get("code","")) or order.get("quantity")!=1
+                or order.get("price_type")!="LMT" or order.get("order_type")!="IOC"
+                or order.get("octype") not in {"New","Cover"} or not float(order.get("price",0)).is_integer() or order.get("price",0)<=0):
+                raise ValueError("策略委託僅支援日盤微台單口限價 IOC")
             self.ready()
             contract = self.contract(contract_key)
             kind = contract["security_type"]
@@ -468,7 +545,8 @@ class Broker:
             if contract.get("target_code") or "!" in contract["code"] or re.search(r"R[123]$", contract["code"]):
                 raise ValueError("請選擇具體月份合約下單，連續月代碼僅供看盤")
             if not self.config.broker_orders:
-                return self.paper.place(contract, order, account, self.quote(contract))
+                local_order=dict(order,custom_field=client_tag) if client_tag else order
+                return self.paper.place(contract,local_order,account,self.quote(contract),cost=paper_cost,strategy_tag=client_tag,strategy_day=strategy_day,session=self.config.session)
             if self.config.mode == "live" and not self.config.live_enabled:
                 raise ValueError("正式下單未啟用")
             socket_kind = "stock" if kind == "STK" else "futopt"
@@ -478,7 +556,7 @@ class Broker:
             from fubon_neo.constant import BSAction, TimeInForce, FutOptMarketType, FutOptPriceType, FutOptOrderType, MarketType, PriceType, OrderType
             shared = dict(buy_sell=getattr(BSAction, order["action"]), symbol=contract["code"],
                           time_in_force=getattr(TimeInForce, order["order_type"]), price=str(order["price"]),
-                          user_def=("FW" + uuid.uuid4().hex[:8]) if self.config.mode == "sandbox" else "FubonWeb")
+                          user_def=client_tag or (("FW" + uuid.uuid4().hex[:8]) if self.config.mode == "sandbox" else "FubonWeb"))
             if kind == "STK":
                 lot = order.get("order_lot", "Common")
                 if lot not in {"Common", "IntradayOdd", "Odd"} or order.get("order_cond", "Cash") != "Cash" or order.get("daytrade_short", False):
@@ -497,12 +575,81 @@ class Broker:
                 row = unwrap(self.sdk.futopt.place_order(self.raw_account(account), obj))
             return self._remember(row, contract, account)
 
-    def mutate(self, ident, action, value=None):
+    def automation_orders(self, account):
+        """Fresh authoritative rows only; absence from this response is never a cancellation."""
+        if self.config.mode=='paper':
+            return [dict(t,automation_day=(t['paper'].get('strategyDay') or t['paper']['day']).replace('-','')) for t in self.paper.order_rows(account)]
+        if self.config.mode != "sandbox":
+            raise ValueError("自動交易僅支援官方 sandbox")
         with self.lock:
+            rows = unwrap(self.sdk.futopt.get_order_results(self.raw_account(account)))
+            if not isinstance(rows,list):
+                raise ValueError("委託查詢未回傳完整清單")
+            fresh, ids = [],set()
+            for row in rows:
+                trade = self._remember(row,self._row_contract(row,account),account)
+                ident = trade["order"]["id"]
+                if ident in ids:
+                    raise ValueError("本輪委託查詢出現重複識別")
+                ids.add(ident)
+                fresh.append(dict(trade,automation_day=re.sub(r"\D","",str(field(row,"date","")))))
+            self.baseline_ids[(account["account_type"],account["broker_id"],account["account_id"])] = ids
+            self.cache_health[account["account_id"]] = True
+            return fresh
+
+    def automation_fill_price(self, account, trade, day):
+        """Use explicit execution prices, never infer them from order limits or filled_money."""
+        if self.config.mode=='paper':
+            rows=[t for t in self.paper.order_rows(account) if t['order']['id']==trade['order']['id']]
+            if len(rows)!=1 or (rows[0].get('paper',{}).get('strategyDay') or rows[0].get('paper',{}).get('filledDay'))!=day or rows[0]['status']['deal_quantity']!=1:
+                raise ValueError('paper 成交明細尚未對齊')
+            deals=rows[0]['status']['deals']
+            if len(deals)!=1 or deals[0]['quantity']!=1:
+                raise ValueError('paper 成交明細數量不符')
+            return deals[0]['price']
+        if self.config.mode != "sandbox":
+            raise ValueError("自動交易僅支援官方 sandbox")
+        from fubon_neo.constant import FutOptMarketType
+        with self.lock:
+            rows = unwrap(self.sdk.futopt.filled_history(self.raw_account(account), FutOptMarketType.Future, day.replace("-", "")))
+            if not isinstance(rows, list):
+                raise ValueError("成交明細尚未取得")
+            fills = {}
+            for row in rows:
+                if (str(field(row, "order_no", "")) != trade["order"]["ordno"]
+                    or re.sub(r"\D", "", str(field(row, "date", ""))) != day.replace("-", "")
+                    or str(field(row,"branch_no",""))!=str(account["broker_id"])
+                    or str(field(row,"account",""))!=str(account["account_id"])
+                    or enum_name(field(row, "buy_sell")) != trade["order"]["action"]):
+                    continue
+                if self._row_contract(row, account)["code"] != trade["contract"]["code"]:
+                    continue
+                ident = str(field(row, "filled_no", ""))
+                price, qty = number(field(row, "filled_price")), number(field(row, "filled_lot"))
+                if not ident or not math.isfinite(price) or price <= 0 or not float(qty).is_integer() or qty <= 0:
+                    raise ValueError("成交明細無法確認")
+                value = (price, int(qty))
+                if ident in fills and fills[ident] != value:
+                    raise ValueError("成交明細衝突")
+                fills[ident] = value
+            quantity = sum(q for _, q in fills.values())
+            if quantity != trade["status"]["deal_quantity"] or quantity <= 0:
+                raise ValueError("成交明細口數尚未對齊")
+            return sum(p*q for p, q in fills.values()) / quantity
+
+    def mutate(self, ident, action, value=None, *, client_tag=None):
+        with self.lock:
+            if self.transitioning:
+                raise ValueError("交易模式正在切換，請重新解鎖後確認帳戶")
+            if client_tag is not None and (self.config.mode not in {"sandbox","paper"} or not re.fullmatch(r"FA[a-f0-9]{8}",client_tag) or action!="cancel"):
+                raise ValueError("策略改刪僅支援取消自有模擬委託")
             if not self.config.broker_orders:
+                self.paper.refresh()
                 trade = self.paper.orders.get(ident)
                 if not trade:
                     raise ValueError("找不到本服務的委託")
+                if self.config.mode=='paper' and trade['order']['account']['account_id']=='PAPER-AUTO-F' and (not client_tag or trade.get('paper',{}).get('strategyTag')!=client_tag):
+                    raise ValueError('策略專用模擬帳戶請使用自動交易面板停止與退出')
                 if action == "cancel":
                     return self.paper.cancel(ident)
                 return self.paper.update(ident, "price" if action == "price" else "quantity", value, self.quote(trade["contract"]))
@@ -517,6 +664,8 @@ class Broker:
             if ident not in self.baseline_ids.get((account["account_type"], account["broker_id"], account["account_id"]), set()):
                 raise ValueError("最新券商委託查詢未包含此單，拒絕使用舊快取改刪單")
             current = self.trades[ident]
+            if client_tag is not None and current["order"].get("custom_field")!=client_tag:
+                raise ValueError("此委託不屬於本策略，不可取消")
             if current["status"]["status"] not in ACTIVE:
                 raise ValueError("此委託已無可改刪數量")
             raw = self.raw_orders[ident]
@@ -536,6 +685,26 @@ class Broker:
                 obj = client.make_modify_lot_obj(raw, int(effective - value))
                 row = unwrap(client.modify_lot(self.raw_account(account), obj))
             return self._remember(row, current["contract"], account)
+
+    def assert_mode_switch_idle(self):
+        if not self.config.broker_orders:
+            book = self.paper.overview()
+            if book['positions'] or any(t['status']['status'] in ACTIVE for t in book['orders']):
+                raise ValueError("模擬帳簿仍有持倉或未完成委託，請先平倉與取消委託再切換")
+            return
+        if not self.accounts_raw and not self.trades:
+            # Login never established an account in this process.
+            return
+        self.ready()
+        for account in self.account_rows():
+            raw = self.raw_account(account)
+            client = self.sdk.futopt if account['account_type'] == 'F' else self.sdk.stock
+            orders = unwrap(client.get_order_results(raw))
+            inventory = unwrap(self.sdk.futopt_accounting.query_single_position(raw) if account['account_type'] == 'F' else self.sdk.accounting.inventories(raw))
+            if not isinstance(orders, list) or not isinstance(inventory, list):
+                raise ValueError("無法確認券商委託與庫存，請恢復連線並核對後再切換")
+            if inventory or any(int(field(row, 'status', -1)) not in {30, 40, 50, 90} for row in orders):
+                raise ValueError("券商帳戶仍有庫存或未完成委託，請先處理並核對後再切換")
 
     def positions(self, account):
         with self.lock:
@@ -568,9 +737,13 @@ class Broker:
 
     def margin(self, account):
         if not self.config.broker_orders:
-            return dict(yesterday_balance=1_000_000, today_balance=1_000_000, equity=1_000_000,
-                equity_amount=1_000_000, available_margin=1_000_000, initial_margin=0, maintenance_margin=0,
-                fee=0, tax=0, future_open_position=sum(p["pnl"] for p in self.positions(account)))
+            lifetime=self.paper.overview(account['account_id'])
+            daily=self.paper.overview(account['account_id'],now().date().isoformat())
+            cash=1_000_000+lifetime['realizedNet']
+            unrealized=sum(p['pnl'] for p in self.positions(account))
+            return dict(yesterday_balance=cash-daily['realizedNet'],today_balance=cash,equity=cash+unrealized,
+                equity_amount=cash+unrealized,available_margin=cash+unrealized,initial_margin=0,maintenance_margin=0,
+                fee=daily['fee'],tax=daily['tax'],future_open_position=unrealized,future_settle_profitloss=daily['realizedNet'])
         rows = unwrap(self.sdk.futopt_accounting.query_margin_equity(self.raw_account(account))) or []
         row = next((x for x in rows if field(x, "currency") == "NTD"), None)
         if row is None:
@@ -586,6 +759,6 @@ class Broker:
 
     def balance(self, account):
         if not self.config.broker_orders:
-            return dict(acc_balance=1_000_000, date=now().date().isoformat(), errmsg="本機模擬資金")
+            return dict(acc_balance=1_000_000+self.paper.overview(account['account_id'])['realizedNet'],date=now().date().isoformat(),errmsg="本機模擬資金，未模擬保證金占用")
         row = unwrap(self.sdk.accounting.bank_remain(self.raw_account(account)))
         return dict(acc_balance=number(field(row, "balance")), date=now().date().isoformat(), errmsg="")

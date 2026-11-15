@@ -1,4 +1,4 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -264,17 +264,17 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
                 {months.length > 0 && (
-                    <NativeSelect
+                    <SelectControl
                         className={styles.monthSelect}
                         value={month}
-                        onChange={(e) => setMonth(e.target.value)}
+                        onValueChange={(selectedValue) => setMonth(selectedValue)}
                     >
                         {months.map((m) => (
-                            <NativeSelectOption key={m} value={m}>
+                            <SelectOption key={m} value={m}>
                                 {m}
-                            </NativeSelectOption>
+                            </SelectOption>
                         ))}
-                    </NativeSelect>
+                    </SelectControl>
                 )}
                 <span className={styles.warn}>
                     ⚠ 結算損益試算（不含時間價值/手續費），僅供參考，盈虧自負
@@ -342,17 +342,17 @@ export function OptPayoff({ positions = [] }: { positions?: Position[] }) {
                         </Button>
                     ))}
                 </div>
-                <NativeSelect
+                <SelectControl
                     className={styles.monthSelect}
                     value={simRight}
-                    onChange={(e) =>
-                        setSimRight(e.target.value as 'C' | 'P' | 'F')
+                    onValueChange={(selectedValue) =>
+                        setSimRight(selectedValue as 'C' | 'P' | 'F')
                     }
                 >
-                    <NativeSelectOption value='C'>Call</NativeSelectOption>
-                    <NativeSelectOption value='P'>Put</NativeSelectOption>
-                    <NativeSelectOption value='F'>期貨</NativeSelectOption>
-                </NativeSelect>
+                    <SelectOption value='C'>Call</SelectOption>
+                    <SelectOption value='P'>Put</SelectOption>
+                    <SelectOption value='F'>期貨</SelectOption>
+                </SelectControl>
                 {simRight !== 'F' && (
                     <Input
                         className={ticket.numInput}

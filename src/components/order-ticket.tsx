@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { isFubonBroker, FUBON_AUTOMATION_UNAVAILABLE } from '../lib/fubon-support';
 import { canTrade } from '../lib/account-tradable';
 // src/components/order-ticket.tsx — buy/sell ticket with two-step EXECUTE.
@@ -1333,11 +1333,11 @@ export function OrderTicket({
 
                         {splitMode === 'ratio' && (
                             <div className={styles.presetRow}>
-                                <NativeSelect
+                                <SelectControl
                                     wrapperClassName="min-w-0 flex-1" className={styles.presetSelect}
                                     value={presetSel}
-                                    onChange={(e) => {
-                                        const name = e.target.value;
+                                    onValueChange={(selectedValue) => {
+                                        const name = selectedValue;
                                         setPresetSel(name);
                                         const p = presets.find(
                                             (x) => x.name === name,
@@ -1358,13 +1358,13 @@ export function OrderTicket({
                                         }
                                     }}
                                 >
-                                    <NativeSelectOption value=''>套用分配 preset…</NativeSelectOption>
+                                    <SelectOption value=''>套用分配 preset…</SelectOption>
                                     {presets.map((p) => (
-                                        <NativeSelectOption key={p.name} value={p.name}>
+                                        <SelectOption key={p.name} value={p.name}>
                                             {p.name}
-                                        </NativeSelectOption>
+                                        </SelectOption>
                                     ))}
-                                </NativeSelect>
+                                </SelectControl>
                                 <Button size="compact" variant="outline"
                                     className={styles.presetBtn}
                                     disabled={!presetSel}

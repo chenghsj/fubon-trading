@@ -1,3 +1,4 @@
+import { SelectControl } from './ui/select-control';
 // 買全刪／賣全刪：點底部合計列的買單／賣單合計，刪掉這個面板顯示的那一邊委託
 import { createElement } from 'react';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
@@ -133,7 +134,7 @@ it('an account switch midway never cancels the other account’s orders, and dis
     await arm();
     await act(async () => { cell('buy').props.onClick(); });
     // the panel moves to account B while A's cancels are still waiting
-    await act(async () => { view.root.findByType('select').props.onChange({ target: { value: 'S:BR:B' } }); });
+    await act(async () => { view.root.findByType(SelectControl).props.onValueChange('S:BR:B'); });
     await act(async () => { release(); });
     expect(cancelled()).toEqual(['a-buy-1', 'a-buy-2']);
     // B is not armed yet: clicking sends nothing

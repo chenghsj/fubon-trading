@@ -106,7 +106,7 @@ function applyClass() {
         if (value) root.style.setProperty(cssVarName(ref), value);
         else root.style.removeProperty(cssVarName(ref));
     }
-    // light/dark <select>/scrollbar rendering follows this hint too
+    // Native date/color controls and scrollbars follow this hint too.
     root.style.colorScheme = base === 'light' ? 'light' : 'dark';
     // every style is rem-based, so scaling the root font-size scales the UI
     root.style.fontSize = `${16 * settings.fontScale}px`;

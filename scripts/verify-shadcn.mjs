@@ -21,6 +21,13 @@ const children = [];
 let browser;
 let page;
 let logs = '';
+const mutations = [];
+async function selectChoice(trigger, label) {
+    await trigger.click();
+    await page.getByRole('option', { name: label, exact: true }).click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toHaveText(label);
+}
 function run(command, args, env) {
     const child = spawn(command, args, { cwd: root, detached: process.platform !== 'win32', env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout.on('data', data => { logs = (logs + data).slice(-12000); });
@@ -139,7 +146,7 @@ async function compactFormControls(page, artifacts) {
             const rootSize = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
             const list = watch.getByRole('combobox', { name: '自選清單', exact: true });
             const add = watch.getByPlaceholder('股票、期貨或指數（如 台積電期）');
-            const account = dock.locator('select').first();
+            const account = dock.getByRole('combobox', { name: '帳戶範圍（選個別帳戶會同步下單面板）', exact: true });
             const sort = dock.getByTitle('排序', { exact: true });
             const compactHeight = Math.max(24, 1.5 * rootSize);
             for (const [control, font] of [[list, .72], [add, .76], [account, .66], [sort, .66]]) {
@@ -166,9 +173,14 @@ async function compactFormControls(page, artifacts) {
                     if (Math.abs(frame.y - frames[0].y) < frames[0].height) expect(Math.abs(frame.y - frames[0].y)).toBeLessThan(.02);
                 }
             }
-            await sort.selectOption('code');
-            await expect(sort).toHaveValue('code');
-            await sort.selectOption('default');
+            await selectChoice(sort, '代碼');
+            await selectChoice(sort, '預設排序');
+            // The empty option is a real selectable item, including after a
+            // nonempty account value; Radix's hidden form select is not a UI.
+            await account.click();
+            const individual = page.getByRole('option').filter({ hasText: /\[證\]/ }).first();
+            await individual.click();
+            await selectChoice(account, '全部帳戶');
             if (scale === '標準') {
                 const suffix = theme === '淺色' ? 'light' : 'dark';
                 await page.screenshot({ animations: 'disabled', path: path.join(artifacts, `compact-controls-${suffix}.png`) });
@@ -193,6 +205,19 @@ async function themeControls(page, settings, artifacts) {
     const appearance = settings.getByRole('region', { name: '視覺風格', exact: true });
     const accent = settings.getByLabel('強調色顏色');
     const source = settings.getByRole('combobox', { name: '強調色來源', exact: true });
+    await source.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('listbox')).toBeVisible();
+    const presetOption = page.getByRole('option', { name: '主題預設', exact: true });
+    expect(await presetOption.evaluate(el => {
+        const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return hit === el || el.contains(hit);
+    })).toBe(true);
+    await page.screenshot({ path: path.join(artifacts, 'settings-select-popup.png') });
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('listbox')).toBeHidden();
+    await expect(settings).toBeVisible();
+    await expect(source).toBeFocused();
     const cssToken = name => page.evaluate(name => getComputedStyle(document.documentElement).getPropertyValue(name).trim(), name);
     async function choosePreset(name, query = name) {
         await trigger.click();
@@ -245,10 +270,10 @@ async function themeControls(page, settings, artifacts) {
     await choosePreset('Proof');
     await expect.poll(() => cssToken('--background')).toBe('#f5f3ed');
     await accent.fill('#3d755d');
-    await expect(source).toHaveValue('custom');
+    await expect(source).toHaveText('自訂');
     await expect.poll(() => cssToken('--primary')).toBe('#3d755d');
     await expect(trigger).toHaveText('AaProof');
-    await source.selectOption('theme');
+    await selectChoice(source, '主題預設');
     await expect(accent).toHaveValue('#3b715a');
     await expect.poll(() => cssToken('--primary')).toBe('#3b715a');
     await accent.fill('#3d755d');
@@ -271,7 +296,7 @@ async function themeControls(page, settings, artifacts) {
         await page.setViewportSize({ width, height });
         await appearance.scrollIntoViewIfNeeded();
         expect(await settings.getByRole('tabpanel').evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
-        for (const control of await appearance.locator('button, select, input').all()) {
+        for (const control of await appearance.locator('button, input').all()) {
             const within = await control.evaluate(el => {
                 const rect = el.getBoundingClientRect();
                 const region = el.closest('section').getBoundingClientRect();
@@ -294,11 +319,11 @@ async function themeControls(page, settings, artifacts) {
     await settings.getByRole('radio', { name: '淺色', exact: true }).click();
     await expect(trigger).toHaveText('AaAbsolutely');
     await expect.poll(() => cssToken('--background')).toBe('#f9f9f7');
-    await expect(source).toHaveValue('custom');
+    await expect(source).toHaveText('自訂');
     await expect(accent).toHaveValue('#3d755d');
     await expect.poll(() => cssToken('--primary')).toBe('#3d755d');
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')).accent)).toBe('#3d755d');
-    await source.selectOption('theme');
+    await selectChoice(source, '主題預設');
     await expect.poll(() => cssToken('--primary')).toBe('#9e5035');
     expect((await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')))).preset).toBeUndefined();
     for (const [width, height, suffix] of [[1440, 1000, 'desktop'], [390, 844, 'narrow']]) {
@@ -517,6 +542,86 @@ async function multilineButtons(page, artifacts) {
     await page.keyboard.press('Escape');
     await page.unroute('**/api/v1/auth/accounts');
 }
+async function selectPrimitiveChecks(context, coarse = false) {
+    // Load the actual source component in an isolated Vite page. This covers
+    // edge values absent from the demo account data without changing product code.
+    const fixture = await context.newPage();
+    try {
+        const session = await page.evaluate(() => sessionStorage.getItem('fubon-trading-session'));
+        await fixture.addInitScript(value => sessionStorage.setItem('fubon-trading-session', value), session);
+        await fixture.goto(origin);
+        await fixture.waitForFunction(() => !!document.querySelector('[data-slot="card"]'));
+        await fixture.evaluate(async () => {
+            const reactModule = await import('/node_modules/.vite/deps/react.js');
+            const React = reactModule.default ?? reactModule;
+            const domModule = await import('/node_modules/.vite/deps/react-dom_client.js');
+            const createRoot = domModule.createRoot ?? domModule.default.createRoot;
+            const { SelectControl, SelectOption, SelectOptionGroup } = await import('/src/components/ui/select-control.tsx');
+            const h = React.createElement;
+            window.__qaSelectChanges = [];
+            window.__qaTicketActions = [];
+            window.addEventListener('sj-ticket-action', event => window.__qaTicketActions.push(event.detail));
+            function Harness() {
+                const [value, setValue] = React.useState(0);
+                return h('div', { id: 'qa-select-fixture', tabIndex: 0, style: { position: 'fixed', inset: 20, padding: 20, background: 'var(--background)', zIndex: 1 } },
+                    h(SelectControl, { 'aria-label': 'QA 月份', value, onValueChange: next => { window.__qaSelectChanges.push(next); setValue(next); } },
+                        h(SelectOption, { value: '' }, '跟隨主畫面'),
+                        h(SelectOptionGroup, { label: '到期月份' },
+                            h(SelectOption, { value: 0 }, '近月'), h(SelectOption, { value: 202612 }, '十二月'))),
+                    h(SelectControl, { 'aria-label': 'QA 長商品選單', defaultValue: 0 },
+                        Array.from({ length: 70 }, (_, i) => h(SelectOption, { key: i, value: i, disabled: i === 1 }, `商品 ${i}`))),
+                    h(SelectControl, { 'aria-label': 'QA 禁用帳戶', disabled: true, value: 'F' }, h(SelectOption, { value: 'F' }, '期貨')));
+            }
+            const mount = document.createElement('div'); document.body.append(mount); createRoot(mount).render(h(Harness));
+        });
+        const month = fixture.getByRole('combobox', { name: 'QA 月份', exact: true });
+        await expect(month).toHaveText('近月');
+        expect(await month.evaluate(el => el.tagName)).toBe('BUTTON');
+        expect((await month.boundingBox()).height).toBeGreaterThanOrEqual(coarse ? 44 : 24);
+        await month.click();
+        await expect(fixture.getByRole('group', { name: '到期月份', exact: true })).toBeVisible();
+        await fixture.getByRole('option', { name: '十二月', exact: true }).click();
+        await expect(month).toHaveText('十二月');
+        await month.click(); await fixture.getByRole('option', { name: '跟隨主畫面', exact: true }).click();
+        await expect(month).toHaveText('跟隨主畫面');
+        expect(await fixture.evaluate(() => window.__qaSelectChanges)).toEqual(['202612', '']);
+        const long = fixture.getByRole('combobox', { name: 'QA 長商品選單', exact: true });
+        await long.focus(); await fixture.keyboard.press('Enter');
+        await expect(fixture.getByRole('option', { name: '商品 0', exact: true })).toBeFocused();
+        await expect(fixture.getByRole('option', { name: '商品 1', exact: true })).toHaveAttribute('data-disabled');
+        await fixture.keyboard.press('ArrowDown');
+        await expect(fixture.getByRole('option', { name: '商品 2', exact: true })).toBeFocused();
+        await fixture.keyboard.press('Enter');
+        await expect(long).toHaveText('商品 2');
+        await long.focus(); await fixture.keyboard.press('Enter');
+        await expect(fixture.getByRole('listbox')).toBeVisible();
+        await fixture.keyboard.press('b'); await fixture.keyboard.press('s');
+        expect(await fixture.evaluate(() => window.__qaTicketActions)).toEqual([]);
+        await fixture.keyboard.press('End');
+        const last = fixture.getByRole('option', { name: '商品 69', exact: true });
+        await expect(last).toBeInViewport();
+        expect(await fixture.locator('[data-radix-select-viewport]').evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+        expect((await last.boundingBox()).height).toBeGreaterThanOrEqual(coarse ? 44 : 24);
+        await fixture.screenshot({ path: path.join(artifacts, `select-long-${coarse ? 'touch' : 'desktop'}.png`) });
+        await fixture.keyboard.press('Enter'); await expect(long).toHaveText('商品 69');
+        await long.click(); await fixture.keyboard.press('Escape'); await expect(long).toBeFocused();
+        const disabled = fixture.getByRole('combobox', { name: 'QA 禁用帳戶', exact: true });
+        await expect(disabled).toBeDisabled();
+        await disabled.dispatchEvent('pointerdown');
+        await expect(fixture.getByRole('listbox')).toBeHidden();
+        await expect(fixture.locator('select:not([aria-hidden="true"])')).toHaveCount(0);
+        // Confirm this page has the real global hotkey handler before asserting
+        // that a focused Select consumes the same alphabetic key.
+        await fixture.locator('#qa-select-fixture').focus(); await fixture.keyboard.press('b');
+        expect(await fixture.evaluate(() => window.__qaTicketActions)).toEqual([{ action: 'Buy' }]);
+        await fixture.evaluate(() => { window.__qaTicketActions = []; });
+        await long.focus(); await fixture.keyboard.press('s');
+        expect(await fixture.evaluate(() => window.__qaTicketActions)).toEqual([]);
+    } catch (error) {
+        await fixture.screenshot({ path: path.join(artifacts, `select-failure-${coarse ? 'touch' : 'desktop'}.png`) });
+        throw error;
+    } finally { await fixture.close(); }
+}
 let cleanupPromise;
 function cleanup() {
     return cleanupPromise ??= (async () => {
@@ -533,18 +638,13 @@ for (const [signal, code] of [['SIGINT', 130], ['SIGTERM', 143]]) {
 try {
     await free(uiPort); await free(apiPort);
     const backend = path.join(temporary, 'backend.py');
-    await writeFile(backend, `import os\nimport uvicorn\nfrom fubon_bridge.app import create_app\nfrom fubon_bridge.config import Config\nfrom fubon_bridge.passkeys import PasskeyStore\napp = create_app(Config(mode='demo', port=int(os.environ['SHADCN_UI_PORT'])), launch_token=os.environ['SHADCN_LAUNCH'], public_origin=os.environ['SHADCN_ORIGIN'], passkey_store=PasskeyStore(os.environ['SHADCN_DATABASE']))\nuvicorn.run(app, host='127.0.0.1', port=int(os.environ['SHADCN_API_PORT']), access_log=False)\n`);
-    run('uv', ['run', '--directory', 'server', 'python', backend], {
+    await writeFile(backend, `import os,json\nfrom pathlib import Path\nimport uvicorn\nfrom fubon_bridge.app import create_app\nfrom fubon_bridge.config import Config\nfrom fubon_bridge.passkeys import PasskeyStore\nfrom fubon_bridge.research import ResearchStore\ncount=Path(os.environ['SHADCN_SDK_COUNT'])\ncount.write_text('0')\ndef no_sdk():\n    count.write_text(str(int(count.read_text())+1))\n    raise AssertionError('QA must not initialize brokerage SDK')\napp = create_app(Config(mode='demo', port=int(os.environ['SHADCN_UI_PORT'])), sdk_factory=no_sdk, launch_token=os.environ['SHADCN_LAUNCH'], public_origin=os.environ['SHADCN_ORIGIN'], passkey_store=PasskeyStore(os.environ['SHADCN_DATABASE']), research_store=ResearchStore(os.environ['SHADCN_RESEARCH_DATABASE']))\nuvicorn.run(app, host='127.0.0.1', port=int(os.environ['SHADCN_API_PORT']), access_log=False)\n`);
+    run(process.env.SHADCN_PYTHON || path.join(root, 'server', '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python'), [backend], {
         PYTHONPATH: path.join(root, 'server'), SHADCN_UI_PORT: String(uiPort), SHADCN_API_PORT: String(apiPort),
         SHADCN_LAUNCH: token, SHADCN_ORIGIN: origin, SHADCN_DATABASE: path.join(temporary, 'passkeys.sqlite3'),
+        SHADCN_RESEARCH_DATABASE: path.join(temporary, 'research.sqlite3'), SHADCN_SDK_COUNT: path.join(temporary, 'sdk-count'),
     });
-    const uiEnvironment = { ...process.env, VITE_API_TARGET: `http://127.0.0.1:${apiPort}`, VITE_API_BASE: '', VITE_STREAM_BASE: origin, VITE_DEV_SERVER_PORT: '' };
-    const build = run('pnpm', ['exec', 'vite', 'build'], uiEnvironment);
-    await new Promise((resolve, reject) => {
-        build.once('error', reject);
-        build.once('exit', code => code === 0 ? resolve() : reject(new Error('Browser acceptance build failed.')));
-    });
-    run('pnpm', ['exec', 'vite', 'preview', '--host' , '127.0.0.1', '--port', String(uiPort), '--strictPort'], {
+    run(process.execPath, [path.join(root, 'node_modules/vite/bin/vite.js'), '--host' , '127.0.0.1', '--port', String(uiPort), '--strictPort'], {
         VITE_API_TARGET: `http://127.0.0.1:${apiPort}`, VITE_API_BASE: '', VITE_STREAM_BASE: origin,
         VITE_DEV_SERVER_PORT: '',
     });
@@ -554,6 +654,13 @@ try {
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
     page = await context.newPage();
     const errors = []; page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/api/v1/order/**', async route => {
+        const pathname = new URL(route.request().url()).pathname;
+        if (route.request().method() !== 'GET' && !/\/(trades|trade_cache_health)$/.test(pathname)) {
+            mutations.push(pathname); return route.abort('blockedbyclient');
+        }
+        return route.continue();
+    });
     const cdp = await context.newCDPSession(page);
     await cdp.send('WebAuthn.enable');
     await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
@@ -564,6 +671,10 @@ try {
     await page.getByRole('button', { name: '建立 Passkey 並解鎖' }).click();
     await expect(page.getByRole('status').filter({ hasText: '展示模式' })).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('LIVE', { exact: true })).toBeVisible();
+    await selectPrimitiveChecks(context);
+    const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    await selectPrimitiveChecks(touch, true); await touch.close();
+    await expect(page.locator('select:not([aria-hidden="true"])')).toHaveCount(0);
     // Guard the visible shadcn treatment, rather than only checking imports.
     expect(await page.locator('[data-slot="card"]').count()).toBeGreaterThanOrEqual(6);
     // Reproduce HMR loading utility CSS after the panel's vanilla-extract CSS.
@@ -739,6 +850,11 @@ try {
     await page.keyboard.press('Escape');
     await notificationHeaderClearance(page);
     expect(errors).toEqual([]);
+    const sdkCalls = Number(await readFile(path.join(temporary, 'sdk-count'), 'utf8'));
+    expect(sdkCalls).toBe(0); expect(mutations).toEqual([]);
+    const nativeUserControls = await page.locator('select:not([aria-hidden="true"])').count();
+    expect(nativeUserControls).toBe(0);
+    await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify({ passed: true, sdkCalls, nativeUserControls, mutations, errors, artifacts }, null, 2));
     console.log(`UI acceptance passed: Passkey, LIVE demo stream, themes, focus, tabs, menus, order cancellation and narrow layout.\nScreenshots: ${artifacts}`);
 } catch (error) {
     await page?.screenshot({ animations: 'disabled', path: path.join(artifacts, 'failure.png') }).catch(() => undefined);

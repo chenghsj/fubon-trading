@@ -14,8 +14,8 @@
         "start": "node scripts/dev-fubon.mjs",
         "credentials": "uv run --directory server fubon-credentials",
         "passkeys": "uv run --directory server fubon-passkeys",
-        "server": "uv run --directory server fubon-bridge",
-        "test:server": "uv run --directory server --extra test pytest",
+        "server": "uv run --directory server --extra learning fubon-bridge",
+        "test:server": "uv run --directory server --extra test --extra learning pytest",
         "test:ui": "node scripts/verify-shadcn.mjs"
     },
     "dependencies": {
@@ -25,6 +25,7 @@
         "@radix-ui/react-label": "^2.1.17",
         "@radix-ui/react-popover": "^1.3.1",
         "@radix-ui/react-radio-group": "^1.5.1",
+        "@radix-ui/react-select": "^2.4.1",
         "@radix-ui/react-separator": "^1.2.0",
         "@radix-ui/react-slider": "^1.6.1",
         "@radix-ui/react-slot": "^1.5.0",

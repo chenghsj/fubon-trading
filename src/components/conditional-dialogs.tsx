@@ -88,8 +88,8 @@ export function ConditionalSettingsDialog({ onClose }: { onClose: () => void }) 
                     <Input className={styles.input} value={qty} aria-label='快速口數' onChange={e => setQty(e.target.value)} onBlur={saveQty}
                         onKeyDown={e => { if (e.key === 'Enter') saveQty(); }} />
                 </Row>
-                <Row name='下單確認（含平倉）' hint='手動下單與平倉前先跳委託確認；條件成立後的自動送單不再詢問'>
-                    <Switch on={risk.confirmManualOrders} label='下單確認' onChange={v => setRiskSettings({ confirmManualOrders: v })} />
+                <Row name='下單確認（含平倉）' hint='富邦正式交易每筆手動委託必須確認，無法關閉；條件成立後的自動送單不再詢問'>
+                    <Switch on={risk.confirmManualOrders} disabled={risk.manualConfirmationRequired} label='下單確認' onChange={v => setRiskSettings({ confirmManualOrders: v })} />
                 </Row>
                 <Row name='Esc 連按兩下取消全部委託' hint='在任何畫面 0.6 秒內連按兩下 Esc，撤銷所有未成交委託'>
                     <Switch on={risk.escCancelAll} label='Esc 連按兩下取消全部委託' onChange={v => setRiskSettings({ escCancelAll: v })} />

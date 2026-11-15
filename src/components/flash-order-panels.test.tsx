@@ -1,3 +1,4 @@
+import { SelectControl } from './ui/select-control';
 // issue #139 — two flash panels on the same contract, each with its own account
 import { createElement } from 'react';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
@@ -28,7 +29,7 @@ const trades = accounts.map(account => ({ account, contract, order: { id: accoun
 const positions = accounts.map((account, i) => ({ account, id: i, code: 'TMF', direction: 'Buy' as const, quantity: i === 0 ? 3 : 5, price: 100, last_price: 100, pnl: 0 }));
 const text = (n: ReactTestInstance): string => n.children.map(c => typeof c === 'string' ? c : text(c)).join('');
 const button = (panel: ReactTestInstance, label: string) => panel.findAllByType('button').find(b => text(b).includes(label))!;
-const select = (panel: ReactTestInstance) => panel.findByType('select');
+const select = (panel: ReactTestInstance) => panel.findByType(SelectControl);
 
 let view!: ReactTestRenderer;
 let keys: [FlashAccountKeys, FlashAccountKeys];
@@ -73,15 +74,15 @@ it('scopes positions, working orders, cancels and sends to each panel\'s own acc
 
 it('switching one panel changes only that panel, never the other or the app-wide selection', async () => {
     await act(async () => { view = create(render()); });
-    await act(async () => { select(panels()[1]).props.onChange({ target: { value: 'F:BR:12345A' } }); });
+    await act(async () => { select(panels()[1]).props.onValueChange('F:BR:12345A'); });
     expect(onChange[1]).toHaveBeenCalledWith({ F: 'F:BR:12345A' });
     expect(onChange[0]).not.toHaveBeenCalled();
     expect(mocks.selected).toBe('A');
     // back to following the main selection drops only this market's key
-    await act(async () => { select(panels()[0]).props.onChange({ target: { value: '__follow__' } }); });
+    await act(async () => { select(panels()[0]).props.onValueChange('__follow__'); });
     expect(onChange[0]).toHaveBeenCalledWith({});
     // an unknown key is ignored rather than stored
-    await act(async () => { select(panels()[0]).props.onChange({ target: { value: 'F:BR:nope' } }); });
+    await act(async () => { select(panels()[0]).props.onValueChange('F:BR:nope'); });
     expect(onChange[0]).toHaveBeenCalledTimes(1);
 });
 
@@ -209,7 +210,7 @@ it('a popout (followMain=false) uses only its pinned account and never follows t
     const onPop = vi.fn();
     const pop = (k: FlashAccountKeys) => createElement(FlashOrder, { contract, trades, positions, accountKeys: k, onAccountKeysChange: onPop, followMain: false });
     await act(async () => { view = create(pop({ F: 'F:BR:12345B' })); });
-    const sel = () => view.root.findByType('select');
+    const sel = () => view.root.findByType(SelectControl);
     expect(sel().props.value).toBe('F:BR:12345B');
     expect(text(sel())).not.toContain('跟隨主畫面');
     expect(text(view.root)).toContain('多 5');
@@ -219,15 +220,15 @@ it('a popout (followMain=false) uses only its pinned account and never follows t
     await act(async () => { view.update(pop({ F: 'F:BR:12345B' })); });
     expect(text(view.root)).toContain('多 5');
     // the follow value is refused in a popout
-    await act(async () => { sel().props.onChange({ target: { value: '__follow__' } }); });
+    await act(async () => { sel().props.onValueChange('__follow__'); });
     expect(onPop).not.toHaveBeenCalled();
-    await act(async () => { sel().props.onChange({ target: { value: 'F:BR:12345A' } }); });
+    await act(async () => { sel().props.onValueChange('F:BR:12345A'); });
     expect(onPop).toHaveBeenCalledWith({ F: 'F:BR:12345A' });
 });
 
 it('a popout with nothing pinned has no account until the user picks one', async () => {
     await act(async () => { view = create(createElement(FlashOrder, { contract, trades, positions, accountKeys: {}, onAccountKeysChange: vi.fn(), followMain: false })); });
-    const sel = view.root.findByType('select');
+    const sel = view.root.findByType(SelectControl);
     expect(sel.props.value).toBe('');
     expect(text(sel)).toContain('請選擇帳戶');
     expect(text(view.root)).not.toContain('多 3');
@@ -243,7 +244,7 @@ it('shows 帳戶載入中 (not 帳戶不可用) until the account list has loade
     mocks.loaded = false;
     const pop = () => createElement(FlashOrder, { contract, trades, positions, accountKeys: { F: 'F:BR:12345B' }, onAccountKeysChange: vi.fn(), followMain: false });
     await act(async () => { view = create(pop()); });
-    const sel = () => view.root.findByType('select');
+    const sel = () => view.root.findByType(SelectControl);
     expect(text(sel())).toContain('帳戶載入中');
     expect(text(sel())).not.toContain('帳戶不可用');
     expect(view.root.findAllByType('button').find(b => text(b).includes('啟用閃電下單'))!.props.disabled).toBe(true);
@@ -253,5 +254,5 @@ it('shows 帳戶載入中 (not 帳戶不可用) until the account list has loade
     // a docked panel following main says loading too
     mocks.loaded = false;
     await act(async () => { view.update(createElement(FlashOrder, { contract, trades, positions, accountKeys: {}, onAccountKeysChange: vi.fn() })); });
-    expect(text(view.root.findByType('select'))).toContain('跟隨主畫面（帳戶載入中）');
+    expect(text(view.root.findByType(SelectControl))).toContain('跟隨主畫面（帳戶載入中）');
 });

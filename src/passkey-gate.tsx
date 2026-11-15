@@ -8,6 +8,7 @@ import { Button } from './components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/ui/card';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Separator } from './components/ui/separator';
+import * as styles from './passkey-gate.css';
 import './index.css';
 
 function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
@@ -47,21 +48,23 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
         : '首次設定後，即可使用 Passkey 解鎖，不必每次輸入登入資料。';
     const problem = error || (connected && !supported ? '此瀏覽器不支援 Passkey，請使用新版 Chrome、Safari 或 Edge 開啟啟動視窗。'
         : connected && !enrolled && !canEnrollPasskey() ? '首次設定需要啟動授權。請重新執行 pnpm start，使用自動開啟的視窗。' : '');
-    return <main className="flex h-full items-center justify-center overflow-y-auto bg-background p-6 text-foreground">
-        <Card className="my-auto w-full max-w-md">
-            <CardHeader>
-                <p className="m-0 text-xs tracking-widest text-muted-foreground">FUBON TRADING / 本機交易終端</p>
-                <ShieldCheck className="my-5 size-10 text-primary" aria-hidden />
-                <CardTitle><h1 className="m-0 text-2xl">{title}</h1></CardTitle>
-                <CardDescription>{description}</CardDescription>
+    return <main className={styles.page}>
+        <Card className={styles.card} aria-labelledby="passkey-title">
+            <CardHeader className={styles.header}>
+                <p className={styles.brand}>FUBON TRADING / 本機交易終端</p>
+                <div className={styles.heading}>
+                    <ShieldCheck className={styles.icon} aria-hidden />
+                    <CardTitle><h1 id="passkey-title" className={styles.title}>{title}</h1></CardTitle>
+                </div>
+                <CardDescription className={styles.description}>{description}</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-                {!local && <Button asChild variant="outline"><a href={`http://localhost:${location.port}/`}>開啟 localhost 介面</a></Button>}
-                {local && connected && supported && (enrolled || canEnrollPasskey()) && <Button className="w-full" disabled={busy} onClick={() => { void unlock(); }}>{busy ? '等待裝置驗證…' : enrolled ? '使用 Passkey 解鎖' : '建立 Passkey 並解鎖'}</Button>}
-                <div role="status" aria-live="polite">{problem && <Alert variant="destructive"><AlertDescription>{problem}</AlertDescription></Alert>}</div>
+            <CardContent className={styles.content}>
+                {!local && <Button asChild className={styles.action} variant="outline"><a href={`http://localhost:${location.port}/`}>開啟 localhost 介面</a></Button>}
+                {local && connected && supported && (enrolled || canEnrollPasskey()) && <Button className={styles.action} disabled={busy} onClick={() => { void unlock(); }}>{busy ? '等待裝置驗證…' : enrolled ? '使用 Passkey 解鎖' : '建立 Passkey 並解鎖'}</Button>}
+                {problem && <Alert variant="destructive"><AlertDescription>{problem}</AlertDescription></Alert>}
                 <Separator />
             </CardContent>
-            <CardFooter><p className="m-0 text-sm text-muted-foreground">Passkey 用來解鎖本機介面。富邦登入資料保存在 Keychain，解鎖後由後端使用；不會傳入瀏覽器。</p></CardFooter>
+            <CardFooter className={styles.footer}><p className={styles.note}>Passkey 用來解鎖本機介面。富邦登入資料保存在 Keychain，解鎖後由後端使用；不會傳入瀏覽器。</p></CardFooter>
         </Card>
     </main>;
 }

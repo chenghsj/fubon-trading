@@ -10,7 +10,7 @@ export const controlRow = style({
 
 const controls = [
     'input[data-slot="input"]',
-    'select[data-slot="native-select"]',
+    'button[data-slot="select-trigger"]',
     'button[data-slot="button"]:not([role="switch"])',
     'button[data-state="on"]',
     'button[data-state="off"]',

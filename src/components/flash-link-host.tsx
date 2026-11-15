@@ -1,4 +1,4 @@
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 // src/components/flash-link-host.tsx — 閃電下單的「對應商品」
@@ -144,11 +144,11 @@ export function FlashLinkHost({ source, link, group, onLinkChange, render, targe
                     options={[['near', '近月', months[0] && monthLabel(months[0])], ['next', '次月', months[1] && monthLabel(months[1])]]}
                     onPick={month => set({ month })}
                     extra={(
-                        <NativeSelect wrapperClassName="flex-1" className={`${settingsSelectClass} ${hostStyles.monthSelect}`} aria-label='指定月份'
-                            value={/^\d{6}$/.test(link.month) ? link.month : ''} onChange={e => { if (e.target.value) set({ month: e.target.value }); }}>
-                            <NativeSelectOption value=''>指定月份</NativeSelectOption>
-                            {months.map(m => <NativeSelectOption key={m} value={m}>{monthLabel(m)}</NativeSelectOption>)}
-                        </NativeSelect>
+                        <SelectControl wrapperClassName="flex-1" className={`${settingsSelectClass} ${hostStyles.monthSelect}`} aria-label='指定月份'
+                            value={/^\d{6}$/.test(link.month) ? link.month : ''} onValueChange={selectedValue => { if (selectedValue) set({ month: selectedValue }); }}>
+                            <SelectOption value=''>指定月份</SelectOption>
+                            {months.map(m => <SelectOption key={m} value={m}>{monthLabel(m)}</SelectOption>)}
+                        </SelectControl>
                     )} />
             )}
             <SettingsSegRow label='價差對照' value={link.ref ? 'on' : 'off'}
@@ -234,11 +234,11 @@ export function FlashLinkHost({ source, link, group, onLinkChange, render, targe
             <Label className={styles.monthPick} title='個股期月份'>
                 {monthText}
                 <ChevronDown size={9} aria-hidden />
-                <NativeSelect wrapperClassName="absolute inset-0 w-full" showIcon={false} className={styles.monthSelect} aria-label='個股期月份' value={link.month} onChange={e => set({ month: e.target.value })}>
-                    <NativeSelectOption value='near'>近月</NativeSelectOption>
-                    <NativeSelectOption value='next'>次月</NativeSelectOption>
-                    {months.map(m => <NativeSelectOption key={m} value={m}>{monthLabel(m)}</NativeSelectOption>)}
-                </NativeSelect>
+                <SelectControl wrapperClassName="absolute inset-0 w-full" showIcon={false} className={styles.monthSelect} aria-label='個股期月份' value={link.month} onValueChange={selectedValue => set({ month: selectedValue })}>
+                    <SelectOption value='near'>近月</SelectOption>
+                    <SelectOption value='next'>次月</SelectOption>
+                    {months.map(m => <SelectOption key={m} value={m}>{monthLabel(m)}</SelectOption>)}
+                </SelectControl>
             </Label>
             {pick.expiresToday && <span className={styles.expiryTag}>今日到期</span>}
         </>

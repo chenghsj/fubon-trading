@@ -8,6 +8,7 @@ import uuid
 from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.background import BackgroundTask
 
 from .broker import Broker
 from .config import Config, ROOT
@@ -16,9 +17,34 @@ from .models import ContractKey, Mutation, PlaceOrder
 from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
+from .research import HistoryRequest, ResearchStore, load_history
+from .auto_gateway import SandboxGateway, PaperGateway
+from .paper_store import PaperStore
+from .auto_store import AutoStore
+from .auto_trading import AutoConfig, SandboxAutoTrader
+from .learning_store import LearningStore
+from .learning_service import LearningService
+from .learning_data import CollectionRequest
+from .learning_train import TrainingRequest
+from .mode_settings import ModeChange, ModeSettings, ensure_idle
+from pydantic import BaseModel
+from typing import Literal
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None):
+class AutoControl(BaseModel):
+    run_id: str
+    command: Literal["pause", "stop", "reconcile", "archive", "flatten"]
+    acknowledgement: str = ""
+    execution_allowed: bool = False
+
+
+class AutoHeartbeat(BaseModel):
+    run_id: str
+    entries_allowed: bool
+    execution_allowed: bool
+
+
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None, mode_store=None, on_restart=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
     public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
@@ -26,6 +52,9 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     passkeys = Passkeys(passkey_store if passkey_store is not None else PasskeyStore(), public_origin)
     login_lock = asyncio.Lock()
     login_attempted = False
+    request_lock = asyncio.Lock()
+    switching = False
+    settings = mode_store or ModeSettings(ROOT / 'server' / '.mode-settings.json')
     clients = set()
     loop = None
 
@@ -43,7 +72,11 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         if loop and not loop.is_closed():
             loop.call_soon_threadsafe(deliver)
 
-    broker = Broker(cfg, publish, sdk_factory)
+    research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
+    broker = Broker(cfg,publish,sdk_factory,paper_store=PaperStore(research) if cfg.mode=='paper' else None)
+    gateway = PaperGateway(broker) if cfg.mode=='paper' else SandboxGateway(broker)
+    automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(gateway,AutoStore(research,cfg.mode),session.authorize)
+    learning = LearningService(broker,LearningStore(research),automation)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -54,23 +87,38 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             while True:
                 broker.demo_events()
                 await asyncio.sleep(1)
+        async def automation_clock():
+            while True:
+                await asyncio.to_thread(automation.tick)
+                await asyncio.sleep(5)
         if on_ready:
             loop.call_later(0.5, on_ready)
         task = asyncio.create_task(demo_clock())
-        yield
-        task.cancel()
+        auto_task = asyncio.create_task(automation_clock())
         try:
-            await task
-        except asyncio.CancelledError:
-            pass
-        await asyncio.to_thread(broker.close)
+            yield
+        finally:
+            await asyncio.to_thread(learning.shutdown)
+            automation.closing.set()
+            await asyncio.to_thread(automation.shutdown)
+            for pending in (task, auto_task):
+                pending.cancel()
+                try:
+                    await pending
+                except asyncio.CancelledError:
+                    pass
+            await asyncio.to_thread(broker.close)
 
     app = FastAPI(title="Fubon Trading local bridge", lifespan=lifespan)
     app.state.broker = broker
     app.state.session = session
+    app.state.automation = automation
+    app.state.learning = learning
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
+        if request.url.path=="/api/v1/automation/heartbeat":
+            request.state.automation_received_at = automation.monotonic()
         host = request.url.hostname
         origin = request.headers.get("origin")
         if host not in {"127.0.0.1", "localhost", "testserver"}:
@@ -90,7 +138,18 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             if not session.authorize(request.headers.get("authorization", "")):
                 return JSONResponse({"detail": "本機工作階段未授權，請使用啟動時開啟的視窗"}, status_code=401,
                                     headers={"Cache-Control": "no-store"})
-        response = await call_next(request)
+        if switching and request.url.path.startswith('/api/'):
+            return JSONResponse({'detail': '交易模式正在切換，請等待重新解鎖'}, status_code=503)
+        if request.url.path == '/api/v1/settings/mode' and request.method == 'POST':
+            # Serialize only mode changes. Ordinary quote requests must never
+            # delay a heartbeat or cancellation. Broker and worker locks guard
+            # requests already admitted before the transition was committed.
+            async with request_lock:
+                if switching:
+                    return JSONResponse({'detail': '交易模式正在切換，請等待重新解鎖'}, status_code=503)
+                response = await call_next(request)
+        else:
+            response = await call_next(request)
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -118,7 +177,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get("/api/v1/passkeys/status")
     def passkey_status():
-        return {"enrolled": passkeys.enrolled(), "origin": public_origin}
+        return {"enrolled": passkeys.enrolled(), "origin": public_origin, "instance_id": broker.instance_id}
 
     def require_enrollment(request):
         header = request.headers.get("authorization", "")
@@ -170,7 +229,45 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             session=cfg.session, error=broker.error,
             trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
             supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin"],
-            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "本機模擬不計手續費、稅與市場衝擊；重啟即重設"])
+            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
+
+    @app.get('/api/v1/settings/mode')
+    def mode_settings():
+        return dict(mode=cfg.mode, live_enabled=cfg.live_enabled, instance_id=broker.instance_id,
+                    available=on_restart is not None, saved=settings.path.exists(),
+                    sandbox_configured=bool(cfg.test_id and cfg.test_cert_path and Path(cfg.test_cert_path).expanduser().is_file()))
+
+    @app.post('/api/v1/settings/mode')
+    def change_mode(body: ModeChange):
+        nonlocal switching
+        if on_restart is None:
+            raise HTTPException(409, '此啟動方式不支援介面切換，請使用 pnpm start')
+        if body.instance_id != broker.instance_id:
+            raise HTTPException(409, '服務已更新，請重新開啟設定並確認目前模式')
+        if body.mode == cfg.mode and body.live_enabled == cfg.live_enabled:
+            return dict(restarting=False)
+        expected = '確認啟用正式下單' if body.mode == 'live' else '確認切換交易環境'
+        if body.acknowledgement != expected:
+            raise ValueError('請先明確確認切換；正式交易需確認啟用正式下單')
+        if body.mode == 'sandbox' and not (cfg.test_id and cfg.test_cert_path and Path(cfg.test_cert_path).expanduser().is_file()):
+            raise ValueError('尚未備妥官方測試憑證，請依設定說明配置 sandbox 後再切換')
+        with learning.lock, automation.lock, broker.lock:
+            ensure_idle(broker, automation, learning)
+            settings.save(body)
+            switching = True
+            broker.transitioning = True
+            automation.closing.set()
+            learning.closing = True
+        def restart():
+            # End long-lived SSE before uvicorn waits for graceful shutdown.
+            def disconnect():
+                for queue in list(clients):
+                    while not queue.empty():
+                        queue.get_nowait()
+                    queue.put_nowait(None)
+            loop.call_soon_threadsafe(disconnect)
+            on_restart()
+        return JSONResponse(dict(restarting=True), background=BackgroundTask(restart))
 
     @app.get("/api/v1/health")
     def health():
@@ -237,6 +334,71 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     def kbars(body: dict = Body(...)):
         return broker.kbars(ContractKey.model_validate(body["contract"]).model_dump(), body["start"], body["end"])
 
+    @app.post("/api/v1/research/history")
+    def research_history(body: HistoryRequest):
+        return load_history(broker, research, body)
+
+    @app.get("/api/v1/automation/state")
+    def automation_state(request: Request):
+        return automation.snapshot(request.headers.get("authorization", ""))
+
+    @app.get('/api/v1/paper/state')
+    def paper_state():
+        if cfg.mode != 'paper':
+            raise ValueError('本機持久模擬帳簿僅供 paper 模式')
+        return broker.paper.overview()
+
+    @app.post("/api/v1/automation/start")
+    def automation_start(request: Request, body: AutoConfig):
+        with learning.lock:
+            if learning.busy():
+                raise ValueError('歷史研究工作執行中，完成後才能啟動自動交易')
+            return automation.start(body, request.headers.get("authorization", ""))
+
+    @app.post("/api/v1/automation/heartbeat")
+    def automation_heartbeat(request: Request, body: AutoHeartbeat):
+        return automation.heartbeat(request.headers.get("authorization", ""), body.run_id, body.entries_allowed,body.execution_allowed,request.state.automation_received_at)
+
+    @app.post("/api/v1/automation/control")
+    def automation_control(request: Request, body: AutoControl):
+        return automation.control(body.command, request.headers.get("authorization", ""), body.run_id, body.acknowledgement,body.execution_allowed)
+
+    @app.get("/api/v1/research/database")
+    def research_database():
+        return research.stats()
+
+    @app.post("/api/v1/research/latest")
+    def research_latest(body: dict = Body(...)):
+        return research.latest(str(body.get("datasetId", "")))
+
+    @app.get("/api/v1/research/runs")
+    def research_runs():
+        return research.runs()
+
+    @app.post("/api/v1/research/runs")
+    def save_research_run(body: dict = Body(...)):
+        return research.save_run(str(body.get("datasetId", "")), body.get("result", {}))
+
+    @app.get('/api/v1/research/learning')
+    def learning_overview():
+        return learning.overview()
+
+    @app.post('/api/v1/research/learning/collect')
+    def learning_collect(body: CollectionRequest):
+        return learning.start('collect',body)
+
+    @app.post('/api/v1/research/learning/train')
+    def learning_train(body: TrainingRequest):
+        return learning.start('train',body)
+
+    @app.get('/api/v1/research/learning/runs/{ident}')
+    def learning_run(ident: str):
+        return learning.store.run(ident)
+
+    @app.get('/api/v1/research/learning/models/{ident}')
+    def learning_model(ident: str):
+        return dict(format='lightgbm-text',model=learning.store.model(ident))
+
     @app.post("/api/v1/data/ticks")
     def ticks(body: dict = Body(...)):
         return broker.ticks(ContractKey.model_validate(body["contract"]).model_dump(), body["date"], min(int(body.get("last_cnt", 500)), 500))
@@ -259,7 +421,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         async def events():
             try:
                 yield 'retry: 2000\n\n'
-                while session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
+                while not switching and session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
                     needed = {sub["kind"] for sub in list(broker.subscriptions.values())}
                     if cfg.mode != "demo" and needed and not needed.issubset(broker.connected_sockets):
                         yield 'event: fubon_connection_status\ndata: {"market_connected":false}\n\n'
@@ -289,7 +451,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         if order.quantity > cfg.max_quantity:
             raise ValueError(f"超過本機單筆數量上限 {cfg.max_quantity}")
         account = broker.account(order.account)
-        return broker.place(body.contract.model_dump(), order.model_dump(exclude={"account"}), account)
+        cost=body.paper_cost.model_dump() if body.paper_cost else None
+        return broker.place(body.contract.model_dump(),order.model_dump(exclude={"account"}),account,paper_cost=cost)
 
     @app.post("/api/v1/order/trades")
     def trades(body: dict = Body(...)):

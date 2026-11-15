@@ -1,6 +1,6 @@
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // src/components/odd-spread.tsx — 整零價差面板（整股 vs 盤中零股）。
 //
 // 上方兩張卡各算一個方向（買整→賣零、買零→賣整）的毛價差、扣費後淨價差、
@@ -534,10 +534,10 @@ export function OddSpreadView({
                 </div>
                 <div className={styles.fRow}>
                     <span className={styles.fLabel}>送單方式</span>
-                    <NativeSelect className={styles.select} aria-label='送單方式' value={mode} onChange={e => setMode(e.target.value as ExecMode)}>
-                        <NativeSelectOption value='sequential'>零股成交後再送整股</NativeSelectOption>
-                        <NativeSelectOption value='simultaneous'>兩腳同時送</NativeSelectOption>
-                    </NativeSelect>
+                    <SelectControl className={styles.select} aria-label='送單方式' value={mode} onValueChange={selectedValue => setMode(selectedValue as ExecMode)}>
+                        <SelectOption value='sequential'>零股成交後再送整股</SelectOption>
+                        <SelectOption value='simultaneous'>兩腳同時送</SelectOption>
+                    </SelectControl>
                     <span className={styles.fLabel}>手續費</span>
                     <Input
                         className={styles.inputTiny}

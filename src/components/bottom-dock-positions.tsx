@@ -1,7 +1,7 @@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { canTrade } from '../lib/account-tradable';
 // src/components/bottom-dock-positions.tsx — 持倉 tab：響應式欄位、
 // 分帳戶區段、批次市價平倉（arm-lock 防誤觸）
@@ -683,17 +683,17 @@ export function PositionsPane({
                     />
                 )}
                 <span className={styles.batchSpacer} />
-                <NativeSelect
+                <SelectControl
                     className={styles.accountSelect}
                     title='排序'
                     value={sort}
-                    onChange={(e) => setSort(e.target.value as SortMode)}
+                    onValueChange={(selectedValue) => setSort(selectedValue as SortMode)}
                 >
-                    <NativeSelectOption value='default'>預設排序</NativeSelectOption>
-                    <NativeSelectOption value='value'>市值</NativeSelectOption>
-                    <NativeSelectOption value='pnl'>損益</NativeSelectOption>
-                    <NativeSelectOption value='code'>代碼</NativeSelectOption>
-                </NativeSelect>
+                    <SelectOption value='default'>預設排序</SelectOption>
+                    <SelectOption value='value'>市值</SelectOption>
+                    <SelectOption value='pnl'>損益</SelectOption>
+                    <SelectOption value='code'>代碼</SelectOption>
+                </SelectControl>
             </div>
         </div>
     );
