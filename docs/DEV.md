@@ -153,7 +153,7 @@ test coverage 門檻、quality metrics 等。落地時更新本節。
 
 本 fork 交付 Web 終端，不包含上游私有 Tauri shell；此處 dev App 指可操作的 Web 介面。
 
-- 主 checkout 的 `pnpm start` 使用 `localhost:5179`／API `21323`。linked worktree 使用路徑雜湊決定的固定 UI 埠（5200–6199）與 API 埠（22000–22999），直接啟動該組端點，不先探測或接手 `21323`。明確覆寫使用 `--ui-port`／`--api-port`；占用時停止並保留原有程序，不掃描 fallback。
+- 主 checkout 的 `pnpm start` 使用 `localhost:5179`／API `21323`。linked worktree 使用路徑雜湊決定的固定 UI 埠（5200–6199）與 API 埠（22000–22999），直接啟動該組端點，不先探測或接手 `21323`。明確覆寫使用 `--ui-port`／`--api-port`。macOS／Linux 可用 `pnpm status` 查詢及 `pnpm stop`／`pnpm restart` 明確控制目前 checkout／埠組的服務；核對 PID 所屬使用者、建立時間、工作目錄與指令，拒絕停止外部或無法確認的程序。再次 start 若同一 checkout 的前端與 API 均可連線，只顯示現有服務並成功結束；部分啟動、服務未就緒或其他程序占用時仍停止啟動、保留原有程序，不掃描 fallback，也不自動重啟。自訂埠的查詢與控制須使用同一組參數。Windows 保留原有啟動行為。
 - REST、SSE 與 Passkey Origin 都由同一啟動設定產生。服務僅接受指定 UI Origin 與自己的本機 API 埠；WebAuthn 簽章仍驗證精確 UI Origin、`localhost` RP、challenge 和使用者驗證。
 - 真人試用一律沿用預設 `PasskeyStore()` 的作業系統應用程式資料夾，透過預設瀏覽器使用既有 Passkey。新 worktree 不重設、不複製公開驗證資料，也不重新註冊。
 - 自動測試使用臨時資料庫／虛擬 authenticator，與真人試用分開；不得把其臨時瀏覽器或驗收服務當作使用者可登入的 dev 交付。
