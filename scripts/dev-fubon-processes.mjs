@@ -97,6 +97,17 @@ async function recordOwner(root, record) {
 }
 
 export function configuredMode(root) {
+    // The backend applies the checkout's saved selection after environment config.
+    try {
+        const saved = JSON.parse(readFileSync(path.join(root, 'server/.mode-settings.json'), 'utf8'));
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return 'unknown';
+        const liveEnabled = 'live_enabled' in saved ? saved.live_enabled : false;
+        return Object.keys(saved).every(key => ['mode', 'live_enabled'].includes(key)) &&
+            ['demo', 'paper', 'sandbox', 'live'].includes(saved.mode) &&
+            typeof liveEnabled === 'boolean' && liveEnabled === (saved.mode === 'live') ? saved.mode : 'unknown';
+    } catch (error) {
+        if (error.code !== 'ENOENT') return 'unknown';
+    }
     let value = process.env.FUBON_MODE;
     if (value === undefined) {
         let text = '';

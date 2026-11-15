@@ -218,6 +218,26 @@ describe.skipIf(!supported)('dev service commands with real isolated processes',
         expect(result.stdout).toContain('模式：未記錄（目前設定：paper）');
     }, 25000);
 
+    it('reports saved UI mode before environment and refuses invalid saved selections', async () => {
+        const f = await fixture();
+        const file = path.join(f.root, 'server/.mode-settings.json');
+        for (const [contents, expected] of [
+            [JSON.stringify({ mode: 'paper', live_enabled: false }), 'paper'],
+            [JSON.stringify({ mode: 'live', live_enabled: true }), 'live'],
+            [JSON.stringify({ mode: 'demo' }), 'demo'],
+            [JSON.stringify({ mode: 'live', live_enabled: false }), 'unknown'],
+            [JSON.stringify({ mode: 'paper', live_enabled: 'false' }), 'unknown'],
+            [JSON.stringify({ mode: 'paper', extra: true }), 'unknown'],
+            ['{broken', 'unknown'],
+        ]) {
+            await writeFile(file, contents!);
+            expect((await f.command('status')).stdout).toContain(`目前設定：${expected}`);
+        }
+        await rm(file);
+        await mkdir(file);
+        expect((await f.command('status')).stdout).toContain('目前設定：unknown');
+    }, 25000);
+
     it('recognizes absolute executable arguments when ps comm returns only the executable name', async () => {
         const f = await fixture();
         const python = execFileSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).trim();
