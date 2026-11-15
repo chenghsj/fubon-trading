@@ -1,3 +1,4 @@
+import { SelectControl, SelectOption } from './ui/select-control';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -107,13 +108,13 @@ export function AutoTradingPanel() {
             <div className={s.metric}>估計未實現淨損益<strong className={s.number}>{state?.position ? `$${amount(state.unrealizedNet)}` : '—'}</strong></div>
         </div>
         <form onSubmit={e => { e.preventDefault(); void start(); }}>
-            <label className={s.field}>單次交易日期<Input className={s.control} type="date" required disabled={!!busy || runningOrExposed} value={draft.trade_date} onChange={e => setDraft(old => ({ ...old, trade_date: e.target.value }))} /></label>
+            <label className={`${s.field} ${s.dateField}`}>單次交易日期<Input className={s.control} type="date" required disabled={!!busy || runningOrExposed} value={draft.trade_date} onChange={e => setDraft(old => ({ ...old, trade_date: e.target.value }))} /></label>
             <fieldset className={s.fieldset} disabled={!editable}>
                 <legend className={s.heading}>策略與執行設定</legend>
                 <div className={s.grid}>
-                    <label className={s.field}>期貨測試帳戶<select className={s.control} value={autoAccountKey(draft.account)} onChange={e => { const a = accounts.find(a => autoAccountKey(a) === e.target.value); if (a) setDraft(old => ({ ...old, account: a })); }}><option value=":">選擇帳戶</option>{accounts.map(a => <option key={autoAccountKey(a)} value={autoAccountKey(a)}>{a.broker_id}-{a.account_id}</option>)}</select></label>
+                    <label className={s.field}>期貨測試帳戶<SelectControl aria-label="期貨測試帳戶" wrapperClassName="w-full" disabled={!editable} className={s.control} value={autoAccountKey(draft.account)} onValueChange={selectedValue => { const a = accounts.find(a => autoAccountKey(a) === selectedValue); if (a) setDraft(old => ({ ...old, account: a })); }}><SelectOption value=":">選擇帳戶</SelectOption>{accounts.map(a => <SelectOption key={autoAccountKey(a)} value={autoAccountKey(a)}>{a.broker_id}-{a.account_id}</SelectOption>)}</SelectControl></label>
                     <label className={s.field}>微台具體合約<Input className={s.control} value={draft.contract_code} required pattern="TMF[A-L][0-9]" placeholder="TMFK6" onChange={e => setDraft(old => ({ ...old, contract_code: e.target.value.toUpperCase() }))} /></label>
-                    <label className={s.field}>策略版本<select className={s.control} value={draft.use_basket ? 'basket' : 'baseline'} onChange={e => setDraft(old => ({ ...old, use_basket: e.target.value === 'basket' }))}><option value="baseline">開盤區間突破</option><option value="basket">突破＋權值股方向濾網</option></select></label>
+                    <label className={s.field}>策略版本<SelectControl aria-label="策略版本" wrapperClassName="w-full" disabled={!editable} className={s.control} value={draft.use_basket ? 'basket' : 'baseline'} onValueChange={selectedValue => setDraft(old => ({ ...old, use_basket: selectedValue === 'basket' }))}><SelectOption value="baseline">開盤區間突破</SelectOption><SelectOption value="basket">突破＋權值股方向濾網</SelectOption></SelectControl></label>
                 </div>
                 {draft.use_basket && <><label className={s.field}>固定假設權重 · 每行「股票代碼,百分比」<Textarea className={s.control} rows={4} value={basketText} onChange={e => setBasketText(e.target.value)} /></label><p className={s.muted}>固定假設範例，不是官方歷史權重；這個濾網尚未證明能改善收益。</p></>}
                 <div className={s.grid}>{([
@@ -124,7 +125,7 @@ export function AutoTradingPanel() {
                 ] as const).map(([key, label, min, max, step]) => <label className={s.field} key={key}>{label}<Input className={s.control} type="number" required min={min} max={max} step={step} value={Number.isFinite(draft[key]) ? draft[key] : ''} onChange={e => updateNumber(key, e.target.value)} /></label>)}</div>
             </fieldset>
             {lockedPlan && <p className={s.muted}>執行設定已固定；本日一旦有進場意圖，重新啟動也保留額度與原設定。</p>}
-            <div className={s.actions}><Button type="submit" disabled={!mayStart}>啟動／恢復 sandbox 策略</Button><Button type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('pause')}>停止新倉</Button><Button type="button" variant="destructive" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('stop')}>停止並退出</Button><Button type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('reconcile')}>重新對帳與接管監控</Button></div>
+            <div className={s.actions}><Button size="compact" type="submit" disabled={!mayStart}>啟動／恢復 sandbox 策略</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('pause')}>停止新倉</Button><Button size="compact" type="button" variant="destructive" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('stop')}>停止並退出</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('reconcile')}>重新對帳與接管監控</Button></div>
         </form>
         {busy && <p role="status">{busy}</p>}
         <p className={s.muted}>首 15 分鐘建立區間；09:20–13:10 只處理啟動後的新 5 分收盤訊號，每方向最多一次進場意圖，每次 1 口。限價 IOC 未成交也占用進場額度；13:20 嘗試退出。停損停利以進場限價為基準，由本機服務每 5 秒監控，沒有建立券商端保護單。</p>
@@ -137,6 +138,6 @@ export function AutoTradingPanel() {
         <h3 className={s.heading}>執行紀錄</h3>
         <ul className={s.log}>{state?.events.map(e => <li key={e.id}><span className={s.muted}>{when(e.time)}</span><br />{e.message}</li>)}{!state?.events.length && <li>尚未啟動；設定與意圖會保存在本地資料庫。</li>}</ul>
         <p className={s.muted}>損益含設定的費率估計，不是券商帳務。共用測試帳戶的其他操作可能改變總庫存；本面板只根據自有識別碼的成交追蹤策略曝險。</p>
-        {state?.status === 'attention' && <details><summary>已人工處理：封存本次追蹤</summary><p className={s.muted}>先到委託／持倉確認測試單與部位均已處理。封存只結束本機追蹤，不會撤單或平倉，本日也不能再次啟動。</p><label className={s.field}>輸入「已確認測試委託與部位」<Input className={s.control} value={acknowledgement} onChange={e => setAcknowledgement(e.target.value)} /></label><div className={s.actions}><Button variant="outline" disabled={!!busy || acknowledgement !== '已確認測試委託與部位'} onClick={() => void control('archive')}>確認並封存</Button></div></details>}
+        {state?.status === 'attention' && <details><summary>已人工處理：封存本次追蹤</summary><p className={s.muted}>先到委託／持倉確認測試單與部位均已處理。封存只結束本機追蹤，不會撤單或平倉，本日也不能再次啟動。</p><label className={s.field}>輸入「已確認測試委託與部位」<Input className={s.control} value={acknowledgement} onChange={e => setAcknowledgement(e.target.value)} /></label><div className={s.actions}><Button size="compact" variant="outline" disabled={!!busy || acknowledgement !== '已確認測試委託與部位'} onClick={() => void control('archive')}>確認並封存</Button></div></details>}
     </section>;
 }

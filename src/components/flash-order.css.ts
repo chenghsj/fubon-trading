@@ -65,7 +65,7 @@ export const symbolMeta = style({
     flexShrink: 0,
 });
 
-// 帳戶：顯示精簡標籤，透明的原生 select 疊在上面負責開選單
+// 帳戶：顯示精簡標籤，透明的 Select trigger 疊在上面負責開選單
 export const accountPick = style({
     position: 'relative',
     display: 'inline-flex',
@@ -103,7 +103,7 @@ export const accountSelect = style({
     height: '100%',
     opacity: 0,
     cursor: 'pointer',
-    // 選單項目沿用系統字級，戶名不被截
+    // 選單項目由共用 Select 決定字級，戶名不被截
     fontSize: '0.8rem',
 });
 
@@ -873,7 +873,7 @@ export const refDown = style({});
 globalStyle(`${refKey} > b${refUp}`, { color: vars.color.up });
 globalStyle(`${refKey} > b${refDown}`, { color: vars.color.down });
 
-// 個股期月份選擇（透明原生 select 疊在標籤上）
+// 個股期月份選擇（透明 Select trigger 疊在標籤上）
 export const monthPick = style({
     position: 'relative',
     display: 'inline-flex',

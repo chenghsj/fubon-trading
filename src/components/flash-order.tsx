@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Input } from '@/components/ui/input';
 import { canTrade } from '../lib/account-tradable';
 import { reconcileAfterUnknownOutcome, reportOrderError } from '../lib/order-outcome';
@@ -1740,21 +1740,21 @@ export function FlashOrder({
                 <FlashRefRow contract={contract} odd={odd} own={odd ? last : tradedLast} roundLot={tradedLast} />
             )}
             <div className={styles.controls}>
-                {/* 收合時只顯示精簡帳號（#176）；透明的原生 select 疊在上面，
+                {/* 收合時只顯示精簡帳號（#176）；透明的 Select trigger 疊在上面，
                     展開的選單才列出帳號＋戶名 */}
                 <Label className={styles.accountPick}>
                     <span className={styles.accountText}>{accountShort}</span>
                     <ChevronDown size={10} aria-hidden />
-                    <NativeSelect
+                    <SelectControl
                         wrapperClassName="absolute inset-0 size-full" showIcon={false} className={styles.accountSelect}
                         aria-label="閃電下單帳戶"
-                        // 透明 select 蓋住標籤，完整帳號＋戶名的 tooltip 要放在 select 上
+                        // 透明 Select trigger 蓋住標籤，完整帳號＋戶名的 tooltip 要放在 trigger 上
                         title={`${accountTitle}\n${resolved.following ? '跟隨主畫面帳戶 — 選擇帳戶後此視窗固定使用該帳戶' : '此視窗固定帳戶，不影響其他視窗與主畫面'}`}
                         value={resolved.following ? FOLLOW_GLOBAL : resolved.unset ? '' : panelKeys[market]}
-                        onChange={e => {
+                        onValueChange={selectedValue => {
                             armedRef.current = false;
                             setArmed(false);
-                            const value = e.target.value;
+                            const value = selectedValue;
                             if (value === FOLLOW_GLOBAL ? !followMain : !eligible.some(a => flashAccountKey(a) === value)) return;
                             const next = { ...panelKeys };
                             if (value === FOLLOW_GLOBAL) delete next[market];
@@ -1767,7 +1767,7 @@ export function FlashOrder({
                         }}
                     >
                         {followMain ? (
-                            <NativeSelectOption value={FOLLOW_GLOBAL}>
+                            <SelectOption value={FOLLOW_GLOBAL}>
                                 {!resolved.following
                                     ? '跟隨主畫面'
                                     : activeAccount
@@ -1775,13 +1775,13 @@ export function FlashOrder({
                                       : accountsLoading
                                         ? '跟隨主畫面（帳戶載入中）'
                                         : '跟隨主畫面（無可用帳戶）'}
-                            </NativeSelectOption>
-                        ) : resolved.unset && <NativeSelectOption value=''>請選擇帳戶</NativeSelectOption>}
-                        {resolved.missing && <NativeSelectOption value={panelKeys[market]}>{accountsLoading ? '帳戶載入中' : '帳戶不可用'}</NativeSelectOption>}
-                        {eligible.map(a => <NativeSelectOption key={flashAccountKey(a)} value={flashAccountKey(a)}>
+                            </SelectOption>
+                        ) : resolved.unset && <SelectOption value=''>請選擇帳戶</SelectOption>}
+                        {resolved.missing && <SelectOption value={panelKeys[market] ?? ''}>{accountsLoading ? '帳戶載入中' : '帳戶不可用'}</SelectOption>}
+                        {eligible.map(a => <SelectOption key={flashAccountKey(a)} value={flashAccountKey(a)}>
                             {accountLabels.long(a)}
-                        </NativeSelectOption>)}
-                    </NativeSelect>
+                        </SelectOption>)}
+                    </SelectControl>
                 </Label>
                 <Button size="compact-icon" variant="outline"
                     className={styles.stepBtn}

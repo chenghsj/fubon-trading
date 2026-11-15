@@ -8,10 +8,16 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { Slider } from './ui/slider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { NativeSelect, NativeSelectOption } from './ui/native-select';
+import { SelectControl, SelectOption } from './ui/select-control';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
-beforeEach(() => vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} }));
+beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
+    Element.prototype.scrollIntoView = vi.fn();
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
+});
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 it('uses controlled Checkbox and Switch state with labels and disabled behavior', async () => {
     function Controls() {
@@ -44,10 +50,15 @@ it('supports vertical tab navigation and labelled panels', async () => {
     expect(screen.getByRole('tab', { name: '風控' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByRole('tabpanel', { name: '風控' }).textContent).toBe('單筆上限');
 });
-it('keeps native select changes and deliberate radio selection controlled', async () => {
-    function Controls() { const [value, setValue] = useState(''); return <><NativeSelect aria-label="帳戶" value={value} onChange={e => setValue(e.target.value)}><NativeSelectOption value="">請選擇</NativeSelectOption><NativeSelectOption value="F">期貨</NativeSelectOption></NativeSelect><RadioGroup value={value} onValueChange={setValue} aria-label="核對結果"><Label htmlFor="confirm-sent">確認已送出</Label><RadioGroupItem id="confirm-sent" value="F" /></RadioGroup></>; }
+it('keeps Select changes and deliberate radio selection controlled', async () => {
+    function Controls() { const [value, setValue] = useState(''); return <><SelectControl aria-label="帳戶" value={value} onValueChange={selectedValue => setValue(selectedValue)}><SelectOption value="">請選擇</SelectOption><SelectOption value="F">期貨</SelectOption></SelectControl><RadioGroup value={value} onValueChange={setValue} aria-label="核對結果"><Label htmlFor="confirm-sent">確認已送出</Label><RadioGroupItem id="confirm-sent" value="F" /></RadioGroup></>; }
     const user = userEvent.setup(); render(<Controls />);
     expect(screen.getByRole('radio').getAttribute('aria-checked')).toBe('false');
-    await user.selectOptions(screen.getByRole('combobox'), 'F');
+    const trigger = screen.getByRole('combobox');
+    expect(trigger.tagName).toBe('BUTTON');
+    trigger.focus();
+    await user.keyboard('{ArrowDown}');
+    await user.click(screen.getByRole('option', { name: '期貨' }));
     expect(screen.getByRole('radio', { name: '確認已送出' }).getAttribute('aria-checked')).toBe('true');
+    expect(document.activeElement).toBe(trigger);
 });

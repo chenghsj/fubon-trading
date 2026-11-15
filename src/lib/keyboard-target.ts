@@ -5,6 +5,6 @@ export function isFormControlTarget(target: EventTarget | null): boolean {
     return !!element && (
         ['INPUT', 'TEXTAREA', 'SELECT', 'LABEL'].includes(element.tagName) ||
         element.isContentEditable === true ||
-        !!element.closest?.('input, textarea, select, label, [contenteditable="true"], [role="checkbox"], [role="radio"], [role="slider"], [role="switch"], [role="tablist"], [role="menu"], [role="radiogroup"]')
+        !!element.closest?.('input, textarea, select, label, [contenteditable="true"], [role="combobox"], [role="listbox"], [role="option"], [role="checkbox"], [role="radio"], [role="slider"], [role="switch"], [role="tablist"], [role="menu"], [role="radiogroup"]')
     );
 }

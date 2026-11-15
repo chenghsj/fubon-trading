@@ -1,3 +1,4 @@
+import { SelectControl, SelectOption } from './ui/select-control';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -54,7 +55,7 @@ function Results({ result }: { result: ResearchComparison }) {
         <p className={s.muted}>完整日 {result.diagnostics.completeDays}；排除缺段日 {result.diagnostics.excludedDays.length}；權值股缺資料時點 {result.diagnostics.missingBasketTimes}；濾網拒絕 {result.diagnostics.filterRejected} 次。</p>
         {result.diagnostics.excludedDays.length > 0 && <p className={s.muted}>缺段日期：{result.diagnostics.excludedDays.join('、')}</p>}
         <details><summary>假設與驗證範圍</summary><ul>{result.warnings.map(w => <li key={w}>{w}</li>)}</ul></details>
-        <div className={s.actions}><Button size="sm" variant={variant === 'baseline' ? 'secondary' : 'outline'} onClick={() => setVariant('baseline')}>基準明細</Button><Button size="sm" variant={variant === 'filtered' ? 'secondary' : 'outline'} onClick={() => setVariant('filtered')}>濾網明細</Button></div>
+        <div className={s.actions}><Button size="compact" variant={variant === 'baseline' ? 'secondary' : 'outline'} onClick={() => setVariant('baseline')}>基準明細</Button><Button size="compact" variant={variant === 'filtered' ? 'secondary' : 'outline'} onClick={() => setVariant('filtered')}>濾網明細</Button></div>
         <div className={s.tableScroll}><table className={s.table}><thead><tr><th>方向／進場</th><th>出場</th><th>進／出價</th><th>淨損益</th><th>原因</th></tr></thead><tbody>
             {result[variant].trades.map((t, i) => <tr key={i}><td>{t.side === 'long' ? '多' : '空'} {dateTime(t.entryTime)}</td><td>{dateTime(t.exitTime)}</td><td>{t.entry.toFixed(2)} / {t.exit.toFixed(2)}</td><td>{cash(t.net)}</td><td>{t.reason}</td></tr>)}
             {!result[variant].trades.length && <tr><td colSpan={5}>此設定沒有成交；可檢查資料完整度與進場條件。</td></tr>}
@@ -130,7 +131,7 @@ export function IntradayResearchPanel() {
         <div className={s.notice}>起始規則：09:00–09:15 開盤區間，5 分收盤突破，下一根 1 分開盤模擬進場；13:10 後不開新倉，13:20 平倉。兩組皆使用權值股資料可用的共同時點。</div>
         <fieldset disabled={!!busy} style={{ border: 0, padding: 0, margin: 0 }}>
             <div className={s.grid}>
-                <label className={s.field}>期貨商品<select className={s.input} value={product} onChange={e => { setProduct(e.target.value); invalidate(); }}><option value="TMF">微台 TMF · 每點 $10</option><option value="MXF">小台 MXF · 每點 $50</option><option value="TXF">大台 TXF · 每點 $200</option></select></label>
+                <label className={s.field}>期貨商品<SelectControl aria-label="期貨商品" wrapperClassName="w-full" disabled={!!busy} className={s.input} value={product} onValueChange={selectedValue => { setProduct(selectedValue); invalidate(); }}><SelectOption value="TMF">微台 TMF · 每點 $10</SelectOption><SelectOption value="MXF">小台 MXF · 每點 $50</SelectOption><SelectOption value="TXF">大台 TXF · 每點 $200</SelectOption></SelectControl></label>
                 <label className={s.field}>具體合約月份<Input value={month} maxLength={6} placeholder="202611" onChange={e => { setMonth(e.target.value); invalidate(); }} /></label>
                 <label className={s.field}>開始日期<Input type="date" value={start} max={day(1)} onChange={e => { setStart(e.target.value); invalidate(); }} /></label>
                 <label className={s.field}>結束日期<Input type="date" value={end} max={day(1)} onChange={e => { setEnd(e.target.value); invalidate(); }} /></label>
@@ -138,13 +139,13 @@ export function IntradayResearchPanel() {
             <label className={s.field} htmlFor={`${id}-weights`}>固定假設權重 · 每行「股票代碼,百分比」<Textarea id={`${id}-weights`} rows={4} value={basket} onChange={e => { setBasket(e.target.value); invalidate(); }} /></label>
             <p className={s.muted}>預填數字只是假設範例，不是官方歷史權重。資料庫會保存版本；過去成分與權重尚未驗證，因此結果屬探索性情境。</p>
             <label className={s.field} style={{ maxWidth: 200 }}>權重版本日期<Input type="date" value={weightDate} onChange={e => { setWeightDate(e.target.value); invalidate(); }} /></label>
-            <div className={s.actions}><Button size="sm" onClick={() => void load()}>下載／載入資料</Button><Button size="sm" variant="outline" onClick={() => void load(true)}>只讀本地資料庫</Button><Button size="sm" variant="ghost" onClick={() => void load(false, true)}>重新下載</Button></div>
+            <div className={s.actions}><Button size="compact" onClick={() => void load()}>下載／載入資料</Button><Button size="compact" variant="outline" onClick={() => void load(true)}>只讀本地資料庫</Button><Button size="compact" variant="ghost" onClick={() => void load(false, true)}>重新下載</Button></div>
             <div className={s.grid}>{([
                 ['stopPoints', '停損點數', 1], ['targetR', '停利 R 倍數', .5], ['quantity', '口數', 1],
                 ['feePerSide', '每口單邊手續費 NT$', 1], ['slippagePoints', '每邊不利滑價點數', 1], ['taxRate', '每邊期交稅率', .00001],
             ] as const).map(([key, label, step]) => <label className={s.field} key={key}>{label}<Input type="number" step={step} min={key === 'quantity' || key === 'stopPoints' || key === 'targetR' ? step : 0} value={Number.isFinite(config[key]) ? config[key] : ''} onChange={e => { setConfig(old => ({ ...old, [key]: e.target.value === '' ? NaN : Number(e.target.value) })); setResult(null); }} /></label>)}</div>
             <p className={s.muted}>成本欄為試算假設，請依實際費率調整；不含保證金與市場衝擊。</p>
-            <div className={s.actions}><Button size="sm" disabled={!dataset} onClick={run}>比較回測</Button><Button size="sm" variant="outline" disabled={!dataset} onClick={() => void analyze()}>快速判讀本地資料</Button><Button size="sm" variant="outline" disabled={!dataset} onClick={exportData}>匯出資料與結果</Button></div>
+            <div className={s.actions}><Button size="compact" disabled={!dataset} onClick={run}>比較回測</Button><Button size="compact" variant="outline" disabled={!dataset} onClick={() => void analyze()}>快速判讀本地資料</Button><Button size="compact" variant="outline" disabled={!dataset} onClick={exportData}>匯出資料與結果</Button></div>
         </fieldset>
         {busy && <p role="status">{busy}</p>}
         {error && <p role="alert" className={s.error}>{error}</p>}
@@ -153,6 +154,6 @@ export function IntradayResearchPanel() {
         {latest && <div className={s.notice}><strong>歷史資料判讀 · 不是即時訊號</strong><br />資料時間 {dateTime(latest.time)} · 期貨 {latest.price.toFixed(0)}<br />{latest.weightedReturn === null ? `資料不足：${latest.missing.join('、')}` : `權值股近 5 分鐘加權變化 ${(latest.weightedReturn * 100).toFixed(4)}%（固定籃子對指數的估計貢獻）`}<br />本地讀取與計算 {latest.elapsedMs} ms</div>}
         {result && <Results result={result} />}
         <h3 className={s.subhead}>最近保存的回測</h3>
-        <div className={s.records}>{records.map(r => <Button className={s.recordButton} size="sm" variant="outline" key={r.id} disabled={!!busy} onClick={() => { setResult(r.result); setDataset(null); setLatest(null); setError(''); }}>{new Date(r.createdAt).toLocaleString('zh-TW')} · 基準 {cash(r.result.baseline.net)} / 濾網 {cash(r.result.filtered.net)}</Button>)}{!records.length && <p className={s.muted}>完成比較後會自動保存結果，重新開啟仍可查看。</p>}</div>
+        <div className={s.records}>{records.map(r => <Button size="compact" className={s.recordButton} variant="outline" key={r.id} disabled={!!busy} onClick={() => { setResult(r.result); setDataset(null); setLatest(null); setError(''); }}>{new Date(r.createdAt).toLocaleString('zh-TW')} · 基準 {cash(r.result.baseline.net)} / 濾網 {cash(r.result.filtered.net)}</Button>)}{!records.length && <p className={s.muted}>完成比較後會自動保存結果，重新開啟仍可查看。</p>}</div>
     </div>;
 }

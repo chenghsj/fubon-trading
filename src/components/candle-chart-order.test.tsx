@@ -1,3 +1,4 @@
+import { SelectControl } from './ui/select-control';
 
 // Business tests drive the controlled Tabs API; DOM acceptance covers roving focus.
 vi.mock('./ui/tabs', async () => {
@@ -1054,8 +1055,8 @@ describe('chart order settings button', () => {
         await act(async () => view.update(createElement(CandleChart, { contract: stk, panelId: 'c1', orderSettings: state, onOrderSettingsChange } as any)));
         await act(async () => { button(pop()!, '500').props.onClick(); });
         await act(async () => view.update(createElement(CandleChart, { contract: stk, panelId: 'c1', orderSettings: state, onOrderSettingsChange } as any)));
-        const select = pop()!.findAll(n => n.type === 'select')[0]!;
-        await act(async () => { select.props.onChange({ target: { value: 'S:B:2222207' } }); });
+        const select = pop()!.findAll(n => n.type === SelectControl)[0]!;
+        await act(async () => { select.props.onValueChange('S:B:2222207'); });
         await act(async () => view.update(createElement(CandleChart, { contract: stk, panelId: 'c1', orderSettings: state, onOrderSettingsChange } as any)));
         expect(state).toEqual({ S: { qty: 500, lot: 'IntradayOdd', orderType: 'ROD', octype: 'Auto', accountKey: 'S:B:2222207' } });
         const t = text(pop()!);

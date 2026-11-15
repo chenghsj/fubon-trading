@@ -90,6 +90,8 @@ async function start() {
     await prepare();
     await button('啟動／恢復 sandbox 策略').click();
     await see('策略執行中');
+    await expect(panel().getByRole('combobox', { name: '期貨測試帳戶', exact: true })).toBeDisabled();
+    await expect(panel().getByRole('combobox', { name: '策略版本', exact: true })).toBeDisabled();
     expect((await state()).status).toBe('running');
 }
 async function enterAndFill() {
@@ -239,6 +241,22 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     await page.reload();
     await see('尚未啟動');
     await prepare();
+    await expect(panel().locator('select:not([aria-hidden="true"])')).toHaveCount(0);
+    const accountChoice = panel().getByRole('combobox', { name: '期貨測試帳戶', exact: true });
+    await accountChoice.click();
+    await page.screenshot({ path: path.join(artifacts, 'auto-select-open.png') });
+    await page.getByRole('option', { name: 'TEST-AUTO', exact: true }).click();
+    await expect(accountChoice).toHaveText('TEST-AUTO');
+    const strategyChoice = panel().getByRole('combobox', { name: '策略版本', exact: true });
+    await strategyChoice.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByRole('option', { name: '開盤區間突破', exact: true })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('option', { name: '突破＋權值股方向濾網', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(strategyChoice).toHaveText('突破＋權值股方向濾網');
+    await expect(panel().getByLabel(/固定假設權重/)).toBeVisible();
+    await strategyChoice.click(); await page.getByRole('option', { name: '開盤區間突破', exact: true }).click();
+    await expect(strategyChoice).toHaveText('開盤區間突破');
     // Loading and backend validation errors travel through the real start route.
     await panel().getByLabel('單次交易日期', { exact: true }).fill('2026-11-14');
     await button('啟動／恢復 sandbox 策略').click();
@@ -290,7 +308,7 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
                 await control.scrollIntoViewIfNeeded();
                 expect(await control.evaluate(el => {
                     const p = el.closest('[aria-label="Sandbox 自動交易"]').getBoundingClientRect(), r = el.getBoundingClientRect();
-                    return r.left >= p.left && r.right <= p.right && r.height >= 44;
+                    return r.left >= p.left && r.right <= p.right && r.height >= 24 && r.height <= 32;
                 })).toBe(true);
             }
             await panel().evaluate(el => { el.scrollTop = 0; });
@@ -299,6 +317,20 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
             await screenshot(`auto-${theme === '深色' ? 'dark' : 'light'}-${width}-orders`);
         }
     }
+    const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
+    const session = await page.evaluate(() => sessionStorage.getItem('fubon-trading-session'));
+    await touch.addInitScript(value => sessionStorage.setItem('fubon-trading-session', value), session);
+    try {
+        const touchPage = await touch.newPage(); await touchPage.goto(origin);
+        const touchPanel = touchPage.getByRole('region', { name: 'Sandbox 自動交易', exact: true });
+        await expect(touchPanel).toBeVisible();
+        expect(await touchPage.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+        for (const control of await touchPanel.locator('button, input').all()) {
+            const geometry = await control.evaluate(el => ({ height: el.getBoundingClientRect().height, element: el.outerHTML.slice(0, 360) }));
+            expect(geometry.height, JSON.stringify(geometry)).toBeGreaterThanOrEqual(44);
+        }
+        await touchPanel.screenshot({ path: path.join(artifacts, 'auto-touch-390-controls.png') });
+    } finally { await touch.close(); }
     await page.setViewportSize({ width: 1440, height: 1050 });
     await setTheme('深色');
     await reset();
@@ -396,7 +428,9 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     expect((await fixture()).sdkCalls).toBe(0);
     expect(mutations).toEqual([]);
     expect(pageErrors).toEqual([]);
-    const summary = { passed: true, fixture: 'demo Broker + injected FakeGateway sandbox; manual clock/ticks only', scenarios, sdkCalls: 0, directTradingMutations: mutations, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
+    const nativeUserControls = await panel().locator('select:not([aria-hidden="true"])').count();
+    expect(nativeUserControls).toBe(0);
+    const summary = { passed: true, fixture: 'demo Broker + injected FakeGateway sandbox; manual clock/ticks only', scenarios, sdkCalls: 0, nativeUserControls, directTradingMutations: mutations, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
     await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify(summary, null, 2));
 } catch (error) {

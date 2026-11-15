@@ -1,3 +1,4 @@
+import { SelectControl } from './ui/select-control';
 // #204 閃電下單設定：零股切換移進一顆設定按鈕，彈出面板只列閃電下單真的會用到
 // 的設定（單位、數量），底部一句話說明送出內容；Esc 只關面板，不觸發面板熱鍵
 import { createElement, StrictMode } from 'react';
@@ -61,7 +62,7 @@ it('the top row keeps account, −/qty/+ and the unit label; 零股 moved into t
     // flash only sends ROD limits / IOC market with Auto 開平倉: no such rows
     expect(t).not.toContain('IOC FOK');
     expect(t).not.toContain('新倉');
-    expect(pop()!.findAll(n => n.type === 'select')).toHaveLength(0); // the account picker stays in the top row
+    expect(pop()!.findAll(n => n.type === SelectControl)).toHaveLength(0); // the account picker stays in the top row
     expect(summary()).toBe('點買量／賣量以 ROD 限價送出 1 張，帳號 跟隨 A1234；市價買／賣以市價 IOC 送出。');
     await act(async () => { btnIn(pop()!, '5').props.onClick(); });
     expect(qty().props.value).toBe(5);

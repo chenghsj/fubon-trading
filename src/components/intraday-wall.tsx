@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Slider } from '@/components/ui/slider';
 import { RefreshButton } from './refresh-button';
 import { fetchChartHistory, nextChartHistoryRevision } from '../lib/chart-history';
@@ -1079,21 +1079,21 @@ export function IntradayWallPanel({
     return (
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
-                <NativeSelect
+                <SelectControl
                     className={styles.select}
                     value={list.id}
-                    onChange={(e) => {
-                        setListId(e.target.value);
+                    onValueChange={(selectedValue) => {
+                        setListId(selectedValue);
                         setPage(0);
-                        applyConfig(e.target.value, cols, rows);
+                        applyConfig(selectedValue, cols, rows);
                     }}
                 >
                     {lists.map((l) => (
-                        <NativeSelectOption key={l.id} value={l.id}>
+                        <SelectOption key={l.id} value={l.id}>
                             {l.name}（{l.contracts.length}）
-                        </NativeSelectOption>
+                        </SelectOption>
                     ))}
-                </NativeSelect>
+                </SelectControl>
                 <span className={styles.layoutWrap}>
                     <Button size="compact" variant="ghost"
                         className={styles.select}

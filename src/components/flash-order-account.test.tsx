@@ -1,3 +1,4 @@
+import { SelectControl } from './ui/select-control';
 import '../test/mock-order-reconciliation';
 import { operationNotice } from '../test/operation-notice';
 import { createElement } from 'react';
@@ -35,7 +36,7 @@ it('real FlashOrder switches ownership, cancels only selected trades, and captur
         await act(async () => { view = create(createElement(FlashOrder, props)); });
         await act(async () => { await button('全刪').props.onClick(); });
         expect(mocks.cancel.mock.calls.map(call => call[0])).toEqual(['A']);
-        await act(async () => { view.root.findByType('select').props.onChange({ target: { value: 'F:BR:B' } }); view.update(createElement(FlashOrder, { ...props })); });
+        await act(async () => { view.root.findByType(SelectControl).props.onValueChange('F:BR:B'); view.update(createElement(FlashOrder, { ...props })); });
         await act(async () => { await button('全刪').props.onClick(); });
         expect(mocks.cancel.mock.calls.map(call => call[0])).toEqual(['A', 'B']);
         await act(async () => { button('啟用閃電下單').props.onClick(); });
@@ -55,7 +56,7 @@ it('real FlashOrder switches ownership, cancels only selected trades, and captur
         accounts.forEach(account => { account.account_type = 'S'; });
         const stockContract = { ...contract, security_type: 'STK', code: '2330' } as ContractInfo;
         await act(async () => { view.update(createElement(FlashOrder, { contract: stockContract, trades: [], positions: [{ ...props.positions[1]!, code: '2330', quantity: 1500, cond: 'Cash' }] })); });
-        await act(async () => { view.root.findByType('select').props.onChange({ target: { value: 'S:BR:B' } }); });
+        await act(async () => { view.root.findByType(SelectControl).props.onValueChange('S:BR:B'); });
         await act(async () => { button('啟用閃電下單').props.onClick(); });
         const beforeStockExit = mocks.notify.mock.calls.length;
         mocks.stockExit.mockRejectedValueOnce(new Error('second leg unknown'));

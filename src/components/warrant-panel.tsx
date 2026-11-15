@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { RefreshButton } from './refresh-button';
 import { Star } from 'lucide-react';
@@ -153,28 +153,28 @@ export function WarrantPanel({
                         {value === 'all' ? '全部' : value === 'C' ? '認購' : '認售'}
                     </Button>
                 ))}
-                <NativeSelect
+                <SelectControl
                     className={styles.select}
                     value={expiryDays}
                     aria-label='到期區間'
-                    onChange={(event) => setExpiryDays(Number(event.target.value))}
+                    onValueChange={(selectedValue) => setExpiryDays(Number(selectedValue))}
                 >
-                    <NativeSelectOption value={90}>90 天內</NativeSelectOption>
-                    <NativeSelectOption value={180}>180 天內</NativeSelectOption>
-                    <NativeSelectOption value={365}>一年內</NativeSelectOption>
-                    <NativeSelectOption value={0}>全部到期日</NativeSelectOption>
-                </NativeSelect>
-                <NativeSelect
+                    <SelectOption value={90}>90 天內</SelectOption>
+                    <SelectOption value={180}>180 天內</SelectOption>
+                    <SelectOption value={365}>一年內</SelectOption>
+                    <SelectOption value={0}>全部到期日</SelectOption>
+                </SelectControl>
+                <SelectControl
                     className={styles.select}
                     value={sort}
                     aria-label='權證排序'
-                    onChange={(event) =>
-                        setSort(event.target.value as 'moneyness' | 'expiry')
+                    onValueChange={(selectedValue) =>
+                        setSort(selectedValue as 'moneyness' | 'expiry')
                     }
                 >
-                    <NativeSelectOption value='moneyness'>價內外排序</NativeSelectOption>
-                    <NativeSelectOption value='expiry'>到期日排序</NativeSelectOption>
-                </NativeSelect>
+                    <SelectOption value='moneyness'>價內外排序</SelectOption>
+                    <SelectOption value='expiry'>到期日排序</SelectOption>
+                </SelectControl>
                 <RefreshButton label="更新報價" loading={quotesLoading} onClick={() => void refreshQuotes()} />
             </div>
             <CatalogRetryAlert catalogError={catalogError} error={error} text='權證資料載入失敗' onRetry={retry} />

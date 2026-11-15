@@ -125,6 +125,7 @@ export default defineConfig(({ mode, command }) => {
         },
         plugins: [vanillaExtractPlugin(), react(), etfMetadataProxyPlugin()],
         test: {
+            setupFiles: ['./src/test/select-setup.ts'],
             // The desktop overlay is mirrored here for Tauri dev/CI, but its
             // Rust-adjacent Node tests use node:test rather than Vitest.
             exclude: [

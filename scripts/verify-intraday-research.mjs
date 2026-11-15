@@ -193,6 +193,17 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     });
     await page.reload();
     await expect(panel()).toBeVisible();
+    const productChoice = panel().getByRole('combobox', { name: '期貨商品', exact: true });
+    await productChoice.focus(); await page.keyboard.press('Enter');
+    await expect(page.getByRole('option', { name: '微台 TMF · 每點 $10', exact: true })).toBeFocused();
+    await page.screenshot({ path: path.join(artifacts, 'research-select-open.png') });
+    await page.keyboard.press('ArrowDown');
+    await expect(page.getByRole('option', { name: '小台 MXF · 每點 $50', exact: true })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(productChoice).toHaveText('小台 MXF · 每點 $50');
+    await productChoice.click(); await page.getByRole('option', { name: '微台 TMF · 每點 $10', exact: true }).click();
+    await expect(productChoice).toHaveText('微台 TMF · 每點 $10');
+    await expect(panel().locator('select:not([aria-hidden="true"])')).toHaveCount(0);
     await panel().getByLabel('具體合約月份', { exact: true }).fill('202611');
     await setDates();
 
@@ -201,8 +212,10 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     await finishLoading();
     await expect(panel().getByRole('alert')).toContainText('本地資料庫缺少');
     expect(await historyCalls()).toBe(0);
+    await page.route('**/api/v1/research/history', async route => { await new Promise(resolve => setTimeout(resolve, 400)); await route.continue(); }, { times: 1 });
     const firstResponse = page.waitForResponse(response => response.url().endsWith('/api/v1/research/history') && response.request().postDataJSON()?.offline === false);
     await panel().getByRole('button', { name: '下載／載入資料', exact: true }).click();
+    await expect(productChoice).toBeDisabled();
     expect((await firstResponse).status()).toBe(200);
     await finishLoading();
     await expect(panel().getByText(/合成展示資料：僅驗證流程，不代表真實績效。/)).toBeVisible();
@@ -308,6 +321,20 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
             }
         }
     }
+    const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, storageState: await context.storageState() });
+    const session = await page.evaluate(() => sessionStorage.getItem('fubon-trading-session'));
+    await touch.addInitScript(value => sessionStorage.setItem('fubon-trading-session', value), session);
+    try {
+        const touchPage = await touch.newPage(); await touchPage.goto(origin);
+        const touchPanel = touchPage.getByLabel('日內回測研究', { exact: true });
+        await expect(touchPanel).toBeVisible();
+        expect(await touchPage.evaluate(() => matchMedia('(pointer: coarse)').matches)).toBe(true);
+        for (const control of await touchPanel.locator('button, input').all()) {
+            const geometry = await control.evaluate(el => ({ height: el.getBoundingClientRect().height, element: el.outerHTML.slice(0, 360) }));
+            expect(geometry.height, JSON.stringify(geometry)).toBeGreaterThanOrEqual(44);
+        }
+        await touchPanel.screenshot({ path: path.join(artifacts, 'research-touch-390-controls.png') });
+    } finally { await touch.close(); }
     await page.setViewportSize({ width: 1440, height: 1050 });
     await setTheme('深色');
 
@@ -326,7 +353,9 @@ uvicorn.run(app, host='127.0.0.1', port=int(os.environ['RESEARCH_API_PORT']), ac
     expect(databaseReadResponses.every(response => response.status === 200)).toBe(true);
     const sdkCalls = JSON.parse(await readFile(countsFile, 'utf8')).sdkCalls;
     expect(sdkCalls).toBe(0);
-    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, latest, latestUiElapsedMs, sdkCalls, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
+    const nativeUserControls = await panel().locator('select:not([aria-hidden="true"])').count();
+    expect(nativeUserControls).toBe(0);
+    const summary = { passed: true, coldStartReadStatuses, coldStartStats, databaseReadResponses, initialStats, sampleMetrics, latest, latestUiElapsedMs, sdkCalls, nativeUserControls, historyCallsAfterCachedRead: downloads, tradingMutations: transactionPaths.length, transactionPaths, readonlyOrderQueries: readonlyOrderPaths.length, readonlyOrderPaths: [...new Set(readonlyOrderPaths)], pageErrors, artifacts };
     await writeFile(path.join(artifacts, 'summary.json'), JSON.stringify(summary, null, 2));
     console.log(JSON.stringify(summary, null, 2));
 } catch (error) {

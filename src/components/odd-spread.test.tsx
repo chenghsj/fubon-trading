@@ -1,3 +1,4 @@
+import { SelectControl } from './ui/select-control';
 import { reconcileOrdersOnce } from '../test/mock-order-reconciliation';
 import { operationNotice } from '../test/operation-notice';
 // 整零價差面板：設計稿數字、按鈕啟用規則、確認後重新驗證、點價拆單、執行狀態列
@@ -213,7 +214,7 @@ it.each(['價差', '商品', '帳戶', '數量', '零股數量', '費用', '送�
     } else if (change === '費用') {
         await act(async () => { input('證交稅率（%）').props.onChange({ target: { value: '0.15' } }); });
     } else {
-        await act(async () => { view.root.findByType('select').props.onChange({ target: { value: 'simultaneous' } }); });
+        await act(async () => { view.root.findByType(SelectControl).props.onValueChange('simultaneous'); });
     }
     expect(text(executeButton())).toContain('仍要送出');
     await act(async () => { executeButton().props.onClick(); });

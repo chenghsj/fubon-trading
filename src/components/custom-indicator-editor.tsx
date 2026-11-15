@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // src/components/custom-indicator-editor.tsx — in-app editor for
 // user-written indicators（JS + ta.* 函式庫）。儲存前先在 Web Worker
 // 驗證（2 秒逾時擋無窮迴圈）並自動偵測 plot()/hline() 的輸出。
@@ -469,13 +469,12 @@ export function CustomIndicatorEditor({
                                                 })
                                             }
                                         />
-                                        <NativeSelect
+                                        <SelectControl
                                             className={styles.select}
                                             value={o.kind}
-                                            onChange={(e) =>
+                                            onValueChange={(selectedValue) =>
                                                 patchOutput(o.key, {
-                                                    kind: e.target
-                                                        .value as OutputDef['kind'],
+                                                    kind: selectedValue as OutputDef['kind'],
                                                 })
                                             }
                                         >
@@ -484,11 +483,11 @@ export function CustomIndicatorEditor({
                                                     KIND_LABEL,
                                                 ) as OutputDef['kind'][]
                                             ).map((k) => (
-                                                <NativeSelectOption key={k} value={k}>
+                                                <SelectOption key={k} value={k}>
                                                     {KIND_LABEL[k]}
-                                                </NativeSelectOption>
+                                                </SelectOption>
                                             ))}
-                                        </NativeSelect>
+                                        </SelectControl>
                                     </div>
                                     {colorFor === o.key && (
                                         <div className={styles.swatchPop}>

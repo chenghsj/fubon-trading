@@ -29,6 +29,9 @@ beforeEach(() => {
         disconnect() {}
     });
     Object.defineProperty(Element.prototype, 'scrollIntoView', { configurable: true, value: vi.fn() });
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.setPointerCapture = vi.fn();
+    Element.prototype.releasePointerCapture = vi.fn();
     setThemeSettings({ mode: 'light', preset: undefined, accent: undefined, custom: CUSTOM_BASES.light });
 });
 
@@ -83,8 +86,9 @@ it('主題、深淺模式和強調色可以分別設定並還原', async () => {
     await user.type(screen.getByRole('combobox', { name: '搜尋主題' }), 'Nord');
     await user.click(screen.getByRole('option', { name: 'Nord' }));
     expect(saved()).toMatchObject({ mode: 'dark', preset: 'Nord', accent: '#abcdef' });
-    expect((screen.getByRole('combobox', { name: '強調色來源' }) as HTMLSelectElement).value).toBe('custom');
-    await user.selectOptions(screen.getByRole('combobox', { name: '強調色來源' }), 'theme');
+    expect(screen.getByRole('combobox', { name: '強調色來源' }).textContent).toContain('自訂');
+    await user.click(screen.getByRole('combobox', { name: '強調色來源' }));
+    await user.click(screen.getByRole('option', { name: '主題預設' }));
     expect(saved().accent).toBeUndefined();
     expect(trigger.textContent).toContain('Nord');
 });

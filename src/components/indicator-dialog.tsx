@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // src/components/indicator-dialog.tsx — TradingView-style indicator picker
 // (search / category sidebar / favorites / add-in-place) and the
 // per-instance settings modal（輸入 / 樣式 分頁、確定/取消）.
@@ -718,27 +718,27 @@ export function IndicatorSettingsModal({
                             </div>
                             <Label className={styles.fieldRow}>
                                 <span>小數位數</span>
-                                <NativeSelect
+                                <SelectControl
                                     className={styles.fieldSelect}
                                     value={inst.precision ?? 'auto'}
-                                    onChange={(e) =>
+                                    onValueChange={(selectedValue) =>
                                         onPatch({
                                             precision:
-                                                e.target.value === 'auto'
+                                                selectedValue === 'auto'
                                                     ? undefined
-                                                    : Number(e.target.value),
+                                                    : Number(selectedValue),
                                         })
                                     }
                                 >
                                     {PRECISIONS.map((p) => (
-                                        <NativeSelectOption
+                                        <SelectOption
                                             key={p ?? 'auto'}
                                             value={p ?? 'auto'}
                                         >
                                             {p === undefined ? '自動' : p}
-                                        </NativeSelectOption>
+                                        </SelectOption>
                                     ))}
-                                </NativeSelect>
+                                </SelectControl>
                             </Label>
                             <Label className={styles.fieldRow}>
                                 <span>價格軸最新值標籤</span>

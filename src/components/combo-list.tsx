@@ -1,4 +1,4 @@
-import { NativeSelect, NativeSelectOption, NativeSelectOptGroup } from '@/components/ui/native-select';
+import { SelectControl, SelectOption, SelectOptionGroup } from '@/components/ui/select-control';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { RefreshButton } from './refresh-button';
 import { useLiveSnapshots } from '../hooks/use-live-snapshots';
@@ -176,34 +176,34 @@ export function ComboListPanel({
         <div className={styles.wrap}>
             <div className={styles.toolbar}>
                 {quotesError && <span role="status">{quotesError}；保留上次報價</span>}
-                <NativeSelect
+                <SelectControl
                     className={styles.select}
                     value={root}
-                    onChange={(e) => {
+                    onValueChange={(selectedValue) => {
                         followSeq.current++; // 作廢在途個股期查詢
                         setUnderlying(null);
-                        applyRoot(e.target.value);
+                        applyRoot(selectedValue);
                     }}
                 >
                     {/* 清單未載入或存的 root 已下市 → 補現值選項不留空白 */}
                     {!roots.some((r) => r.root === root) && (
-                        <NativeSelectOption value={root}>{root}</NativeSelectOption>
+                        <SelectOption value={root}>{root}</SelectOption>
                     )}
-                    <NativeSelectOptGroup label='常用指數'>
+                    <SelectOptionGroup label='常用指數'>
                         {pinned.map((r) => (
-                            <NativeSelectOption key={r.root} value={r.root}>
+                            <SelectOption key={r.root} value={r.root}>
                                 {stripMonth(r.name)}（{r.root}）
-                            </NativeSelectOption>
+                            </SelectOption>
                         ))}
-                    </NativeSelectOptGroup>
-                    <NativeSelectOptGroup label='全部家族（含個股期）'>
+                    </SelectOptionGroup>
+                    <SelectOptionGroup label='全部家族（含個股期）'>
                         {rest.map((r) => (
-                            <NativeSelectOption key={r.root} value={r.root}>
+                            <SelectOption key={r.root} value={r.root}>
                                 {stripMonth(r.name)}（{r.root}）
-                            </NativeSelectOption>
+                            </SelectOption>
                         ))}
-                    </NativeSelectOptGroup>
-                </NativeSelect>
+                    </SelectOptionGroup>
+                </SelectControl>
                 <RefreshButton label="更新報價" loading={quotesLoading} onClick={() => void refreshQuotes()} />
             </div>
             <div className={styles.toolbar}>

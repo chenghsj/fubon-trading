@@ -1,7 +1,7 @@
 import { ToggleGroup, ToggleGroupItem } from './ui/toggle-group';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -116,14 +116,14 @@ function TargetRows({ target }: { target: Target }) {
                 {target.accounts.length === 0 ? (
                     <span className={styles.tone.err}>沒有可下單的{target.futures ? '期貨' : '證券'}帳戶</span>
                 ) : (
-                    <NativeSelect className={styles.select} aria-label='帳戶' value={target.account ? accountKey(target.account) : ''}
-                        onChange={e => target.setAccountId(e.target.value)}>
+                    <SelectControl className={styles.select} aria-label='帳戶' value={target.account ? accountKey(target.account) : ''}
+                        onValueChange={selectedValue => target.setAccountId(selectedValue)}>
                         {target.accounts.map(a => (
-                            <NativeSelectOption key={accountKey(a)} value={accountKey(a)}>
+                            <SelectOption key={accountKey(a)} value={accountKey(a)}>
                                 {a.account_type === 'F' ? '[期]' : '[證]'} {maskAccountId(a.account_id, priv)}
-                            </NativeSelectOption>
+                            </SelectOption>
                         ))}
-                    </NativeSelect>
+                    </SelectControl>
                 )}
             </Field>
             {target.contract && !target.futures && isWarrantContract(target.contract) && (
@@ -390,11 +390,11 @@ function TriggerForm({ target, onClose, defaults }: { target: Target; onClose: (
         <>
             <Field orientation="horizontal" className={styles.formRow}>
                 <span className={styles.label}>條件</span>
-                <NativeSelect className={styles.select} aria-label='價格來源' value={odd ? 'last' : source} disabled={odd}
-                    title={odd ? '零股觸價單只看成交價' : undefined} onChange={e => setSource(e.target.value as 'last' | 'opposite')}>
-                    <NativeSelectOption value='last'>成交價</NativeSelectOption>
-                    <NativeSelectOption value='opposite'>對手價</NativeSelectOption>
-                </NativeSelect>
+                <SelectControl className={styles.select} aria-label='價格來源' value={odd ? 'last' : source} disabled={odd}
+                    title={odd ? '零股觸價單只看成交價' : undefined} onValueChange={selectedValue => setSource(selectedValue as 'last' | 'opposite')}>
+                    <SelectOption value='last'>成交價</SelectOption>
+                    <SelectOption value='opposite'>對手價</SelectOption>
+                </SelectControl>
                 <Seg label='條件' value={op} onChange={setOp}
                     options={[{ id: 'below', label: '≤' }, { id: 'above', label: '≥' }, { id: 'crossDown', label: '下穿' }, { id: 'crossUp', label: '上穿' }]} />
                 <Input className={styles.input} value={price} inputMode='decimal' aria-label='觸發價' placeholder='觸發價'
