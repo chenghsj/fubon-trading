@@ -15,9 +15,7 @@ import { canTrade } from '../lib/account-tradable';
 import {
     Bot,
     LayoutGrid,
-    Moon,
     Palette,
-    Sun,
     RefreshCw,
     ShieldAlert,
     UserRound,
@@ -63,10 +61,8 @@ import { setSoundEnabled, soundEnabled } from '../lib/sounds';
 import {
     setThemeSettings,
     useThemeSettings,
-    baseMode,
     type Convention,
     type FontScale,
-    type ThemeMode,
 } from '../lib/theme-store';
 import {
     setToastScale,
@@ -86,7 +82,6 @@ import {
     isAgentHarnessEnabled,
     setAgentHarnessEnabled,
 } from '../lib/tauri';
-import { CUSTOM_BASES } from '../lib/custom-theme';
 import { CustomThemeEditor } from './custom-theme-editor';
 import { BackgroundExecutionSetting } from './background-execution-setting';
 import { ExternalLink } from './external-link';
@@ -94,12 +89,6 @@ import { Orb } from './orb';
 import * as hud from './hud-header.css';
 import * as panel from './panel.css';
 import * as styles from './settings-dialog.css';
-
-const MODE_OPTIONS: { key: ThemeMode; label: string }[] = [
-    { key: 'dark', label: '深色' },
-    { key: 'light', label: '淺色' },
-    { key: 'custom', label: '自訂' },
-];
 
 const CONVENTION_OPTIONS: { key: Convention; label: string }[] = [
     { key: 'tw', label: '紅漲綠跌' },
@@ -158,25 +147,8 @@ function AppearanceSection() {
     const headerItems = useHeaderItems();
     return (
         <>
+            <CustomThemeEditor />
             <FieldGroup className={styles.preferenceList}>
-                <PreferenceRow label="主題" caption="Theme">
-                    {labelId => <ToggleGroup type="single" size="compact" variant="outline"
-                        value={settings.mode} aria-labelledby={labelId} className={styles.optionGroup}>
-                        {MODE_OPTIONS.map(m => (
-                            <ToggleGroupItem value={m.key} key={m.key} className={styles.option}
-                                onClick={() => setThemeSettings(
-                                    m.key === 'custom'
-                                        ? { mode: 'custom', custom: settings.custom ?? CUSTOM_BASES[baseMode(settings)] }
-                                        : { mode: m.key },
-                                )}>
-                                {m.key === 'dark' ? <Moon /> : m.key === 'light' ? <Sun /> : <Palette />}
-                                {m.label}
-                            </ToggleGroupItem>
-                        ))}
-                    </ToggleGroup>}
-                </PreferenceRow>
-                {settings.mode === 'custom' && <div className={styles.customEditor}><CustomThemeEditor /></div>}
-                <Separator />
                 <PreferenceRow label="漲跌顏色" caption="Price Colors">
                     {labelId => <>
                         <ToggleGroup type="single" size="compact" variant="outline" value={settings.convention}

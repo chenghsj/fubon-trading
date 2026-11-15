@@ -4,8 +4,12 @@ import { createElement, Fragment, useState } from 'react';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { IcProjection } from '../lib/types/market';
+import type { ThemeSettings } from '../lib/theme-store';
 
-const m = vi.hoisted(() => ({ indexes: [] as string[] }));
+const m = vi.hoisted(() => ({
+    indexes: [] as string[],
+    theme: { mode: 'dark', convention: 'tw', fontScale: 1 } as ThemeSettings,
+}));
 
 vi.mock('../hooks/use-index-components', () => ({
     useIndexComponents: (index: { code: string }, projections: IcProjection[]) => {
@@ -25,7 +29,7 @@ vi.mock('../lib/index-components', () => ({
 vi.mock('../lib/sector-sync', () => ({ useFocusedSector: () => null }));
 vi.mock('../lib/trade', () => ({ notify: () => undefined }));
 vi.mock('../lib/theme-store', () => ({
-    useThemeSettings: () => ({ mode: 'dark', convention: 'tw', fontScale: 1 }),
+    useThemeSettings: () => m.theme,
 }));
 vi.mock('../lib/stock-index', () => ({
     loadStockDetails: () => Promise.resolve([]),
@@ -64,6 +68,7 @@ beforeEach(() => {
         removeItem: (k: string) => void store.delete(k),
     });
     m.indexes = [];
+    m.theme = { mode: 'dark', convention: 'tw', fontScale: 1 };
 });
 
 afterEach(async () => {
@@ -81,6 +86,25 @@ it('兩個面板各看各的市場，互不干擾', async () => {
     expect(pressed(a.root, '櫃買')).toBe(false);
     expect(pressed(b.root, '櫃買')).toBe(true);
     expect(pressed(b.root, '加權')).toBe(false);
+});
+
+it('主題選單與系統深淺切換會同步更新熱力圖底色', async () => {
+    const view = await render({ index: 'IX0001' });
+    const backgrounds = () => view.root.findAll(node => typeof node.type === 'string' && !!node.props.style?.background)
+        .map(node => node.props.style.background as string);
+    m.theme = { ...m.theme, preset: 'GitHub' };
+    await act(async () => view.update(createElement(SectorHeatmap, { index: 'IX0001' })));
+    expect(backgrounds()).toContain('rgb(1, 4, 9)');
+
+    let dark = true;
+    vi.stubGlobal('window', { matchMedia: () => ({ get matches() { return dark; } }) });
+    m.theme = { ...m.theme, mode: 'system' };
+    await act(async () => view.update(createElement(SectorHeatmap, { index: 'IX0001' })));
+    expect(backgrounds()).toContain('rgb(1, 4, 9)');
+    dark = false;
+    m.theme = { ...m.theme };
+    await act(async () => view.update(createElement(SectorHeatmap, { index: 'IX0001' })));
+    expect(backgrounds()).toContain('rgb(246, 248, 250)');
 });
 
 it('版面沒指定市場 → 沿用上次的 localStorage 選擇', async () => {

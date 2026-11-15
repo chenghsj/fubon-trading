@@ -7,6 +7,7 @@
 // 同一組實際色值。
 
 import { customTokens } from './custom-theme';
+import { activeCustom, baseMode } from './theme-appearance';
 import type { ThemeSettings } from './theme-store';
 
 export const HEAT_GAMMA = 0.6;
@@ -65,21 +66,22 @@ const BASE = {
  * 依主題推算色階端點。深色：低飽和暗紅／暗綠 → 收斂的飽和色（不刺眼）；
  * 淺色：淡粉／淡綠 → 中等飽和色。
  */
-export function heatPalette(settings: Pick<ThemeSettings, 'mode' | 'convention' | 'custom'>): HeatPalette {
+export function heatPalette(settings: Pick<ThemeSettings, 'mode' | 'convention' | 'preset' | 'custom'>): HeatPalette {
     let mode: 'dark' | 'light';
     let panel: Rgb;
     let fg: Rgb;
     let up: Rgb;
     let down: Rgb;
-    if (settings.mode === 'custom' && settings.custom) {
-        const t = customTokens(settings.custom, settings.convention);
-        mode = settings.custom.base;
+    const custom = activeCustom(settings);
+    if (custom) {
+        const t = customTokens(custom, settings.convention);
+        mode = custom.base;
         panel = hexToRgb(t.panel ?? BASE[mode].panel);
         fg = hexToRgb(t.foreground ?? BASE[mode].fg);
         up = hexToRgb(t.up ?? BASE[mode].red);
         down = hexToRgb(t.down ?? BASE[mode].green);
     } else {
-        mode = settings.mode === 'light' ? 'light' : 'dark';
+        mode = baseMode(settings);
         const b = BASE[mode];
         panel = hexToRgb(b.panel);
         fg = hexToRgb(b.fg);

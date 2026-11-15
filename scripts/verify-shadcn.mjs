@@ -2,7 +2,7 @@
 // virtual authenticator. Never reads Keychain or contacts a broker.
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
@@ -131,7 +131,7 @@ async function compactFormControls(page, artifacts) {
         for (const scale of ['小', '標準', '大']) {
             await settingsButton.click();
             await settings.getByRole('tab', { name: '外觀' }).click();
-            await settings.getByText(theme, { exact: true }).click();
+            await settings.getByRole('radio', { name: theme, exact: true }).click();
             await settings.getByRole('radio', { name: scale, exact: true }).first().click();
             await settingsPreferenceLayout(settings);
             if (scale === '標準') await settings.screenshot({ animations: 'disabled', path: path.join(artifacts, `settings-layout-${theme === '淺色' ? 'light' : 'dark'}.png`) });
@@ -177,9 +177,142 @@ async function compactFormControls(page, artifacts) {
         }
     }
     await settingsButton.click();
-    await settings.getByText('深色', { exact: true }).click();
+    await settings.getByRole('radio', { name: '深色', exact: true }).click();
     await settings.getByRole('radio', { name: '標準', exact: true }).first().click();
     await page.keyboard.press('Escape');
+}
+async function flatThemeList(page, selectedName) {
+    await expect(page.locator('[cmdk-group-heading]')).toHaveCount(0);
+    await expect(page.locator('[cmdk-item][data-value="default"]')).toHaveCount(0);
+    await expect(page.getByRole('option', { name: '預設', exact: true })).toHaveCount(0);
+    await expect(page.locator('[cmdk-item][data-value="Absolutely"]')).toHaveCount(1);
+    if (selectedName) await expect(page.locator(`[cmdk-item][data-value="${selectedName}"] .lucide-check`)).toHaveCount(1);
+}
+async function themeControls(page, settings, artifacts) {
+    const trigger = settings.getByRole('combobox', { name: '主題', exact: true });
+    const appearance = settings.getByRole('region', { name: '視覺風格', exact: true });
+    const accent = settings.getByLabel('強調色顏色');
+    const source = settings.getByRole('combobox', { name: '強調色來源', exact: true });
+    const cssToken = name => page.evaluate(name => getComputedStyle(document.documentElement).getPropertyValue(name).trim(), name);
+    async function choosePreset(name, query = name) {
+        await trigger.click();
+        await page.getByRole('combobox', { name: '搜尋主題', exact: true }).fill(query);
+        await page.locator(`[cmdk-item][data-value="${name}"]`).click();
+        await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+        await expect(trigger).toBeFocused();
+    }
+    await expect(trigger).toHaveText('AaAbsolutely');
+    await trigger.click();
+    await flatThemeList(page, 'Absolutely');
+    await page.getByRole('combobox', { name: '搜尋主題', exact: true }).fill('Raycast');
+    await expect(page.locator('[cmdk-item][data-value="Raycast"]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(settings).toBeVisible();
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    async function expectModeThemes(colorScheme, selectedName) {
+        await trigger.click();
+        await flatThemeList(page, selectedName);
+        await expect(page.locator('[cmdk-item][data-value="Proof"]')).toHaveCount(colorScheme === 'light' ? 1 : 0);
+        await expect(page.locator('[cmdk-item][data-value="Dracula"]')).toHaveCount(colorScheme === 'dark' ? 1 : 0);
+        await expect(page.getByText('Codex 主題', { exact: true })).toHaveCount(0);
+        await page.keyboard.press('Escape');
+        await expect(trigger).toBeFocused();
+    }
+
+    // Named themes and the preferred mode are separate selections. A system
+    // change updates CSS tokens and the saved mode remains system.
+    await settings.getByRole('radio', { name: '深色', exact: true }).click();
+    await choosePreset('GitHub', 'github dark');
+    await expect.poll(() => cssToken('--background')).toBe('#0d1117');
+    await expectModeThemes('dark');
+    await settings.getByRole('radio', { name: '淺色', exact: true }).click();
+    await expect.poll(() => cssToken('--background')).toBe('#ffffff');
+    await expectModeThemes('light');
+    await expect(trigger).toHaveText('AaGitHub');
+    await settings.getByRole('radio', { name: '跟隨系統', exact: true }).click();
+    for (const [colorScheme, background] of [['dark', '#0d1117'], ['light', '#ffffff']]) {
+        await page.emulateMedia({ colorScheme });
+        await expect.poll(() => cssToken('--background')).toBe(background);
+        await expect.poll(() => page.evaluate(() => document.documentElement.style.colorScheme)).toBe(colorScheme);
+        await expect(settings.getByRole('radio', { name: '跟隨系統', exact: true })).toHaveAttribute('aria-checked', 'true');
+        await expectModeThemes(colorScheme);
+    }
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')))).toMatchObject({ mode: 'system', preset: 'GitHub' });
+
+    await settings.getByRole('radio', { name: '淺色', exact: true }).click();
+    await choosePreset('Proof');
+    await expect.poll(() => cssToken('--background')).toBe('#f5f3ed');
+    await accent.fill('#3d755d');
+    await expect(source).toHaveValue('custom');
+    await expect.poll(() => cssToken('--primary')).toBe('#3d755d');
+    await expect(trigger).toHaveText('AaProof');
+    await source.selectOption('theme');
+    await expect(accent).toHaveValue('#3b715a');
+    await expect.poll(() => cssToken('--primary')).toBe('#3b715a');
+    await accent.fill('#3d755d');
+
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
+    await settings.getByRole('button', { name: '複製主題', exact: true }).click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()).then(text => JSON.parse(text))).toMatchObject({ base: 'light', background: '#f5f3ed', accent: '#3d755d' });
+    const copied = page.locator('[data-sonner-toast]').filter({ hasText: '已複製主題配色' });
+    await expect(copied).toBeVisible();
+    await expect(copied).toBeHidden({ timeout: 10000 });
+    const downloadPromise = page.waitForEvent('download');
+    await settings.getByRole('button', { name: '匯出主題', exact: true }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('fubon-theme-Proof-light.json');
+    const exported = path.join(artifacts, download.suggestedFilename());
+    await download.saveAs(exported);
+    expect(JSON.parse(await readFile(exported, 'utf8'))).toMatchObject({ base: 'light', background: '#f5f3ed', accent: '#3d755d' });
+
+    for (const [width, height, suffix] of [[1440, 1000, 'desktop'], [390, 844, 'narrow']]) {
+        await page.setViewportSize({ width, height });
+        await appearance.scrollIntoViewIfNeeded();
+        expect(await settings.getByRole('tabpanel').evaluate(el => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+        for (const control of await appearance.locator('button, select, input').all()) {
+            const within = await control.evaluate(el => {
+                const rect = el.getBoundingClientRect();
+                const region = el.closest('section').getBoundingClientRect();
+                return rect.left >= region.left - 1 && rect.right <= region.right + 1;
+            });
+            expect(within).toBe(true);
+        }
+        await appearance.screenshot({ animations: 'disabled', path: path.join(artifacts, `theme-controls-${suffix}.png`) });
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await settings.getByRole('radio', { name: '深色', exact: true }).click();
+    await expect(settings.getByRole('status').filter({ hasText: '沒有深色版本' })).toBeVisible();
+    await expect(trigger).toHaveText('AaAbsolutely');
+    await expect.poll(() => cssToken('--background')).toBe('#2d2d2b');
+    await expectModeThemes('dark', 'Absolutely');
+    await settings.getByRole('radio', { name: '淺色', exact: true }).click();
+    await expect.poll(() => cssToken('--background')).toBe('#f5f3ed');
+    await expect(trigger).toHaveText('AaProof');
+    await choosePreset('Absolutely');
+    await settings.getByRole('radio', { name: '淺色', exact: true }).click();
+    await expect(trigger).toHaveText('AaAbsolutely');
+    await expect.poll(() => cssToken('--background')).toBe('#f9f9f7');
+    await expect(source).toHaveValue('custom');
+    await expect(accent).toHaveValue('#3d755d');
+    await expect.poll(() => cssToken('--primary')).toBe('#3d755d');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')).accent)).toBe('#3d755d');
+    await source.selectOption('theme');
+    await expect.poll(() => cssToken('--primary')).toBe('#9e5035');
+    expect((await page.evaluate(() => JSON.parse(localStorage.getItem('sj-pro-theme')))).preset).toBeUndefined();
+    for (const [width, height, suffix] of [[1440, 1000, 'desktop'], [390, 844, 'narrow']]) {
+        await page.setViewportSize({ width, height });
+        await appearance.scrollIntoViewIfNeeded();
+        await trigger.click();
+        await flatThemeList(page, 'Absolutely');
+        await expect(page.locator('[cmdk-item][data-value="Proof"]')).toBeVisible();
+        await expect(page.locator('[cmdk-item][data-value="Dracula"]')).toHaveCount(0);
+        await settings.screenshot({ animations: 'disabled', path: path.join(artifacts, `theme-menu-${suffix}.png`) });
+        await page.keyboard.press('Escape');
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.emulateMedia({ colorScheme: null });
 }
 async function resizeCorners(page, artifacts, theme) {
     const item = page.locator('.react-grid-item').filter({ has: page.locator('[data-slot="card-header"][data-layout="panel"]').filter({ hasText: 'K 線圖' }) }).first();
@@ -343,7 +476,7 @@ async function multilineButtons(page, artifacts) {
                 await settings.getByRole('tab', { name: '外觀' }).focus();
                 await page.keyboard.press('Home');
                 await settings.getByRole('tab', { name: '外觀' }).click();
-                await settings.getByText(theme, { exact: true }).click();
+                await settings.getByRole('radio', { name: theme, exact: true }).click();
                 await settings.getByRole('radio', { name: scale, exact: true }).first().click();
                 await settings.getByRole('tab', { name: '帳號', exact: true }).click();
                 const dialogLayout = await settings.evaluate(el => {
@@ -527,10 +660,10 @@ try {
     const confirm = settings.getByRole('switch', { name: '手動下單確認' });
     if (await confirm.getAttribute('aria-checked') !== 'true') await confirm.click();
     await settings.getByRole('tab', { name: '外觀' }).click();
-    await settings.getByText('淺色', { exact: true }).click();
-    await expect(settings.getByText('淺色', { exact: true })).toHaveAttribute('data-state', 'on');
+    await settings.getByRole('radio', { name: '淺色', exact: true }).click();
+    await expect(settings.getByRole('radio', { name: '淺色', exact: true })).toHaveAttribute('data-state', 'on');
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim())).toBe('#f9f9f7');
-    await expect.poll(() => settings.getByText('淺色', { exact: true }).evaluate(el => getComputedStyle(el).color)).toBe('rgb(45, 45, 43)');
+    await expect.poll(() => settings.getByRole('radio', { name: '淺色', exact: true }).evaluate(el => getComputedStyle(el).color)).toBe('rgb(45, 45, 43)');
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'settings-light.png') });
     await page.keyboard.press('Escape'); await expect(settings).toBeHidden();
     await tradeContrast(ticket);
@@ -542,7 +675,8 @@ try {
     await resizeCorners(page, artifacts, 'light');
     await expect.poll(() => panelGeometry(page)).toEqual(geometry);
     await settingsButton.click();
-    await settings.getByText('自訂', { exact: true }).click();
+    await themeControls(page, settings, artifacts);
+    await settings.getByRole('button', { name: '進階配色', exact: true }).click();
     const accent = settings.getByLabel('強調色顏色');
     await accent.fill('#c080ff');
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--primary').trim())).toBe('#c080ff');
@@ -552,8 +686,15 @@ try {
     await settings.getByLabel('面板顏色').fill('#ffffff');
     await settings.getByLabel('文字顏色').fill('#171717');
     await expect.poll(() => priceInput.evaluate(el => getComputedStyle(el).color)).toBe('rgb(23, 23, 23)');
-    await settings.getByText('深色', { exact: true }).click();
-    await expect(settings.getByText('深色', { exact: true })).toHaveAttribute('data-state', 'on');
+    await settings.getByRole('radio', { name: '深色', exact: true }).click();
+    await settings.getByRole('button', { name: '重設為預設配色', exact: true }).click();
+    await expect(settings.getByRole('radio', { name: '深色', exact: true })).toHaveAttribute('data-state', 'on');
+    await expect(settings.getByRole('combobox', { name: '主題', exact: true })).toHaveText('AaAbsolutely');
+    await settings.getByRole('combobox', { name: '主題', exact: true }).click();
+    await flatThemeList(page, 'Absolutely');
+    await expect(page.locator('[cmdk-item][data-value="Dracula"]')).toBeVisible();
+    await expect(page.locator('[cmdk-item][data-value="Proof"]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await page.keyboard.press('Escape'); await expect(settings).toBeHidden();
     await expect(settingsButton).toBeFocused();
 

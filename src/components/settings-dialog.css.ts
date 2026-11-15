@@ -178,13 +178,6 @@ export const pricePreview = style({
     gap: `${vars.space.xs} ${vars.space.md}`,
 });
 
-export const customEditor = style({
-    display: 'flex',
-    flexDirection: 'column',
-    gap: vars.space.sm,
-    paddingBottom: vars.space.md,
-});
-
 export const headerSettings = componentLayout({
     gap: vars.space.sm,
     minWidth: 0,

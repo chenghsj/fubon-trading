@@ -77,7 +77,8 @@ describe('heatRgb', () => {
 
     it('自訂配色沿用使用者的紅綠', () => {
         const custom = heatPalette({
-            mode: 'custom',
+            mode: 'dark',
+            preset: 'custom',
             convention: 'tw',
             custom: {
                 base: 'dark',
