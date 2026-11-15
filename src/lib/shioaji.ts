@@ -64,7 +64,7 @@ import { todayStr } from './utils/date';
 
 export interface ServerInfo {
     broker?: string;
-    mode?: 'demo' | 'paper' | 'live';
+    mode?: 'demo' | 'paper' | 'sandbox' | 'live';
     connected?: boolean;
     market_connected?: boolean;
     session?: string;

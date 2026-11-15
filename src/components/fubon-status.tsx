@@ -34,6 +34,7 @@ export function FubonStatus() {
     const label = unavailable ? (info?.error || '富邦服務尚未連線，請啟動 pnpm start')
         : info.mode === 'demo' ? '展示模式 · 合成行情／本機模擬委託，非市場資料'
         : info.mode === 'paper' ? '模擬模式 · 富邦真實行情／本機模擬委託，不送券商'
+        : info.mode === 'sandbox' ? '富邦測試環境 · 共用測試帳戶／券商模擬委託，帳務僅供串接測試'
         : '正式交易 · 委託會送至富邦';
     return <div className={unavailable || info?.mode === 'live' ? styles.warning : styles.banner} role="status">
         <strong>Fubon Trading</strong>

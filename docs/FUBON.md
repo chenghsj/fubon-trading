@@ -64,3 +64,30 @@ React → 同來源 /api proxy → 127.0.0.1:21323
 - [即時成交](https://www.fbs.com.tw/TradeAPI/docs/market-data-future/websocket-api/market-data-channels/trades/)
 - [股票下單](https://www.fbs.com.tw/TradeAPI/docs/trading/library/python/trade/PlaceOrder/)
 - [前置條件與測試環境](https://www.fbs.com.tw/TradeAPI/docs/welcome/)
+
+## 官方測試環境
+
+富邦目前提供證券、期貨測試帳戶，免申請。[官方下載入口](https://www.fbs.com.tw/TradeAPI/docs/welcome/#測試環境)。下載並解壓縮測試環境說明包，把測試憑證保存在本機（例如 worktree 的 `.sandbox/`，已排除 Git），不要使用正式憑證。
+
+在隔離 worktree 的 `.env` 設定：
+
+```dotenv
+FUBON_MODE=sandbox
+FUBON_ENABLE_LIVE_TRADING=false
+FUBON_TEST_ID=<測試憑證上的ID>
+FUBON_TEST_CERT_PATH=<測試憑證的完整路徑>
+```
+
+執行 `uv sync --directory server --extra fubon`、`pnpm start`，沿用既有 Passkey 解鎖。此模式固定使用官方測試主機與測試包的公開密碼，不讀取或變更正式 Keychain，不會因連線失敗改連正式主機。畫面標示「富邦測試環境」；帳戶、委託、改刪與回報均來自券商測試服務。
+
+測試手冊限制：帳號多人共用，測試庫存每日重設，帳務數值不保證正確；手冊列出的開盤時間為 09:30–19:00。行情與測試中台參考價可能不同，交易價格限制依測試中台。不能據此評估策略績效或保證正式環境成交行為；僅操作自己建立且有識別標記的測試委託。
+
+`/order/update_qty` 的 quantity 沿用前端「要減少的數量」，bridge 轉成富邦 SDK 的「修改後總量（含已成交）」。
+
+### 2026-11-15 實際驗證
+
+- 官方兩組公開測試憑證均登入成功，各回傳證券與期貨帳戶。
+- bridge 成功取得台指期具體月報價及兩類帳戶委託查詢。
+- 一筆帶唯一 `FW` 識別碼的期貨測試單完成：2 口下單 → 改價 → 減少 1 口（剩餘 1）→ 取消，最後狀態 `Cancelled`；沒有操作其他共用測試委託。
+- 目前測試服務的證券持倉回覆「證券報表/表單定義資料不存在」、銀行餘額回覆交割銀行不在支援範圍，期貨持倉／權益回覆 `call id`。這些測試服務錯誤原樣顯示為失敗，不替換成零部位；仍需可用的券商帳務資料才能驗收映射。
+- Web 介面已以既有 Passkey 工作階段開啟，顯示「富邦測試環境」與 SSE LIVE；休市報價仍標示上一交易日快照。
