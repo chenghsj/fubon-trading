@@ -78,7 +78,7 @@ function CredentialForm({ current, onBusy }: { current: Settings; onBusy: (busy:
             <FieldDescription>儲存後重啟此服務並重新解鎖，交易模式維持原設定。策略、研究工作、未完成委託與持倉須先處理完畢。</FieldDescription>
             {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
             {busy && <p role="status">{phase === 'verifying' ? '等待 Passkey 驗證…' : phase === 'saving' ? '正在儲存至 Keychain…' : '已儲存，等待服務重新連線…'}</p>}
-            <div className={styles.actions}><Button className={styles.action} type="submit" disabled={!current.available || busy || phase === 'unknown'}>驗證並儲存 API Key</Button></div>
+            <div className={styles.actions}><Button size="compact" className={styles.action} type="submit" disabled={!current.available || busy || phase === 'unknown'}>驗證並儲存 API Key</Button></div>
         </FieldGroup>
     </form>;
 }
