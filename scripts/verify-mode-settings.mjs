@@ -161,6 +161,9 @@ from fubon_bridge.research import ResearchStore
 from fubon_bridge.mapping import now,market_events
 
 root=Path(os.environ['MODE_TEMP']); counts_file=root/'counts.json'; count_lock=threading.Lock()
+# Keep local execution inside one regular session even when QA runs at night.
+# Quotes must share the book's clock so freshness checks still exercise fills.
+paper_time=now().replace(hour=9,minute=30,second=0,microsecond=0)
 def count(key):
     with count_lock:
         value=json.loads(counts_file.read_text()); value[key]+=1; counts_file.write_text(json.dumps(value))
@@ -196,6 +199,7 @@ def create_app(config,**kwargs):
     if json.loads(counts_file.read_text())['boots']==1: kwargs['launch_token']=os.environ['MODE_LAUNCH']
     app=real_create_app(config,sdk_factory=no_sdk,passkey_store=PasskeyStore(root/'passkeys.sqlite3'),research_store=research,**kwargs)
     broker=app.state.broker; trader=app.state.automation; learning=app.state.learning
+    broker.paper.clock=lambda:paper_time
     broker._demo_catalog()
     for c in broker.catalog.values():
         c['name']='QA 合成行情 '+c['code']
@@ -208,7 +212,7 @@ def create_app(config,**kwargs):
     broker.contracts=lambda kind:[deepcopy(c) for c in broker.catalog.values() if c['security_type']==kind and not c.get('target_code')]
     def quote(c):
         count('marketReads'); price=25000 if c['security_type']=='FUT' else c['reference']
-        return dict(code=c['code'],exchange=c['exchange'],datetime=now().isoformat(),reference=c['reference'],open=price,high=price+10,low=price-10,close=price,average_price=price,buy_price=price,sell_price=price,buy_volume=10,sell_volume=10,volume=10,total_volume=1000,amount=0,total_amount=0,change_price=0,change_rate=0,change_type='',tick_type='0',volume_ratio=0,yesterday_volume=0)
+        return dict(code=c['code'],exchange=c['exchange'],datetime=paper_time.isoformat(),reference=c['reference'],open=price,high=price+10,low=price-10,close=price,average_price=price,buy_price=price,sell_price=price,buy_volume=10,sell_volume=10,volume=10,total_volume=1000,amount=0,total_amount=0,change_price=0,change_rate=0,change_type='',tick_type='0',volume_ratio=0,yesterday_volume=0)
     broker.quote=quote
     def subscribe(key,kind):
         c=contract(key); broker.subscriptions[(c['code'],kind)]=dict(contract=c,kind='stock' if c['security_type']=='STK' else 'futopt',channel='trades' if kind=='Tick' else 'books')
@@ -283,6 +287,8 @@ entry.main()
         localStorage.setItem('sj-pro-risk', JSON.stringify({ enabled: false, locked: false, confirmManualOrders: false }));
     });
     const seeded = await qa({ seed: true }); expect(seeded.ledger.orders).toHaveLength(2); expect(seeded.ledger.positions).toEqual([]);
+    expect(seeded.ledger.orders.map(trade => trade.status.status), 'seed must create two actual fills before testing persistence').toEqual(['Filled', 'Filled']);
+    expect(seeded.ledger.fee).toBe(24); expect(seeded.ledger.tax).toBe(10);
     const body = { mode: 'live', live_enabled: true, instance_id: initial.instance_id, acknowledgement: '' };
     expect((await request('/api/v1/settings/mode', body)).status).toBe(400);
     expect((await request('/api/v1/settings/mode', { ...body, live_enabled: false, acknowledgement: '確認啟用正式下單' })).status).toBe(422);
@@ -307,9 +313,20 @@ entry.main()
         [{ order: true }, { cancel: true }, '模擬帳簿仍有持倉或未完成委託'],
         [{ position: true }, { flatten: true }, '模擬帳簿仍有持倉或未完成委託'],
     ]) {
-        await qa(kind); await open(); await select('展示模式'); await apply().click();
+        const prepared = await qa(kind);
+        if (kind.order) {
+            expect(prepared.ledger.orders.filter(trade => trade.status.status === 'Submitted'), 'blocking fixture must contain an active order').toHaveLength(1);
+            expect(prepared.ledger.positions).toEqual([]);
+        }
+        if (kind.position) {
+            expect(prepared.ledger.positions, 'blocking fixture must contain a filled position').toMatchObject([{ account_id: 'PAPER-F', code: 'TMFK6', signed_qty: 1 }]);
+            expect(prepared.ledger.orders.filter(trade => trade.status.status === 'Submitted')).toEqual([]);
+        }
+        await open(); await select('展示模式'); await apply().click();
         await expect(dialog().getByRole('alert')).toContainText(detail); await page.keyboard.press('Escape');
-        expect((await settings()).instance_id).toBe(initial.instance_id); await qa(clear);
+        expect((await settings()).instance_id).toBe(initial.instance_id);
+        const cleared = await qa(clear); expect(cleared.ledger.positions).toEqual([]);
+        expect(cleared.ledger.orders.filter(trade => trade.status.status === 'Submitted')).toEqual([]);
     }
     scenarios.push('research, strategy monitoring, pending paper order and paper position each block UI switching');
     await switchMode('展示模式', 'demo'); await switchMode('Paper 模擬交易', 'paper');
