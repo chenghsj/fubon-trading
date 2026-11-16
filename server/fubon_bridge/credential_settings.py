@@ -1,4 +1,4 @@
-"""Write-only browser credential settings backed exclusively by macOS Keychain."""
+"""Keychain credential updates; only the saved certificate path can be read back."""
 from pathlib import Path
 import sys
 
@@ -25,11 +25,11 @@ class CredentialSettings:
     def available(self):
         return sys.platform == "darwin"
 
-    def configured(self):
+    def status(self):
         stored = self.factory().read()
         if stored is not None:
             validate_credentials(stored)
-        return stored is not None
+        return dict(configured=stored is not None, cert_path=stored['cert_path'] if stored else '')
 
     def save(self, body):
         store = self.factory()

@@ -1,7 +1,7 @@
 // Real browser/WebAuthn and CLI restart loop. Synthetic secrets only; no host Keychain or SDK.
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import net from 'node:net';
@@ -112,6 +112,11 @@ entry.main()
     expect((await context.request.get(origin + '/api/v1/info', { headers: { Authorization: 'Bearer ' + oldToken } })).status()).toBe(401);
     await unlock(); let state = await qa(); expect(state.writes).toBe(1); expect(state.detailsPreserved).toBe(true); expect(state.mode).toBe('demo'); expect(state.instance_id).not.toBe(original.instance_id);
     expect(await storedSecrets()).not.toMatch(/fixture-(key|password|id)/); scenarios.push('initial setup verifies Passkey, saves, restarts real CLI and revokes old session');
+    await open(); await dialog().getByText('帳號與憑證（選填更新）', { exact: true }).click();
+    await expect(dialog().getByLabel('本機憑證完整路徑', { exact: true })).toHaveValue(await realpath(path.join(temporary, 'test.pfx')));
+    await expect(dialog().getByLabel('身分證字號', { exact: true })).toHaveValue('');
+    await expect(dialog().getByLabel('憑證密碼', { exact: true })).toHaveValue('');
+    await page.keyboard.press('Escape'); scenarios.push('saved certificate path is filled automatically; identity and password remain empty');
     await qa({ monitoring: true }); await open(); await key().fill('fixture-key-blocked'); await save().click();
     await expect(dialog().getByRole('alert')).toContainText('請先停止策略'); await expect(key()).toHaveValue('');
     expect((await qa()).writes).toBe(1); await page.keyboard.press('Escape'); await qa({ monitoring: false }); scenarios.push('active strategy blocks writes and clears inputs');

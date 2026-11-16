@@ -10,7 +10,7 @@ import { waitForFubonRestart } from '@/lib/fubon-restart';
 import { confirmCredentialUpdate } from '@/lib/passkeys';
 import * as styles from './fubon-mode-settings.css';
 
-interface Settings { available: boolean; configured: boolean; storage: string | null; instance_id: string }
+interface Settings { available: boolean; configured: boolean; cert_path: string; storage: string | null; instance_id: string }
 
 function CredentialForm({ current, onBusy }: { current: Settings; onBusy: (busy: boolean) => void }) {
     const form = useRef<HTMLFormElement>(null);
@@ -68,8 +68,8 @@ function CredentialForm({ current, onBusy }: { current: Settings; onBusy: (busy:
                     <Field><FieldLabel htmlFor="fubon-personal-id">身分證字號</FieldLabel>
                         <Input id="fubon-personal-id" name="personal_id" type="password" autoComplete="off" spellCheck={false} required={!current.configured} maxLength={128} disabled={!current.available || busy} /></Field>
                     <Field><FieldLabel htmlFor="fubon-cert-path">本機憑證完整路徑</FieldLabel>
-                        <Input id="fubon-cert-path" name="cert_path" autoComplete="off" spellCheck={false} placeholder="/Users/你的使用者名稱/憑證.pfx" required={!current.configured} maxLength={4096} disabled={!current.available || busy} aria-describedby="fubon-cert-path-help" />
-                        <FieldDescription id="fubon-cert-path-help">使用這台 Mac 上已有的憑證檔案，檔案權限須為 600。</FieldDescription></Field>
+                        <Input id="fubon-cert-path" name="cert_path" defaultValue={current.cert_path} autoComplete="off" spellCheck={false} placeholder="/Users/你的使用者名稱/憑證.pfx" required={!current.configured} maxLength={4096} disabled={!current.available || busy} aria-describedby="fubon-cert-path-help" />
+                        <FieldDescription id="fubon-cert-path-help">{current.cert_path ? '已帶入先前儲存的憑證路徑，可直接沿用。' : '使用這台 Mac 上已有的憑證檔案，檔案權限須為 600。'}</FieldDescription></Field>
                     <Field><FieldLabel htmlFor="fubon-cert-password">憑證密碼</FieldLabel>
                         <Input id="fubon-cert-password" name="cert_password" type="password" autoComplete="new-password" required={!current.configured} maxLength={4096} disabled={!current.available || busy} /></Field>
                 </FieldGroup>

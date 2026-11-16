@@ -46,13 +46,13 @@ def change(runtime, **values):
                 credential=auth.credential(opts, counter=auth.counter), **values)
 
 
-def test_status_never_returns_saved_fields_and_requires_session(runtime):
+def test_status_returns_only_certificate_path_and_requires_session(runtime):
     client, app, _, store, _, _, old = runtime
     response = client.get('/api/v1/settings/credentials')
-    assert response.json() == dict(available=True, configured=True, storage='macOS Keychain', instance_id=app.state.broker.instance_id)
+    assert response.json() == dict(available=True, configured=True, cert_path=old['cert_path'], storage='macOS Keychain', instance_id=app.state.broker.instance_id)
     assert response.headers['cache-control'] == 'no-store'
-    for value in old.values():
-        assert value not in response.text
+    for name in ('api_key', 'personal_id', 'cert_password'):
+        assert old[name] not in response.text
     store.reset_mock()
     client.headers.pop('Authorization')
     for endpoint in ('/api/v1/settings/credentials', '/api/v1/settings/credentials/options'):
@@ -60,6 +60,15 @@ def test_status_never_returns_saved_fields_and_requires_session(runtime):
     assert client.get('/api/v1/settings/credentials').status_code == 401
     store.read.assert_not_called()
     store.write.assert_not_called()
+
+
+def test_status_without_saved_credentials_has_no_certificate_path(runtime):
+    client, _, _, store, *_ = runtime
+    store.read.return_value = None
+    response = client.get('/api/v1/settings/credentials')
+    assert response.status_code == 200
+    assert response.json()['configured'] is False
+    assert response.json()['cert_path'] == ''
 
 
 @pytest.mark.parametrize('origin', ['', 'http://127.0.0.1:5179', 'http://localhost:21323', 'https://evil.example'])

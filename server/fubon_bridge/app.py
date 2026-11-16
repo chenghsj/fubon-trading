@@ -251,10 +251,10 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     def credential_status():
         available = credentials.available()
         try:
-            configured = credentials.configured() if available else False
+            saved = credentials.status() if available else dict(configured=False, cert_path='')
         except Exception:
             raise HTTPException(503, '無法存取 Keychain，請解鎖 macOS 鑰匙圈後重試') from None
-        return dict(available=available and on_restart is not None, configured=configured,
+        return dict(available=available and on_restart is not None, **saved,
                     storage='macOS Keychain' if available else None, instance_id=broker.instance_id)
 
     def credential_binding(request):
