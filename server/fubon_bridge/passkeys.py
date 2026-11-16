@@ -136,17 +136,17 @@ class Passkeys:
         except Exception:
             raise PasskeyError("Passkey 註冊未通過驗證，請重試") from None
 
-    def authentication_options(self):
+    def authentication_options(self, *, purpose="authenticate", binding=""):
         saved = self.store.credential()
         if saved is None:
             raise PasskeyError("尚未設定 Passkey，請從啟動視窗註冊")
         options = generate_authentication_options(rp_id=RP_ID, timeout=120000,
             allow_credentials=[PublicKeyCredentialDescriptor(id=saved[0])],
             user_verification=UserVerificationRequirement.REQUIRED)
-        return dict(request_id=self._challenge("authenticate", options.challenge), public_key=json.loads(options_to_json(options)))
+        return dict(request_id=self._challenge(purpose, options.challenge, binding), public_key=json.loads(options_to_json(options)))
 
-    def authenticate(self, ident, credential):
-        challenge = self._consume(ident, "authenticate")
+    def authenticate(self, ident, credential, *, purpose="authenticate", binding=""):
+        challenge = self._consume(ident, purpose, binding)
         saved = self.store.credential()
         try:
             self._first_party(credential)
