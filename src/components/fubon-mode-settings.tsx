@@ -113,7 +113,7 @@ export function FubonModeSettings() {
     return <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}>
         <DialogTrigger asChild><Button size="compact" variant="outline">交易模式設定</Button></DialogTrigger>
         <DialogContent className={styles.dialog} showCloseButton={!busy} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onPointerDownOutside={event => { if (busy) event.preventDefault(); }}>
-            <DialogHeader><DialogTitle>交易模式設定</DialogTitle><DialogDescription>選擇行情來源與委託執行環境。</DialogDescription></DialogHeader>
+            <DialogHeader className={styles.header}><DialogTitle className={styles.title}>交易模式設定</DialogTitle><DialogDescription className={styles.description}>選擇行情來源與委託執行環境。</DialogDescription></DialogHeader>
             {settings ? <ModeSettingsForm current={settings} onBusy={setBusy} /> : error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : <p role="status">正在讀取設定…</p>}
         </DialogContent>
     </Dialog>;
