@@ -1,7 +1,7 @@
 // src/components/indicator-dialog.css.ts — TradingView-style indicator
 // picker dialog + per-instance settings modal.
 
-import { style, styleVariants } from '@vanilla-extract/css';
+import { globalStyle, style, styleVariants } from '@vanilla-extract/css';
 import { vars } from '../theme.css';
 
 const NARROW = 'screen and (max-width: 600px)';
@@ -49,6 +49,13 @@ export const header = style({
     color: vars.color.foreground,
 });
 
+export const pickerTabs = style({ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 });
+export const pickerTabList = style({ alignSelf: 'flex-start', margin: `0 ${vars.space.lg} ${vars.space.md}`,
+    '@media': { '(pointer: coarse)': { height: 44 } } });
+globalStyle(`${pickerTabList} [role="tab"]`, { '@media': { '(pointer: coarse)': { minHeight: 44 } } });
+export const pickerContent = style({ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, marginTop: 0,
+    selectors: { '&[data-state="inactive"]': { display: 'none' } } });
+
 export const closeBtn = style({
     display: 'inline-flex',
     alignItems: 'center',
@@ -59,6 +66,7 @@ export const closeBtn = style({
     padding: '4px',
     borderRadius: vars.radius.sm,
     ':hover': { color: vars.color.foreground, background: vars.color.muted },
+    '@media': { '(pointer: coarse)': { minWidth: 44, minHeight: 44 } },
 });
 
 export const searchWrap = style({
@@ -176,15 +184,16 @@ export const listHeader = style({
 export const row = style({
     display: 'flex',
     alignItems: 'center',
-    gap: '10px',
+    gap: '4px',
     width: '100%',
     textAlign: 'left',
-    cursor: 'pointer',
     background: 'transparent',
     border: 'none',
-    padding: `7px ${vars.space.lg}`,
+    padding: `2px ${vars.space.lg}`,
     ':hover': { background: vars.color.muted },
 });
+
+export const catalogAdd = style({ selectors: { '&&': { flex: 1, minWidth: 0, height: 'auto', minHeight: 44, justifyContent: 'flex-start', textAlign: 'left', gap: 10, padding: '5px 0' } } });
 
 export const maPresets = style({
     display: 'flex',
@@ -347,12 +356,14 @@ export const starBtn = styleVariants({
             color: vars.color.mutedForeground,
             padding: '3px',
             borderRadius: vars.radius.sm,
-            opacity: 0.35,
+            minWidth: 28,
+            minHeight: 28,
             flexShrink: 0,
             selectors: {
                 [`${row}:hover &`]: { opacity: 1 },
             },
             ':hover': { color: vars.color.amber },
+            '@media': { '(pointer: coarse)': { minWidth: 44, minHeight: 44 } },
         },
     ],
     active: [
@@ -364,8 +375,11 @@ export const starBtn = styleVariants({
             border: 'none',
             color: vars.color.amber,
             padding: '3px',
+            minWidth: 28,
+            minHeight: 28,
             borderRadius: vars.radius.sm,
             flexShrink: 0,
+            '@media': { '(pointer: coarse)': { minWidth: 44, minHeight: 44 } },
         },
     ],
 });
@@ -739,12 +753,13 @@ export const dangerBtn = style({
     fontSize: '0.72rem',
     fontWeight: 500,
     cursor: 'pointer',
-    background: 'transparent',
     border: 'none',
-    color: vars.color.danger,
     padding: '5px 8px',
     borderRadius: vars.radius.sm,
-    ':hover': { background: vars.color.muted },
+    selectors: {
+        // Keep white text readable on the dark theme's solid danger color.
+        '&[data-variant="destructive"]:hover': { filter: 'none' },
+    },
 });
 
 export const footerActions = style({
@@ -771,15 +786,8 @@ export const cancelBtn = style([
     },
 ]);
 
-export const okBtn = style([
-    actionBase,
-    {
-        background: vars.color.accent,
-        border: `1px solid ${vars.color.accent}`,
-        color: vars.color.onAccent,
-        ':hover': { opacity: 0.9 },
-    },
-]);
+// The shared primary Button owns its foreground/background pair in every theme.
+export const okBtn = actionBase;
 
 export const checkbox = style({
     accentColor: vars.color.accent,

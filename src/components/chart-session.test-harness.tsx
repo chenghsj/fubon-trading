@@ -3,6 +3,7 @@ import { vi } from 'vitest';
 
 export interface FakeSeries {
     kind: string;
+    pane?: number;
     setData: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     last: unknown[];
@@ -73,7 +74,12 @@ export function makeChart(): any {
         {
             get: (_t, p) => {
                 if (p === 'addSeries')
-                    return (type: { kind: string }) => makeSeries(type.kind);
+                    return (type: { kind: string }, options = {}, pane = 0) => {
+                        const series = makeSeries(type.kind);
+                        Object.assign(series.options, options);
+                        series.pane = pane;
+                        return series;
+                    };
                 if (p === 'subscribeCrosshairMove')
                     return (fn: (param: any) => void) => {
                         crosshairHandlers.push(fn);

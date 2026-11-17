@@ -30,8 +30,8 @@ describe.skipIf(!hasOverlay)('native bridge to real indicator host', () => {
         const { AppToolMutationIdempotency } = await import(storesPath);
         const { resolveApproval } = await import(approvalsPath);
         let workspace = initializeIndicatorPanels({ blocks: [
-            { id: 'chart-a', type: 'chart', pin: null, indicatorState: { revision: 'a0', instances: [] } },
-            { id: 'chart-b', type: 'chart', pin: null, indicatorState: { revision: 'b0', instances: [] } },
+            { id: 'chart-a', type: 'chart', pin: null, indicatorState: { schemaVersion: 2, revision: 'a0', instances: [] } },
+            { id: 'chart-b', type: 'chart', pin: null, indicatorState: { schemaVersion: 2, revision: 'b0', instances: [] } },
         ], layout: [] });
         const service = new IndicatorInstanceService({ getWorkspace: () => workspace,
             updateWorkspace: next => { workspace = next; } });
@@ -76,6 +76,6 @@ describe.skipIf(!hasOverlay)('native bridge to real indicator host', () => {
         // content confirmation would show an already-approved, blocked card.
         expect(new Set(approvals).size).toBe(approvals.length);
         expect(service.snapshot('chart-a').instances).toEqual([]);
-        expect(service.snapshot('chart-b')).toEqual({ revision: 'b0', instances: [] });
+        expect(service.snapshot('chart-b')).toEqual({ schemaVersion: 2, revision: 'b0', instances: [] });
     });
 });

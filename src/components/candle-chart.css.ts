@@ -257,6 +257,13 @@ export const chartHost = style({
     outline: 'none',
 });
 
+export const chartColumn = style({ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0, minHeight: 0 });
+export const chartReadouts = style({
+    display: 'flex', flexDirection: 'column', gap: 1, flexShrink: 0, minWidth: 0,
+    padding: '2px 6px', background: vars.color.panelRaised,
+    borderBottom: `1px solid ${vars.color.border}`,
+});
+
 // ---- indicator legend（TradingView 式，圖上左上角，一列一個實例）----
 
 const legendItemBase = style({
@@ -265,18 +272,20 @@ const legendItemBase = style({
     alignItems: 'center',
     gap: '6px',
     padding: '1px 4px 1px 6px',
-    background: 'color-mix(in srgb, ' + vars.color.panel + ' 72%, transparent)',
+    background: 'transparent',
     borderRadius: vars.radius.sm,
     fontFamily: vars.font.mono,
     fontSize: '0.62rem',
     fontVariantNumeric: 'tabular-nums',
-    width: 'fit-content',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
     pointerEvents: 'auto',
 });
 
 export const legendItem = styleVariants({
     normal: [legendItemBase],
-    hidden: [legendItemBase, { opacity: 0.45 }],
+    hidden: [legendItemBase],
 });
 
 export const legendLabel = style({
@@ -287,12 +296,24 @@ export const legendLabel = style({
     background: 'transparent',
     border: 'none',
     padding: 0,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '45%',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
     ':hover': { textDecoration: 'underline' },
 });
 
 export const legendVals = style({
     display: 'inline-flex',
+    flex: '1 1 auto',
     gap: '6px',
+    minWidth: 0,
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+    scrollbarWidth: 'thin',
+    ':focus-visible': { outline: `1px solid ${vars.color.accent}`, outlineOffset: -1 },
 });
 
 export const legendVal = style({
@@ -302,11 +323,8 @@ export const legendVal = style({
 export const legendCtrls = style({
     display: 'inline-flex',
     gap: '1px',
-    opacity: 0,
-    transition: 'opacity 0.12s',
-    selectors: {
-        [`${legendItemBase}:hover &`]: { opacity: 1 },
-    },
+    flexShrink: 0,
+    marginLeft: 'auto',
 });
 
 export const legendCtrlBtn = style({
@@ -319,16 +337,27 @@ export const legendCtrlBtn = style({
     padding: '1px 2px',
     borderRadius: vars.radius.sm,
     ':hover': { color: vars.color.foreground, background: vars.color.muted },
+    selectors: { '&&': { width: 24, height: 24, padding: 0 } },
+    '@media': { '(pointer: coarse)': { selectors: { '&&': { width: 44, height: 44 } } } },
 });
 
-// 副圖指標的 legend — 絕對定位到自己的 pane 左上角
+export const legendRemove = style({ color: vars.color.danger });
+
+// Each pane has an opaque header, with a matching inset in its price scale.
 export const paneLegend = style({
     position: 'absolute',
-    left: '8px',
+    left: 0,
+    right: 0,
+    display: 'flex',
+    alignItems: 'center',
+    padding: '0 6px',
+    background: vars.color.panelRaised,
+    borderBottom: `1px solid ${vars.color.border}`,
     zIndex: 5,
     fontFamily: vars.font.mono,
     fontSize: '0.64rem',
     fontVariantNumeric: 'tabular-nums',
+    selectors: { '&[data-collapsed="true"]': { overflow: 'hidden' } },
 });
 
 export const legendNote = style({
@@ -336,52 +365,6 @@ export const legendNote = style({
     fontSize: '0.58rem',
     color: vars.color.mutedForeground,
 });
-
-export const legendMenuBackdrop = style({
-    position: 'fixed',
-    inset: 0,
-    zIndex: 40,
-});
-
-export const legendMenu = style({
-    position: 'absolute',
-    top: 'calc(100% + 3px)',
-    left: 0,
-    zIndex: 41,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1px',
-    width: '11rem',
-    background: vars.color.panelRaised,
-    border: `1px solid ${vars.color.borderBright}`,
-    borderRadius: vars.radius.md,
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
-    padding: '4px',
-});
-
-const legendMenuItemBase = style({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '7px',
-    fontFamily: vars.font.body,
-    fontSize: '0.7rem',
-    textAlign: 'left',
-    cursor: 'pointer',
-    background: 'transparent',
-    border: 'none',
-    borderRadius: vars.radius.sm,
-    color: vars.color.foreground,
-    padding: '5px 8px',
-    ':hover': { background: vars.color.muted },
-    ':disabled': { opacity: 0.35, cursor: 'default' },
-});
-
-export const legendMenuItem = legendMenuItemBase;
-
-export const legendMenuItemDanger = style([
-    legendMenuItemBase,
-    { color: vars.color.danger },
-]);
 
 export const emptyMsg = style({
     position: 'absolute',
@@ -403,9 +386,9 @@ export const ohlcRow = style({
     columnGap: '8px',
     rowGap: '1px',
     padding: '1px 6px',
-    // 最大寬度由元件依圖表寬度給（讓開右側價格軸）；真的放不下才換行
+    // 資訊列獨立於 canvas，最大寬度依容器扣除左右留白。
     width: 'fit-content',
-    background: 'color-mix(in srgb, ' + vars.color.panel + ' 72%, transparent)',
+    background: 'transparent',
     borderRadius: vars.radius.sm,
     fontFamily: vars.font.mono,
     fontSize: '0.64rem',

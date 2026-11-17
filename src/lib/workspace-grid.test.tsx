@@ -31,7 +31,7 @@ afterEach(async () => {
     vi.unstubAllGlobals();
 });
 
-function createHarness(options: { width?: number; layout?: LayoutItem[] } = {}) {
+function createHarness(options: { width?: number; layout?: LayoutItem[]; preciseGrid?: boolean; scrollHost?: HTMLElement } = {}) {
     const geometryCheck = vi.spyOn(gridGeometry, 'sameGridGeometry');
     const stats = {
         writes: 0, mounts: 0, unmounts: 0,
@@ -45,6 +45,8 @@ function createHarness(options: { width?: number; layout?: LayoutItem[] } = {}) 
         metadata: () => {},
         stored: initial as LayoutItem[],
         blocks: [] as Workspace['blocks'],
+        ruler: undefined as ReturnType<typeof useWorkspaceGrid>['rulerProps'] | undefined,
+        preciseGrid: undefined as boolean | undefined,
     };
     function Panel() {
         useEffect(() => { stats.mounts++; return () => { stats.unmounts++; }; }, []);
@@ -55,11 +57,14 @@ function createHarness(options: { width?: number; layout?: LayoutItem[] } = {}) 
         const [workspace, setWorkspace] = useState<Workspace>(() => ({
             blocks: (options.layout ?? initial).map(item => ({ id: item.i, type: 'watchlist', pin: null })),
             layout: options.layout ?? initial,
+            ...(options.preciseGrid ? { preciseGrid: true } : {}),
         }));
         const pendingBounce = useRef<number | undefined>(undefined);
         const latest = useRef(workspace);
+        const scrollRef = useRef(options.scrollHost ?? null);
         latest.current = workspace;
         api.stored = workspace.layout;
+        api.preciseGrid = workspace.preciseGrid;
         api.blocks = workspace.blocks;
         api.width = setWidth;
         api.bounce = (next, back) => { pendingBounce.current = back; setWidth(next); };
@@ -85,7 +90,8 @@ function createHarness(options: { width?: number; layout?: LayoutItem[] } = {}) 
             latest.current = next;
             setWorkspace(next);
         }, []);
-        const { renderLayout, renderCols, renderWidth, gridProps } = useWorkspaceGrid({ workspace, workspaceRef: latest, width, updateWorkspace });
+        const { renderLayout, renderCols, renderWidth, gridProps, rulerProps } = useWorkspaceGrid({ workspace, workspaceRef: latest, width, updateWorkspace, scrollRef });
+        api.ruler = rulerProps;
         useEffect(() => {
             if (pendingBounce.current === undefined) return;
             const back = pendingBounce.current;
@@ -170,6 +176,136 @@ describe('RGL controlled-layout passive-effect feedback', () => {
     });
 });
 
+describe('workspace ruler gesture lifecycle', () => {
+    it('previews and saves a clustered junction as one gesture, and cancels atomically', async () => {
+        const layout: LayoutItem[] = [
+            { i: 'watch', x: 0, y: 0, w: 57, h: 25 },
+            { i: 'chart', x: 57, y: 0, w: 164, h: 11 },
+            { i: 'dock', x: 57, y: 11, w: 166, h: 9 },
+            { i: 'right', x: 224, y: 0, w: 64, h: 25 },
+        ];
+        const { api, stats } = await mountHarness({ width: 1666, layout, preciseGrid: true });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        await act(async () => { expect(api.ruler!.onStart('x', 55.625)).toBe(true); });
+        expect(api.ruler!.active!.positions).toEqual([55.25, 55.75, 56]);
+        await act(async () => api.ruler!.onMove(3));
+        expect(stats.writes).toBe(0);
+        await act(async () => api.ruler!.onStop(true));
+        expect(api.stored).toEqual(layout);
+        await act(async () => { api.ruler!.onStart('x', 55.625); api.ruler!.onMove(3); api.ruler!.onStop(); });
+        expect(stats.writes).toBe(1);
+        expect(api.stored).toMatchObject([{ w: 57 }, { w: 176 }, { w: 178 }, { x: 236, w: 52 }]);
+    });
+    it.each([[1280, 3], [1910, 2], [3000, 1], [4200, 1]])('fine ruler at width %i saves a real smaller column step of %i canonical units', async (width, units) => {
+        const { api, stats } = await mountHarness({ width });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        expect(stats.writes).toBe(0);
+        expect(api.ruler!.cols).toBe(72);
+        await act(async () => {
+            expect(api.ruler!.onStart('x', 18)).toBe(true);
+            api.ruler!.onMove(api.ruler!.steps.x);
+            api.ruler!.onStop();
+        });
+        expect(stats.writes).toBe(1);
+        expect(api.stored).toMatchObject([{ w: 72 + units }, { x: 72 + units, w: 216 - units }]);
+        expect(api.preciseGrid).toBe(true);
+        const stored = structuredClone(api.stored);
+        const geometry = view!.root.findByType(GridLayout).props.layout;
+        await act(async () => api.ruler!.onPrecisionChange('standard'));
+        expect(sameGridGeometry(view!.root.findByType(GridLayout).props.layout, geometry)).toBe(true);
+        for (const next of [320, 1280, 1910, 3000, 4200]) await act(async () => api.width(next));
+        expect(api.stored).toEqual(stored);
+        expect(stats.writes).toBe(1);
+        await act(async () => view!.unmount());
+        view = undefined;
+        const reloaded = await mountHarness({ width, layout: stored, preciseGrid: true });
+        expect(reloaded.api.stored).toEqual(stored);
+        expect(reloaded.stats.writes).toBe(0);
+        expect(sameGridGeometry(view!.root.findByType(GridLayout).props.layout, geometry)).toBe(true);
+    });
+    it('quarter-row edits survive standard mode, viewport changes and reload', async () => {
+        const rows = [initial[0]!, { ...initial[0]!, i: 'c', y: 8 }];
+        const { api, stats } = await mountHarness({ width: 1280, layout: rows });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        await act(async () => {
+            expect(api.ruler!.onStart('y', 8)).toBe(true);
+            api.ruler!.onMove(api.ruler!.steps.y);
+            api.ruler!.onStop();
+        });
+        expect(api.stored).toMatchObject([{ h: 8.25 }, { y: 8.25, h: 7.75 }]);
+        expect(stats.writes).toBe(1);
+        const stored = structuredClone(api.stored);
+        await act(async () => api.ruler!.onPrecisionChange('standard'));
+        await act(async () => api.width(1910));
+        expect(api.stored).toEqual(stored);
+        expect(stats.writes).toBe(1);
+        await act(async () => view!.unmount());
+        view = undefined;
+        const reloaded = await mountHarness({ width: 1910, layout: stored, preciseGrid: true });
+        expect(reloaded.api.stored).toEqual(stored);
+        expect(reloaded.stats.writes).toBe(0);
+    });
+    it('does not change precision or save settings during an active ruler drag', async () => {
+        const { api } = await mountHarness();
+        await act(async () => { api.ruler!.onStart('x', 12); });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        expect(api.ruler!.precision).toBe('standard');
+        await act(async () => api.ruler!.onStop(true));
+    });
+    it('previews both sides, writes once on release, and keeps newer panel settings', async () => {
+        const { api, stats } = await mountHarness();
+        const mounts = stats.mounts;
+        await act(async () => { expect(api.ruler!.onStart('x', 12)).toBe(true); });
+        await act(async () => api.ruler!.onMove(3));
+        expect(stats.writes).toBe(0);
+        expect(api.stored).toEqual(initial);
+        expect(view!.root.findByType(GridLayout).props.layout).toMatchObject([{ w: 15 }, { x: 15, w: 33 }]);
+        await act(async () => api.metadata());
+        await act(async () => api.ruler!.onStop());
+        expect(stats.writes).toBe(1);
+        expect(api.stored).toMatchObject([{ x: 0, w: 90 }, { x: 90, w: 198 }]);
+        expect(api.blocks.every(block => block.pin === '2330')).toBe(true);
+        expect(stats.mounts).toBe(mounts);
+    });
+    it('cancel restores the preview without saving', async () => {
+        const { api, stats } = await mountHarness();
+        await act(async () => { api.ruler!.onStart('x', 12); });
+        await act(async () => api.ruler!.onMove(3));
+        await act(async () => api.ruler!.onStop(true));
+        expect(stats.writes).toBe(0);
+        expect(api.stored).toEqual(initial);
+        expect(view!.root.findByType(GridLayout).props.layout).toMatchObject([{ w: 12 }, { x: 12, w: 36 }]);
+    });
+    it('locks density through a viewport change and supports a synchronous keyboard step', async () => {
+        const { api, stats } = await mountHarness();
+        await act(async () => { api.ruler!.onStart('x', 12); });
+        await act(async () => api.width(1500));
+        expect(api.ruler!.cols).toBe(48);
+        await act(async () => api.ruler!.onMove(2));
+        await act(async () => api.ruler!.onStop());
+        expect(api.stored).toMatchObject([{ w: 84 }, { x: 84, w: 204 }]);
+        expect(api.ruler!.cols).toBe(24);
+        await act(async () => {
+            expect(api.ruler!.onStart('x', 7)).toBe(true);
+            api.ruler!.onMove(1);
+            api.ruler!.onStop();
+        });
+        expect(stats.writes).toBe(2);
+        expect(api.stored).toMatchObject([{ w: 96 }, { x: 96, w: 192 }]);
+    });
+    it('a replaced layout revokes the gesture and narrow displays cannot start one', async () => {
+        const { api, stats } = await mountHarness();
+        await act(async () => { api.ruler!.onStart('x', 12); });
+        const replacement = initial.map(item => ({ ...item, h: 10 }));
+        await act(async () => api.replace(replacement));
+        await act(async () => { api.ruler!.onMove(3); api.ruler!.onStop(); });
+        expect(api.stored).toEqual(replacement);
+        expect(stats.writes).toBe(0);
+        await act(async () => api.width(390));
+        await act(async () => { expect(api.ruler!.onStart('x', 6)).toBe(false); });
+    });
+});
+
 describe('gesture coordinate epoch', () => {
     const item = (id = 'a') => view!.root.findAllByType(GridItem).find(row => row.props.i === id)!;
     const grid = () => view!.root.findByType(GridLayout).props;
@@ -181,6 +317,150 @@ describe('gesture coordinate epoch', () => {
     };
     const physicalNode = { ...node, offsetParent: { scrollLeft: 0, scrollTop: 0, getBoundingClientRect: () => ({ left: 0, top: 0 }) },
         getBoundingClientRect: () => ({ left: 6, top: 6 }) };
+
+    it('physical panel resize reaches a fractional neighbor without pushing it down', async () => {
+        const layout = [{ i: 'a', x: 0, y: 0, w: 152, h: 8 }, { i: 'b', x: 153, y: 0, w: 135, h: 8 }];
+        const { api, stats } = await mountHarness({ width: 1666, layout, preciseGrid: true });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        const event = (clientX: number) => ({ nativeEvent: { clientX, clientY: 0,
+            target: { closest: () => ({ className: 'react-resizable-handle react-resizable-handle-e' }) } } });
+        await act(async () => resizable().props.onResizeStart(event(0), { node: physicalNode, size: position(38, 8), handle: 'e' }));
+        await act(async () => resizable().props.onResize(event(23), { node: physicalNode, size: position(39, 8), handle: 'e' }));
+        expect(item('b').props).toMatchObject({ x: 38.25, y: 0 });
+        expect(item().props.w).toBe(38.25);
+        expect(stats.writes).toBe(0);
+        await act(async () => resizable().props.onResizeStop(event(23), { node: physicalNode, size: position(39, 8), handle: 'e' }));
+        expect(api.stored).toMatchObject([{ w: 153, h: 8 }, { x: 153, y: 0, w: 135 }]);
+        expect(stats.writes).toBe(1);
+    });
+
+    it.each(['s', 'se'] as const)('physical %s resize grows downward and moves only the cards below it', async handle => {
+        const layout = [
+            { i: 'a', x: 0, y: 0, w: 144, h: 8.25 },
+            { i: 'b', x: 144, y: 0, w: 144, h: 20 },
+            { i: 'c', x: 0, y: 8.25, w: 144, h: 4 },
+            { i: 'd', x: 0, y: 12.25, w: 144, h: 4 },
+        ];
+        const { api, stats } = await mountHarness({ width: 1666, layout, preciseGrid: true });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        const event = (clientY: number) => ({ nativeEvent: { clientX: 100, clientY,
+            target: { closest: () => ({ className: `react-resizable-handle react-resizable-handle-${handle}` }) } } });
+        const before = position(36, 8.25);
+        const after = position(36, 10.5);
+        await act(async () => resizable().props.onResizeStart(event(100), { node: physicalNode, size: before, handle }));
+        await act(async () => resizable().props.onResize(event(181), { node: physicalNode, size: after, handle }));
+        expect(item().props.h).toBe(10.5);
+        expect(item('b').props).toMatchObject({ x: 36, y: 0, w: 36, h: 20 });
+        expect(item('c').props.y).toBe(10.5);
+        expect(item('d').props.y).toBe(14.5);
+        expect(stats.writes).toBe(0);
+        await act(async () => resizable().props.onResizeStop(event(181), { node: physicalNode, size: after, handle }));
+        expect(api.stored).toMatchObject([{ w: 144, h: 10.5 }, { x: 144, y: 0, h: 20 }, { y: 10.5 }, { y: 14.5 }]);
+        expect(stats.writes).toBe(1);
+    });
+
+    it('includes workspace scrolling in the native resize and restores scroll anchoring on release', async () => {
+        const style = new Map([['overflow-anchor', 'auto']]);
+        const listeners = new Map<string, EventListener>();
+        const viewport = {
+            requestAnimationFrame: () => 1, cancelAnimationFrame: vi.fn(),
+            addEventListener: (type: string, listener: EventListener) => listeners.set(type, listener),
+            removeEventListener: (type: string) => listeners.delete(type),
+        };
+        vi.stubGlobal('window', viewport);
+        const host = { scrollTop: 100, style: {
+            getPropertyValue: (key: string) => style.get(key), getPropertyPriority: () => '',
+            setProperty: (key: string, value: string) => style.set(key, value), removeProperty: (key: string) => style.delete(key),
+        }, ownerDocument: { defaultView: viewport, addEventListener() {}, removeEventListener() {} } };
+        const { api, stats } = await mountHarness({ width: 1666, preciseGrid: true, scrollHost: host as unknown as HTMLElement,
+            layout: [{ i: 'a', x: 0, y: 0, w: 147, h: 8.25 }] });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        const event = { nativeEvent: { clientX: 100, clientY: 600, preventDefault: vi.fn(),
+            target: { closest: () => ({ className: 'react-resizable-handle react-resizable-handle-s' }) } } };
+        const start = position(36.75, 8.25);
+        await act(async () => resizable().props.onResizeStart(event, { node: physicalNode, size: start, handle: 's' }));
+        expect(style.get('overflow-anchor')).toBe('none');
+        expect(event.nativeEvent.preventDefault).toHaveBeenCalledOnce();
+        host.scrollTop += 108;
+        await act(async () => resizable().props.onResize(event, { node: physicalNode, size: start, handle: 's' }));
+        expect(item().props).toMatchObject({ w: 36.75, h: 11.25 });
+        expect(stats.writes).toBe(0);
+        await act(async () => resizable().props.onResizeStop(event, { node: physicalNode, size: start, handle: 's' }));
+        expect(api.stored[0]).toMatchObject({ w: 147, h: 11.25 });
+        expect(stats.writes).toBe(1);
+        expect(style.get('overflow-anchor')).toBe('auto');
+        expect(listeners.size).toBe(0);
+        expect(viewport.cancelAnimationFrame).toHaveBeenCalled();
+    });
+
+    it('tracks native moves when RGL omits the nativeEvent in its resize callback', async () => {
+        const listeners = new Map<string, (event: Event) => void>();
+        vi.stubGlobal('window', { requestAnimationFrame: () => 1, cancelAnimationFrame() {},
+            addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+            removeEventListener: (type: string) => listeners.delete(type) });
+        const { api } = await mountHarness({ width: 1666, preciseGrid: true,
+            layout: [{ i: 'a', x: 0, y: 0, w: 152, h: 8 }, { i: 'b', x: 153, y: 0, w: 135, h: 8 }] });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        const event = { nativeEvent: { clientX: 100, clientY: 100,
+            target: { closest: () => ({ className: 'react-resizable-handle react-resizable-handle-e' }) } } };
+        await act(async () => resizable().props.onResizeStart(event, { node: physicalNode, size: position(38, 8), handle: 'e' }));
+        expect(listeners.has('mousemove')).toBe(true);
+        await act(async () => {
+            listeners.get('mousemove')!({ clientX: 123, clientY: 100 } as MouseEvent);
+            // react-resizable delivers a native event, without a nativeEvent property.
+            resizable().props.onResize({}, { node: physicalNode, size: position(39, 8), handle: 'e' });
+        });
+        expect(item().props.w).toBe(38.25);
+        expect(item('b').props.y).toBe(0);
+        await act(async () => resizable().props.onResizeStop({}, { node: physicalNode, size: position(39, 8), handle: 'e' }));
+        expect(api.stored[0]!.w).toBe(153);
+        expect(listeners.has('mousemove')).toBe(false);
+        expect(listeners.has('touchmove')).toBe(false);
+    });
+
+    it('recovers the native touchstart RGL omits before a precise bottom resize', async () => {
+        const { api } = await mountHarness({ width: 1666, preciseGrid: true,
+            layout: [{ i: 'a', x: 0, y: 0, w: 147, h: 8.25 }] });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        const listeners = new Map<string, (event: Event) => void>();
+        grid().innerRef({
+            addEventListener: (type: string, listener: (event: Event) => void) => listeners.set(type, listener),
+            removeEventListener: (type: string) => listeners.delete(type),
+        });
+        const handle = { ...physicalNode, className: 'react-resizable-handle react-resizable-handle-s' };
+        const event = (clientY: number) => ({ touches: [{ clientX: 100, clientY }], changedTouches: [],
+            target: { closest: () => handle }, preventDefault: vi.fn() });
+        const start = event(600);
+        listeners.get('touchstart')!(start as unknown as TouchEvent);
+        await act(async () => resizable().props.onResizeStart({}, { node: handle, size: position(36.75, 8.25), handle: 's' }));
+        expect(start.preventDefault).toHaveBeenCalledOnce();
+        await act(async () => resizable().props.onResize({ nativeEvent: event(609) }, { node: handle, size: position(36.75, 8.5), handle: 's' }));
+        expect(item().props).toMatchObject({ w: 36.75, h: 8.5 });
+        await act(async () => resizable().props.onResizeStop({}, { node: handle, size: position(36.75, 8.5), handle: 's' }));
+        expect(api.stored[0]).toMatchObject({ w: 147, h: 8.5 });
+        grid().innerRef(null);
+        expect(listeners.size).toBe(0);
+    });
+
+    it.each(['e', 's', 'se'] as const)('physical %s resize uses fine pointer deltas and preserves the stationary fractional axis', async handle => {
+        const { api, stats } = await mountHarness({ width: 1666, preciseGrid: true,
+            layout: [{ i: 'a', x: 57, y: 0, w: 165, h: 8.25 }] });
+        await act(async () => api.ruler!.onPrecisionChange('finest'));
+        const event = (clientX: number, clientY: number) => ({ nativeEvent: { clientX, clientY,
+            target: { closest: () => ({ className: `react-resizable-handle react-resizable-handle-${handle}` }) } } });
+        const before = position(41.25, 8.25);
+        const stepX = (1666 - 6) / 72;
+        const after = { ...before, width: before.width + stepX * 0.75, height: before.height + 9 };
+        await act(async () => resizable().props.onResizeStart(event(100, 100), { node: physicalNode, size: before, handle }));
+        await act(async () => api.width(1900));
+        await act(async () => api.ruler!.onPrecisionChange('standard')); // The gesture retains its original fine step.
+        await act(async () => resizable().props.onResize(event(100 + stepX * 0.75, 109), { node: physicalNode, size: after, handle }));
+        expect(item().props).toMatchObject({ w: handle === 's' ? 41.25 : 42, h: handle === 'e' ? 8.25 : 8.5 });
+        expect(stats.writes).toBe(0);
+        await act(async () => resizable().props.onResizeStop(event(100 + stepX * 0.75, 109), { node: physicalNode, size: after, handle }));
+        expect(api.stored[0]).toMatchObject({ x: 57, w: handle === 's' ? 165 : 168, h: handle === 'e' ? 8.25 : 8.5 });
+        expect(stats.writes).toBe(1);
+    });
 
     it.each([[1910, 640], [640, 1910], [1910, 320]])('physical drag callbacks %i → %i keep the coordinate epoch through stop', async (start, next) => {
         const { api, stats } = await mountHarness({ width: start });

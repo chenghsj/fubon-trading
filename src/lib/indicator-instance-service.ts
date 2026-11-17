@@ -1,7 +1,8 @@
-import { DEF_BY_TYPE, loadInstances, newInstance, type IndicatorInstance } from './indicator-defs';
+import { DEF_BY_TYPE, loadInstances, newInstance, withDefaultVolume, type IndicatorInstance } from './indicator-defs';
 import type { Workspace } from './workspace';
 
 export interface IndicatorPanelState {
+    schemaVersion?: 2;
     revision: string;
     instances: IndicatorInstance[];
 }
@@ -18,10 +19,11 @@ export function initializeIndicatorPanels(workspace: Workspace): Workspace {
     const blocks = workspace.blocks.map(block => {
         if (block.type !== 'chart') return block;
         const old = block.indicatorState;
-        const instances = old ? old.instances.filter(i => DEF_BY_TYPE.has(i.type)) : copy(loadInstances());
-        if (old && instances.length === old.instances.length) return block;
+        const known = old?.instances.filter(i => DEF_BY_TYPE.has(i.type));
+        const instances = old ? old.schemaVersion === 2 ? known! : withDefaultVolume(known!) : copy(loadInstances());
+        if (old?.schemaVersion === 2 && instances.length === old.instances.length) return block;
         changed = true;
-        return { ...block, indicatorState: { revision: crypto.randomUUID(), instances } };
+        return { ...block, indicatorState: { schemaVersion: 2 as const, revision: crypto.randomUUID(), instances } };
     });
     return changed ? { ...workspace, blocks } : workspace;
 }
@@ -45,7 +47,7 @@ export class IndicatorInstanceService {
             const instances = state.instances.filter(i => DEF_BY_TYPE.has(i.type));
             if (instances.length === state.instances.length) return block;
             changed = true;
-            return { ...block, indicatorState: { revision: crypto.randomUUID(), instances } };
+            return { ...block, indicatorState: { ...state, revision: crypto.randomUUID(), instances } };
         });
         if (changed) { this.context.updateWorkspace({ ...workspace, blocks }); this.notify(); }
     }
@@ -73,12 +75,14 @@ export class IndicatorInstanceService {
         if (!current.revision || current.revision !== expectedRevision) {
             throw new IndicatorControlError('conflict', 'Indicator settings changed. Read the panel again before editing.');
         }
-        if (instances.length > 100) throw new IndicatorControlError('invalid_arguments', 'At most 100 indicator instances per panel');
+        // A legacy 100-item panel gains its formerly implicit volume once.
+        // Keep that panel editable while still preventing further growth.
+        if (instances.length > 100 && instances.length > current.instances.length) throw new IndicatorControlError('invalid_arguments', 'At most 100 indicator instances per panel');
         for (const instance of instances) {
             const previous = current.instances.find(i => i.id === instance.id);
             if (!previous || previous.type !== instance.type || JSON.stringify(previous.params) !== JSON.stringify(instance.params)) this.parameters(instance.type, instance.params);
         }
-        const state = { revision: crypto.randomUUID(), instances: copy(instances) };
+        const state: IndicatorPanelState = { schemaVersion: 2, revision: crypto.randomUUID(), instances: copy(instances) };
         this.context.updateWorkspace({ ...workspace, blocks: workspace.blocks.map(b => b.id === id ? { ...b, indicatorState: state } : b) });
         this.notify();
         return state;

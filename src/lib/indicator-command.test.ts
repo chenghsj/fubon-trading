@@ -3,7 +3,8 @@ import { executeIndicatorCommand, INDICATOR_REQUEST_EVENT, INDICATOR_RESPONSE_EV
 import { IndicatorInstanceService, initializeIndicatorPanels } from './indicator-instance-service';
 
 function setup() {
-    let workspace = initializeIndicatorPanels({ blocks: [{ id: 'a', type: 'chart', pin: null }], layout: [] });
+    let workspace = initializeIndicatorPanels({ blocks: [{ id: 'a', type: 'chart', pin: null,
+        indicatorState: { schemaVersion: 2, revision: 'a0', instances: [] } }], layout: [] });
     const service = new IndicatorInstanceService({ getWorkspace: () => workspace, updateWorkspace: next => { workspace = next; } });
     const unmount = service.registerPanel('a');
     service.focus('a');

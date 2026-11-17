@@ -1,5 +1,5 @@
 // src/lib/chart-indicators.ts — 把使用者目前的指標設定（與主圖同一份
-// sj-pro-indicators-v2）渲染到任意 lightweight-charts 實例上。
+// sj-pro-indicators-v3）渲染到任意 lightweight-charts 實例上。
 // 回測面板的進出場 K 線用它取得與主圖一致的指標畫面；呼叫端整個
 // chart 重建時序列一起銷毀，不需要個別清理。
 
@@ -48,6 +48,7 @@ export function renderIndicatorSeries(
         ) as SeriesDataItemTypeMap['Line'][];
 
     let paneIdx = 1;
+    const candleByTime = new Map(bars.map(bar => [bar.time, bar]));
     for (const inst of loadInstances()) {
         const def = DEF_BY_TYPE.get(inst.type);
         if (!def) continue;
@@ -75,7 +76,7 @@ export function renderIndicatorSeries(
                           minMove: Math.pow(10, -inst.precision),
                       },
                   }
-                : {};
+                : inst.type === 'volume' ? { priceFormat: { type: 'volume' as const } } : {};
         const quiet = { priceLineVisible: false, lastValueVisible: false };
         for (const o of def.outputs) {
             const pts = out[o.key];
@@ -99,7 +100,11 @@ export function renderIndicatorSeries(
                         .map((p) => ({
                             time: p.time as UTCTimestamp,
                             value: p.value!,
-                            color: o.signed
+                            color: o.colorByCandle && !(inst.styles?.[o.key]?.color ?? inst.colors[o.key])
+                                ? candleByTime.get(p.time)!.close >= candleByTime.get(p.time)!.open
+                                    ? colorWithOpacity(colors.up, st.opacity * 0.42)
+                                    : colorWithOpacity(colors.down, st.opacity * 0.4)
+                                : o.signed
                                 ? p.value! >= 0
                                     ? colors.upVol
                                     : colors.downVol

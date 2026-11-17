@@ -11,6 +11,8 @@ import GridLayout, {
 import 'react-grid-layout/css/styles.css';
 import { bottom } from 'react-grid-layout/core';
 import { useWorkspaceGrid } from './hooks/use-workspace-grid';
+import { WorkspaceRulers } from './components/workspace-rulers';
+import { GRID_GAP, GRID_ROW_HEIGHT, gridRowStep } from './lib/workspace-ruler';
 import * as styles from './App.css';
 import { BottomDock } from './components/bottom-dock';
 import { AsyncStatus, type AsyncPhase } from './components/async-status';
@@ -1015,7 +1017,12 @@ function MainApp() {
         isAgentHarnessEnabled,
     );
     const cachedSelected = useContract(selected?.code ?? null);
-    const [workspace, setWorkspace] = useState<Workspace>(() => initializeIndicatorPanels(loadWorkspace()));
+    const [workspace, setWorkspace] = useState<Workspace>(() => {
+        const stored = loadWorkspace();
+        const initialized = initializeIndicatorPanels(stored);
+        if (initialized !== stored) saveWorkspace(initialized);
+        return initialized;
+    });
     const [profiles, setProfiles] = useState<Profile[]>(loadProfiles);
     // 較新版本存的版面降版讀到：未知面板已在讀入時略過（資料仍保留），提示一次
     useEffect(() => {
@@ -1037,6 +1044,7 @@ function MainApp() {
     const itemsRef = useRef(items);
     itemsRef.current = items;
     const { width, containerRef, mounted } = useContainerWidth();
+    const workspaceScrollRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (mounted) markWorkspaceVisible();
@@ -1239,8 +1247,8 @@ function MainApp() {
     // 儲存基準 288 欄；渲染依視窗寬選密度 k（cols=24k，每欄 ~40–55px）：
     // 欄寬與最小寬不再跟著螢幕等比放大，超寬幕上面板可以縮得更窄、
     // 拖拉步進更細。k 皆整除 12 → 同密度回存無損；跨密度僅一次舍入。
-    const { renderLayout, renderCols, renderWidth, density, gridProps } = useWorkspaceGrid({
-        workspace, workspaceRef, width, updateWorkspace,
+    const { renderLayout, renderCols, renderWidth, density, gridProps, rulerProps } = useWorkspaceGrid({
+        workspace, workspaceRef, width, updateWorkspace, scrollRef: workspaceScrollRef,
     });
     const densityRef = useRef(density);
     densityRef.current = density;
@@ -1620,9 +1628,9 @@ function MainApp() {
                 workspaceHistory,
                 getGridDensity: () => densityRef.current,
                 getViewportRows: () => {
-                    // rowHeight 30 + margin 6, containerPadding 6
-                    const height = containerRef.current?.clientHeight ?? 0;
-                    return height > 0 ? Math.max(1, Math.floor((height - 6) / 36)) : null;
+                    // Measure the visible scroll viewport, excluding the sticky ruler.
+                    const height = (workspaceScrollRef.current?.clientHeight ?? 0) - (containerRef.current?.offsetTop ?? 0);
+                    return height > 0 ? Math.max(1, Math.floor((height - GRID_GAP) / gridRowStep)) : null;
                 },
                 onWorkspaceSpecChange: ({ kind, entry }) => {
                     trackActivity(
@@ -1763,16 +1771,17 @@ function MainApp() {
                 selectedCode={selected?.code}
             />
 
-            <div className={grid.gridWrap} ref={containerRef}>
+            <div className={grid.gridWrap} ref={workspaceScrollRef}>
+                <WorkspaceRulers {...rulerProps} containerRef={containerRef}>
                 {mounted && (
                     <GridLayout
                         layout={renderLayout}
                         width={renderWidth}
                         gridConfig={{
                             cols: renderCols,
-                            rowHeight: 30,
-                            margin: [6, 6],
-                            containerPadding: [6, 6],
+                            rowHeight: GRID_ROW_HEIGHT,
+                            margin: [GRID_GAP, GRID_GAP],
+                            containerPadding: [GRID_GAP, GRID_GAP],
                         }}
                         {...gridProps}
                     >
@@ -1817,6 +1826,7 @@ function MainApp() {
                         ))}
                     </GridLayout>
                 )}
+                </WorkspaceRulers>
             </div>
             </IndicatorInstanceContext.Provider>
         </div>

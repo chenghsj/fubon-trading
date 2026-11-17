@@ -118,6 +118,7 @@ vi.mock('lightweight-charts', async () => {
         const inner = h.makeChart();
         return new Proxy({}, { get: (_t, p) => {
             if (p === 'subscribeClick') return (cb: (p: unknown) => void) => { m.click.push(cb); };
+            if (p === 'paneSize') return () => ({ width: m.paneRect.right - m.paneRect.left, height: m.paneRect.bottom - m.paneRect.top });
             if (p === 'panes') return () => [new Proxy(inner.panes()[0], { get: (t, q) =>
                 q === 'getHTMLElement' ? () => ({ getBoundingClientRect: () => m.paneRect }) : t[q] })];
             if (p === 'addSeries') return (type: { kind: string }) => {
@@ -234,6 +235,16 @@ it('#249 a 409 OrderOutcomeUnknown shows 結果不確定 (never 失敗) and is n
     expect(notice.title).toBe('圖表下單結果不確定');
     expect(notice.title + notice.body).not.toContain('失敗');
     expect(notice.body).toContain('請勿重新下單');
+});
+
+it('clicks in a volume or oscillator pane do not dispatch a main-chart order', async () => {
+    await mount({ contract: stk });
+    await act(async () => { button(view.root, '點價買').props.onClick(); });
+    await act(async () => { m.click.at(-1)!({ paneIndex: 1, point: { x: 10, y: 10 } }); });
+    expect(m.place).not.toHaveBeenCalled();
+    expect(m.addTrigger).not.toHaveBeenCalled();
+    await clickChart(); // The tool remains armed for a real main-pane click.
+    expect(m.place).toHaveBeenCalledOnce();
 });
 
 it.each(['symbol', 'switch back', 'unit', 'account', 'unmount'])(
@@ -417,6 +428,17 @@ describe('chart order settings button', () => {
         m.paneRect = { left: 0, top: 0, right: 800, bottom: 300 };
         await drag.start();
         await act(async () => { drag.documentEvents.dispatchEvent(drag.mouse('mouseup', 350)); });
+        expect(m.updatePrice).not.toHaveBeenCalled();
+        expect(drag.line.options().price).toBe(100);
+    });
+
+    it('cannot start dragging an extrapolated order line from a subpane', async () => {
+        const drag = await orderDrag();
+        m.paneRect = { left: 0, top: 0, right: 800, bottom: 90 };
+        await act(async () => { m.dragHost!.dispatchEvent(drag.mouse('mousemove', 100)); });
+        expect(m.hostNode!.style.cursor).not.toBe('ns-resize');
+        await act(async () => { m.dragHost!.dispatchEvent(drag.mouse('mousedown', 100)); });
+        await act(async () => { drag.documentEvents.dispatchEvent(drag.mouse('mouseup', 80)); });
         expect(m.updatePrice).not.toHaveBeenCalled();
         expect(drag.line.options().price).toBe(100);
     });

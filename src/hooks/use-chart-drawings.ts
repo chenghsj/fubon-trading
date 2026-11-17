@@ -814,6 +814,11 @@ export function useChartDrawings(opts: {
         const onOverlay = (e: Event) =>
             !!(e.target as HTMLElement | null)?.closest?.('[data-drawing-overlay]');
 
+        const insidePane = (layer: DrawingLayer, pt: Point) => {
+            const { width, height } = layer.paneSize;
+            return pt.x >= 0 && pt.y >= 0 && pt.x <= width && pt.y <= height;
+        };
+
         const setChartInteractive = (on: boolean) =>
             chartRef.current?.applyOptions({ handleScroll: on, handleScale: on });
 
@@ -892,6 +897,10 @@ export function useChartDrawings(opts: {
 
         const down = (e: MouseEvent) => {
             if (e.button !== 0 || onOverlay(e)) return;
+            const layer = layerOf();
+            const pt = layer?.pointOf(e);
+            const projector = layer?.projector();
+            if (!layer || !pt || !projector || !insidePane(layer, pt)) return;
             beginOperation();
             claimKeyboard(token);
             cancelDragRef.current?.();
@@ -901,10 +910,6 @@ export function useChartDrawings(opts: {
             focusHost();
             // 委託線拖曳（同一個 host 上先註冊的 handler）已經吃掉這一下
             if (e.defaultPrevented) return;
-            const layer = layerOf();
-            const pt = layer?.pointOf(e);
-            const projector = layer?.projector();
-            if (!layer || !pt || !projector) return;
             const armed = stateRef.current.tool;
             if (armed && toolContextRef.current !== stateRef.current.contextKey) {
                 cancelInteractionsRef.current();
@@ -1113,7 +1118,7 @@ export function useChartDrawings(opts: {
             const layer = layerOf();
             const pt = layer?.pointOf(e);
             const projector = layer?.projector();
-            if (!layer || !pt || !projector) return;
+            if (!layer || !pt || !projector || !insidePane(layer, pt)) return;
             const picked = pick(projector, pt);
             if (picked?.drawing.tool !== 'text' || picked.drawing.locked) return;
             enterDrawingMode();
@@ -1155,6 +1160,7 @@ export function useChartDrawings(opts: {
             const pt = layer?.pointOf(e);
             const projector = layer?.projector();
             if (!layer || !pt || !projector) return;
+            if (!insidePane(layer, pt)) { resetHoverCursor(); return; }
             if (measureLive && m) {
                 const b = anchorAt(projector, pt, 'measure');
                 if (b) setMeasure(m.a, b);

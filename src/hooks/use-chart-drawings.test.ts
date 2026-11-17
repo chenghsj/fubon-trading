@@ -1414,6 +1414,30 @@ describe('第一期：多選、平行通道、量測、文字、復原、快捷�
         await act(async () => docL.get('mouseup')?.(ev(x, y)));
     };
 
+    it.each(['horizontal', 'text', 'measure'] as const)('副圖點擊不啟動畫圖 %s，工具仍可在主圖使用', async tool => {
+        const api = await setup();
+        await act(async () => api().setTool(tool));
+        const sequence = api().interactionSequence();
+        await down(50, 450); // The main pane ends at y=400.
+        expect(api().interactionSequence()).toBe(sequence);
+        expect(getDrawings('TXF')).toEqual([]);
+        await down(50, 200);
+        expect(api().interactionSequence()).toBeGreaterThan(sequence);
+    });
+
+    it('副圖 hover／點擊不移動或完成主圖的趨勢線草稿', async () => {
+        const api = await setup();
+        await act(async () => api().setTool('trend'));
+        await down(50, 200);
+        const draft = structuredClone(layer!.state.draft);
+        await act(async () => hostL.get('mousemove')!(ev(100, 450)));
+        await down(100, 450);
+        expect(layer!.state.draft).toEqual(draft);
+        expect(getDrawings('TXF')).toEqual([]);
+        await down(100, 150);
+        expect(getDrawings('TXF')).toHaveLength(1);
+    });
+
     it.each(['draft', 'drag', 'text', 'measure'] as const)('下單防線在沒有選取時仍辨識畫圖 %s，取消後才解除', async (interaction) => {
         const api = await setup();
         if (interaction === 'drag') {

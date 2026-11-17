@@ -38,6 +38,7 @@ vi.mock('../lib/chart-history', () => ({
 }));
 
 import { CandleChart } from './candle-chart';
+import { newInstance, saveInstances } from '../lib/indicator-defs';
 
 const fut = { code: 'TXFR1', security_type: 'FUT', exchange: 'TAIFEX', target_code: 'TXFJ6', tick: 1 } as any;
 const stk = { code: '2330', security_type: 'STK', exchange: 'TSE', target_code: null } as any;
@@ -103,6 +104,80 @@ afterEach(() => {
 });
 
 describe('CandleChart K 棒讀值（#240）', () => {
+    it('puts OHLC and MA above the canvas and renders volume only as a managed subpane', async () => {
+        setNow('2026-10-08T09:16:00');
+        fetchMock.mockResolvedValue(DATA);
+        const r = mount({ contract: fut });
+        await flush();
+        const readouts = r.root.findByProps({ 'data-chart-readouts': 'main' });
+        const canvas = r.root.findByProps({ 'data-chart-canvas': 'true' });
+        expect(readouts.findAll(node => node.props['data-ohlc'] === 'row')).toHaveLength(1);
+        expect(canvas.findAll(node => node.props['data-ohlc'] === 'row')).toHaveLength(0);
+        expect(field(r, 'volume')).toBeUndefined();
+        expect(created.filter(series => series.kind === 'Histogram').every(series => series.pane! > 0)).toBe(true);
+        expect(created.filter(series => series.kind === 'Histogram').at(-1)!.options.priceFormat).toEqual({ type: 'volume' });
+    });
+
+    it('volume follows the hovered candle and remains hidden when explicitly disabled', async () => {
+        setNow('2026-10-08T09:16:00');
+        const data = { ...DATA, Volume: DATA.Volume.map((_, i) => i + 1) };
+        fetchMock.mockResolvedValue(data);
+        const volume = newInstance('volume');
+        saveInstances([volume]);
+        const r = mount({ contract: fut });
+        await flush();
+        const value = () => r.root.findAll(node => node.type === 'span' && node.props['data-indicator-output'] === '成交量')[0];
+        expect(text(value())).toBe('65');
+        const bars = created.filter(series => series.kind === 'Candlestick').at(-1)!.last as any[];
+        await move(bars[0].time);
+        expect(text(value())).toBe('15');
+        await move(undefined);
+        expect(text(value())).toBe('65');
+        const row = r.root.findAll(node => node.type === 'div' && node.props['data-indicator-id'] === volume.id)[0]!;
+        await act(async () => row.findAll(node => node.type === 'button' && node.props.title === '隱藏')[0]!.props.onClick());
+        expect(value()).toBeUndefined();
+    });
+    it('groups MA periods in one compact row and follows the hovered bar without warmup lookahead', async () => {
+        setNow('2026-10-08T09:16:00');
+        fetchMock.mockResolvedValue(DATA);
+        const ma = newInstance('sma');
+        ma.params.period = 2;
+        saveInstances([ma]);
+        const r = mount({ contract: fut });
+        await flush();
+        const values = () => r.root.findAll(node => node.type === 'button' && node.props['data-ma-period'] === 2);
+        expect(r.root.findAll(node => node.type === 'div' && node.props['data-ma-legend'] === 'row')).toHaveLength(1);
+        expect(values()).toHaveLength(1);
+        expect(text(values()[0])).toMatch(/^\(2\)[\d,.]+▲$/);
+        const bars = created.filter(c => c.kind === 'Candlestick').at(-1)!.last as any[];
+        await move(bars[0].time);
+        expect(text(values()[0])).toBe('(2)—');
+        await move(bars[1].time);
+        expect(text(values()[0])).toMatch(/^\(2\)[\d,.]+$/); // First complete average has no predecessor.
+        const hovered = text(values()[0]);
+        setNow('2026-10-08T09:19:00');
+        quote = { tick: { code: 'TXFR1', date: '2026-10-08', time: '09:19:00', close: 20200, volume: 2 }, seq: 1, lastDir: 0, flashSeq: 0 };
+        await act(async () => { for (const listener of listeners) listener(); });
+        await flush();
+        expect(text(values()[0])).toBe(hovered);
+        await move(undefined);
+        expect(text(values()[0])).toMatch(/^\(2\)[\d,.]+▲$/);
+    });
+    it('compact MA still respects showValues=false and hidden state', async () => {
+        setNow('2026-10-08T09:16:00');
+        fetchMock.mockResolvedValue(DATA);
+        const ma = newInstance('sma');
+        ma.params.period = 2;
+        ma.showValues = false;
+        const hidden = { ...newInstance('sma'), params: { period: 3 }, hidden: true };
+        saveInstances([ma, hidden]);
+        const r = mount({ contract: fut });
+        await flush();
+        const values = r.root.findAll(node => node.type === 'button' && node.props['data-ma-period']);
+        expect(values.map(text)).toEqual(['(2)', '(3)']);
+        expect(values[1]!.props['data-dimmed']).toBe(true);
+        expect(r.root.findAll(node => node.type === 'span' && node.props['data-ma-direction'] !== undefined)).toHaveLength(0);
+    });
     it('預設顯示最新一根；游標移到某根顯示那根；離開回最新', async () => {
         setNow('2026-10-08T09:16:00');
         fetchMock.mockResolvedValue(DATA);
@@ -145,7 +220,7 @@ describe('CandleChart K 棒讀值（#240）', () => {
         expect(r.root.findByProps({ 'data-ohlc': 'row' }).props['data-hovering']).toBe(false);
     });
 
-    it('窄面板（圖表寬度由 ResizeObserver 回報）只留高低收，並讓開價格軸', async () => {
+    it('窄面板只留高低收，資訊列使用圖區上方的可用寬度', async () => {
         vi.stubGlobal('ResizeObserver', class {
             constructor(private cb: (e: any[]) => void) {}
             observe() { this.cb([{ contentRect: { width: 300 } }]); }
@@ -159,7 +234,7 @@ describe('CandleChart K 棒讀值（#240）', () => {
         expect(field(r, 'open')).toBeUndefined();
         expect(field(r, 'volume')).toBeUndefined();
         expect(field(r, 'close')).toBeDefined();
-        expect(r.root.findByProps({ 'data-ohlc': 'row' }).props.style).toEqual({ maxWidth: 220 });
+        expect(r.root.findByProps({ 'data-ohlc': 'row' }).props.style).toEqual({ maxWidth: 284 });
     });
 
     it('tick 更新最新一根的收盤與高低', async () => {
