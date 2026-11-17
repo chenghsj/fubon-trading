@@ -170,7 +170,7 @@ export function panelPref<T extends string>(value: unknown, allowed: readonly T[
 }
 
 // K 線圖可選週期（工具列順序）。版面只存標籤，分鐘數與載入天數在 candle-chart
-export const CHART_INTERVALS = ['1m', '3m', '5m', '15m', '60m', '1D'] as const;
+export const CHART_INTERVALS = ['1m', '3m', '5m', '15m', '60m', '1D', '1W', '1M'] as const;
 export type ChartInterval = (typeof CHART_INTERVALS)[number];
 export const DEFAULT_CHART_INTERVAL: ChartInterval = '5m';
 export function isChartInterval(v: unknown): v is ChartInterval {

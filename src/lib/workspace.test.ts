@@ -192,10 +192,11 @@ describe('popout session param', () => {
         expect(popoutSessionFromQuery(new URLSearchParams({ interval: '2h' })).chartInterval).toBeUndefined();
     });
 
-    it('persists the K-line interval with the saved workspace (#331)', () => {
+    it.each(['15m', '1W', '1M'] as const)('persists the %s interval with the saved workspace and popout', interval => {
         const ws = { blocks: [{ id: 'c1', type: 'chart' as const, pin: null }], layout: [] };
-        const saved = JSON.parse(JSON.stringify(withBlockSessionConfig(ws, 'c1', { chartInterval: '15m' }))) as Workspace;
-        expect(saved.blocks[0]!.chartInterval).toBe('15m');
+        const saved = JSON.parse(JSON.stringify(withBlockSessionConfig(ws, 'c1', { chartInterval: interval }))) as Workspace;
+        expect(saved.blocks[0]!.chartInterval).toBe(interval);
+        expect(popoutSessionFromQuery(new URLSearchParams(popoutSessionParam(saved.blocks[0]!))).chartInterval).toBe(interval);
     });
 
     it('reads back only known values per panel type', () => {

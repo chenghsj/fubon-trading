@@ -155,6 +155,8 @@ import { remainingWorkingOrderQuantity } from '../lib/working-order-quantity';
 import { fmtPrice } from '../lib/utils/format';
 import {
     aggregate,
+    candleBucket,
+    calendarHistoryDays,
     dateStrOffset,
     kbarsToCandles,
     wallClockToUtc
@@ -187,6 +189,8 @@ const TIMEFRAMES: readonly { label: ChartInterval; minutes: number; days: number
     { label: '15m', minutes: 15, days: 20 },
     { label: '60m', minutes: 60, days: 60 },
     { label: '1D', minutes: 1440, days: 240 },
+    { label: '1W', minutes: 10080, days: 240 },
+    { label: '1M', minutes: 43200, days: 240 },
 ];
 const DEFAULT_TF_IDX = TIMEFRAMES.findIndex((t) => t.label === DEFAULT_CHART_INTERVAL);
 function timeframeIndex(interval: unknown): number | null {
@@ -974,7 +978,9 @@ export function CandleChart({
         };
 
         // ---- older-history paging (TradingView-style infinite scroll) ----
-        let oldestDay: number = tf.days; // days-ago covered so far
+        const initialDays = calendarHistoryDays(tf.days, tf.minutes);
+        const maxDays = calendarHistoryDays(MAX_HISTORY_DAYS, tf.minutes);
+        let oldestDay = initialDays; // days-ago covered so far
         let fetching = false;
         let pageError = false;
         let pagingRevision = historySeq;
@@ -982,14 +988,14 @@ export function CandleChart({
         const loadMore = () => {
             if (fetching || cancelled) return false;
             if (loadedKeyRef.current !== loadKey) return false;
-            if (dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS) return false;
+            if (dryPages >= 3 || oldestDay >= maxDays) return false;
             fetching = true;
             // MA warmup pauses via paging.error; a new user scroll can retry.
             // Failed history is cached, so the retry needs a fresh request key.
             if (pageError) pagingRevision = nextChartHistoryRevision();
             pageError = false;
             setHistoryPaging({ busy: true, error: false, exhausted: false });
-            const from = Math.min(oldestDay + tf.days, MAX_HISTORY_DAYS);
+            const from = Math.min(calendarHistoryDays(oldestDay + tf.days, tf.minutes), maxDays);
             fetchChartHistory(
                 contract,
                 dateStrOffset(from),
@@ -1033,12 +1039,12 @@ export function CandleChart({
                 })
                 .finally(() => {
                     fetching = false;
-                    if (!cancelled) setHistoryPaging({ busy: false, error: pageError, exhausted: dryPages >= 3 || oldestDay >= MAX_HISTORY_DAYS });
+                    if (!cancelled) setHistoryPaging({ busy: false, error: pageError, exhausted: dryPages >= 3 || oldestDay >= maxDays });
                 });
             return true;
         };
 
-        fetchChartHistory(contract, dateStrOffset(tf.days), dateStrOffset(0), {
+        fetchChartHistory(contract, dateStrOffset(initialDays), dateStrOffset(0), {
             revision: historySeq,
             timeoutMs: 30_000, // 大週期初載可達數十天，不能用 10s
         })
@@ -1123,10 +1129,7 @@ export function CandleChart({
         // close-label-right（與 aggregate/1 分 K 歷史同慣例）：成交 τ 屬
         // 於哪個「收盤 label」桶 — floor 會把 live 桶標早一格，1 分 K
         // 時甚至會併進前一分鐘的歷史 bar
-        const bucket =
-            tf.minutes >= 1440
-                ? Math.floor(tickTime / 86400) * 86400
-                : Math.floor(tickTime / bucketSec) * bucketSec + bucketSec;
+        const bucket = candleBucket(tickTime, tf.minutes, 'tick');
         let bar = lastBarRef.current;
         // live 桶與歷史尾端出現 3 個桶以上的斷層（換時段/上游資料晚發布）
         // → 排程一次歷史補抓把洞補起來；live 桶照常先畫，補抓完成後
@@ -2108,6 +2111,8 @@ export function CandleChart({
                     <Button size="compact" variant="outline"
                         key={t.label}
                         className={styles.tfBtn[i === tfIdx ? 'active' : 'normal']}
+                        title={t.label === '1D' ? '日 K' : t.label === '1W' ? '週 K' : t.label === '1M' ? '月 K' : undefined}
+                        aria-pressed={i === tfIdx}
                         onClick={() => pickTimeframe(i)}
                     >
                         {t.label}
