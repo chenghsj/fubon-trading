@@ -58,7 +58,7 @@ pnpm 12 若阻擋 esbuild 安裝腳本，可執行 `pnpm approve-builds esbuild 
 
 ## 使用富邦行情
 
-策略回測面板另提供 LightGBM 微台研究：跨月分批下載、資料品質、按日期訓練／驗證／測試、固定滑價壓力與版本保存。訓練完成保存研究報告與本機模型；可在自動交易面板手動選入 Paper／Sandbox 進場濾網，訓練不自動啟動策略，操作方式見[模型研究規格](docs/design/lightgbm-research.md)。macOS 需先安裝 OpenMP：
+策略回測面板提供LightGBM微台研究：完整期貨日盤08:45–13:45與夜盤15:00–次日05:00分開下載／訓練；可選固定分類或分類／淨收益的有限候選滾動驗證，保存全部結果與滑價壓力。模型可手動選入Paper日／夜盤濾網，Sandbox保留日盤；訓練不自動啟動策略，見[盤別與滾動研究規格](docs/design/tmf-sessions.md)。macOS需先安裝OpenMP：
 
 ```sh
 brew install libomp

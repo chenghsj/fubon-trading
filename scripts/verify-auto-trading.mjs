@@ -83,8 +83,12 @@ async function state() { return (await fixture()).state; }
 async function see(text) { await expect(panel().getByText(text, { exact: true }).first()).toBeVisible({ timeout: 12000 }); }
 async function screenshot(name) { await panel().screenshot({ animations: 'disabled', path: path.join(artifacts, `${name}.png`) }); }
 async function prepare() {
+    if (await panel().getByRole('combobox', { name: '策略盤別', exact: true }).isEnabled() && !(await panel().getByRole('combobox', { name: '策略盤別', exact: true }).textContent()).includes('現貨重疊')) {
+        await panel().getByRole('combobox', { name: '策略盤別', exact: true }).click();
+        await page.getByRole('option', { name: '現貨重疊日盤 09:00–13:20', exact: true }).click();
+    }
     await panel().getByLabel('微台具體合約', { exact: true }).fill('TMFK6');
-    await panel().getByLabel('單次交易日期', { exact: true }).fill('2026-11-13');
+    await panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true }).fill('2026-11-13');
     await expect(button('啟動／恢復 sandbox 策略')).toBeEnabled({ timeout: 12000 });
 }
 async function start() {
@@ -189,9 +193,10 @@ class ManualTrader(SandboxAutoTrader):
     def manual_tick(self):
         super().tick()
 def factory(broker,research,authorize):
+    broker.config=Config(mode='demo') # Fixture market reads remain synthetic; UI advertises sandbox for its FakeGateway.
     broker.account_rows=lambda:[dict(ACCOUNT,signed=True,person_id='',username='QA fake account')]
     return ManualTrader(gateway,AutoStore(research),authorize,clock=lambda:clock.at,monotonic=lambda:clock.mono)
-app=create_app(Config(mode='demo',port=int(os.environ['AUTO_UI_PORT'])),sdk_factory=no_sdk,
+app=create_app(Config(mode='sandbox',port=int(os.environ['AUTO_UI_PORT'])),sdk_factory=no_sdk,
     launch_token=os.environ['AUTO_LAUNCH'],public_origin=os.environ['AUTO_ORIGIN'],
     passkey_store=PasskeyStore(os.environ['AUTO_PASSKEY_DATABASE']),research_store=ResearchStore(os.environ['AUTO_DATABASE']),automation_factory=factory)
 trader=app.state.automation
@@ -315,7 +320,7 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     await expect(panel().getByLabel('每口單邊手續費 NT$', { exact: true })).toHaveValue('12');
     await prepare();
     // Loading and backend validation errors travel through the real start route.
-    await panel().getByLabel('單次交易日期', { exact: true }).fill('2026-11-14');
+    await panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true }).fill('2026-11-14');
     await button('啟動／恢復 sandbox 策略').click();
     await expect(panel().getByRole('alert')).toContainText('平日');
     await screenshot('validation-error');
@@ -424,8 +429,8 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     const completed = await fixture({ at: '2026-11-13T13:46:00+08:00', ticks: 1 });
     expect(completed.state.status).toBe('completed');
     expect(completed.requests).toHaveLength(0);
-    await see('本次日盤已結束');
-    const nextDate = panel().getByLabel('單次交易日期', { exact: true });
+    await see('本次盤別已結束');
+    const nextDate = panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true });
     await expect(nextDate).toBeEnabled();
     await nextDate.fill('2026-11-16');
     await expect(nextDate).toHaveValue('2026-11-16');

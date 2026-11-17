@@ -13,4 +13,12 @@ describe('sandbox automation setup', () => {
         expect(() => parseAutoBasket('2330,60\n2330,30')).toThrow('不重複');
         expect(() => parseAutoBasket('2330,90\n2454,20')).toThrow('100%');
     });
+    it('keeps Friday night on its opening date after midnight and advances after the cutoff', () => {
+        expect(nextAutoTradeDate(Date.parse('2026-11-14T00:20:00+08:00'), 'afterhours')).toBe('2026-11-13');
+        expect(nextAutoTradeDate(Date.parse('2026-11-14T04:35:00+08:00'), 'afterhours')).toBe('2026-11-16');
+        expect(nextAutoTradeDate(Date.parse('2026-11-17T21:00:00+08:00'), 'afterhours')).toBe('2026-11-17');
+        expect(nextAutoTradeDate(Date.parse('2026-11-18T06:00:00+08:00'), 'afterhours')).toBe('2026-11-18');
+        expect(nextAutoTradeDate(Date.parse('2026-11-17T13:19:00+08:00'), 'regular')).toBe('2026-11-17');
+        expect(nextAutoTradeDate(Date.parse('2026-11-17T13:20:00+08:00'), 'regular')).toBe('2026-11-18');
+    });
 });

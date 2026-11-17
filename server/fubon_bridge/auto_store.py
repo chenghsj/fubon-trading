@@ -32,6 +32,14 @@ class AutoStore:
                 db.execute("INSERT INTO research_auto_runs SELECT *, 'sandbox' FROM research_auto_runs_legacy")
                 db.execute('DROP TABLE research_auto_runs_legacy')
             db.execute('CREATE INDEX IF NOT EXISTS research_auto_mode ON research_auto_runs(mode,updated_at)')
+            if 'strategy_session' not in {r[1] for r in db.execute('PRAGMA table_info(research_auto_runs)')}:
+                db.execute('ALTER TABLE research_auto_runs RENAME TO research_auto_runs_day_only')
+                db.execute('''CREATE TABLE research_auto_runs (
+                    id TEXT PRIMARY KEY,day TEXT,account TEXT,updated_at TEXT,payload TEXT,
+                    mode TEXT NOT NULL,strategy_session TEXT NOT NULL,UNIQUE(mode,day,account,strategy_session))''')
+                db.execute("INSERT INTO research_auto_runs SELECT *, 'cash' FROM research_auto_runs_day_only")
+                db.execute('DROP TABLE research_auto_runs_day_only')
+                db.execute('CREATE INDEX research_auto_mode ON research_auto_runs(mode,updated_at)')
             db.execute('''CREATE TABLE IF NOT EXISTS research_auto_model_decisions (
                 run_id TEXT, time INTEGER, payload TEXT NOT NULL, PRIMARY KEY(run_id,time))''')
 
@@ -40,18 +48,18 @@ class AutoStore:
             row = db.execute("SELECT payload FROM research_auto_runs WHERE mode=? ORDER BY updated_at DESC LIMIT 1",(self.mode,)).fetchone()
         return json.loads(row[0]) if row else None
 
-    def for_day(self, account, day):
+    def for_day(self, account, day, strategy_session='cash'):
         with self._database() as db:
-            row = db.execute("SELECT payload FROM research_auto_runs WHERE mode=? AND account=? AND day=? ORDER BY updated_at DESC LIMIT 1", (self.mode,canonical(account), day)).fetchone()
+            row = db.execute("SELECT payload FROM research_auto_runs WHERE mode=? AND account=? AND day=? AND strategy_session=? ORDER BY updated_at DESC LIMIT 1", (self.mode,canonical(account), day,strategy_session)).fetchone()
         return json.loads(row[0]) if row else None
 
     def save(self, state, kind=None, message=None):
         at = now().isoformat()
         with self._database() as db:
-            changed=db.execute("""INSERT INTO research_auto_runs(id,day,account,updated_at,payload,mode) VALUES(?,?,?,?,?,?)
+            changed=db.execute("""INSERT INTO research_auto_runs(id,day,account,updated_at,payload,mode,strategy_session) VALUES(?,?,?,?,?,?,?)
                 ON CONFLICT(id) DO UPDATE SET updated_at=excluded.updated_at,payload=excluded.payload
                 WHERE research_auto_runs.mode=excluded.mode""",
-                (state["id"], state["config"]["trade_date"], canonical(state["config"]["account"]), at, canonical(state),self.mode))
+                (state["id"], state["config"]["trade_date"], canonical(state["config"]["account"]), at, canonical(state),self.mode,state['config'].get('strategy_session','cash')))
             if not changed.rowcount:
                 raise ValueError('策略紀錄模式不符，拒絕覆寫')
             signal = state.get('lastSignal')

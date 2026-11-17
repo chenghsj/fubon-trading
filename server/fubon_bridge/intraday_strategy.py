@@ -2,6 +2,7 @@
 from datetime import datetime
 import math
 from .mapping import TAIPEI
+from .strategy_session import schedule, opening_date
 
 ATR_PERIOD = 14
 ATR_MULTIPLIER = 1.5
@@ -11,8 +12,8 @@ def futures_tax(price, multiplier, tax_rate):
     # Python round uses bankers rounding; statutory positive tax uses half-up.
     return math.floor(price*multiplier*tax_rate+.5)
 
-def cash_atr(bars, decision):
-    start = int(datetime.fromtimestamp(decision,TAIPEI).replace(hour=9,minute=0,second=0,microsecond=0).timestamp())
+def cash_atr(bars, decision, session='cash'):
+    start = int(schedule(session).window(opening_date(decision, session))[0].timestamp())
     index = {b['time']:b for b in bars if start<b['time']<=decision}
     count = (decision-start)//60
     if count<ATR_PERIOD or any(start+i*60 not in index for i in range(1,count+1)):
@@ -53,10 +54,9 @@ def entry_plan(cfg, signal, action, limit, price, realized):
         strategyVersion=cfg.get('strategy_version','orb_v1'),signalTime=signal['time'],signalClose=close,atr=signal.get('atr')),None
 
 
-def opening_signal(bars, decision, basket=None, stocks=None):
+def opening_signal(bars, decision, basket=None, stocks=None, session='cash'):
     """Same 09:00 cash-aligned range/cross as the historical harness; exact completed bars."""
-    at = datetime.fromtimestamp(decision, TAIPEI)
-    start = int(at.replace(hour=9,minute=0,second=0,microsecond=0).timestamp())
+    start = int(schedule(session).window(opening_date(decision, session))[0].timestamp())
     index = {b["time"]:b for b in bars if start < b["time"] <= decision}
     required = {start+i*60 for i in range(1,16)} | {decision-i*60 for i in range(10)}
     result = dict(time=decision, side=None, high=None, low=None, score=None, reason="等待完整已收盤分 K")
@@ -70,7 +70,7 @@ def opening_signal(bars, decision, basket=None, stocks=None):
         side = "Buy"
     elif current<low and previous>=low:
         side = "Sell"
-    result.update(high=high,low=low,side=side,close=current,atr=cash_atr(bars,decision),reason="沒有新的開盤區間穿越" if side is None else "5 分收盤突破開盤區間")
+    result.update(high=high,low=low,side=side,close=current,atr=cash_atr(bars,decision,session),reason="沒有新的開盤區間穿越" if side is None else "5 分收盤突破開盤區間")
     if side and basket:
         score = 0
         for member in basket:
