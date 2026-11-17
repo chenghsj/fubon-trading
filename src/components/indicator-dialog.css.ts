@@ -80,11 +80,15 @@ export const searchWrap = style({
     border: `1px solid ${vars.color.border}`,
     borderRadius: vars.radius.md,
     color: vars.color.mutedForeground,
-    ':focus-within': { borderColor: vars.color.accent },
+    ':focus-within': { borderColor: vars.color.mutedForeground },
+    '@media': {
+        '(forced-colors: active)': { ':focus-within': { borderColor: 'Highlight' } },
+    },
 });
 
 export const searchInput = style({
     flex: 1,
+    minWidth: 0,
     fontFamily: vars.font.body,
     fontSize: '0.82rem',
     color: vars.color.foreground,
@@ -92,6 +96,12 @@ export const searchInput = style({
     border: 'none',
     padding: '8px 0',
     outline: 'none',
+    // The wrapper owns focus for the icon, input and clear button together.
+    // Outrank the shared Input's focus-visible ring, regardless of CSS order.
+    selectors: {
+        '&&': { border: 'none', borderRadius: 0, boxShadow: 'none' },
+        '&&:focus-visible': { outline: 'none', boxShadow: 'none' },
+    },
     '::placeholder': { color: vars.color.mutedForeground },
 });
 
