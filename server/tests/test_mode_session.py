@@ -56,7 +56,7 @@ def change(item, **changes):
     return body
 
 
-@pytest.mark.parametrize('session', ['regular', 'afterhours'])
+@pytest.mark.parametrize('session', ['auto', 'regular', 'afterhours'])
 def test_explicit_session_is_persisted_and_overrides_environment(tmp_path, session):
     settings = ModeSettings(tmp_path / 'mode.json')
     settings.save(ModeSelection(mode='paper', session=session))
@@ -70,7 +70,7 @@ def test_explicit_session_is_persisted_and_overrides_environment(tmp_path, sessi
     assert settings.path.stat().st_mode & 0o777 == 0o600
 
 
-@pytest.mark.parametrize('session', ['regular', 'afterhours'])
+@pytest.mark.parametrize('session', ['auto', 'regular', 'afterhours'])
 @pytest.mark.parametrize('legacy', [True, False])
 def test_old_or_null_session_file_preserves_environment_session(tmp_path, session, legacy):
     settings = ModeSettings(tmp_path / 'mode.json')
@@ -94,7 +94,7 @@ def test_invalid_session_is_rejected_by_model_and_existing_file(tmp_path, sessio
         settings.apply(Config())
 
 
-@pytest.mark.parametrize('session', ['regular', 'afterhours'])
+@pytest.mark.parametrize('session', ['auto', 'regular', 'afterhours'])
 def test_get_mode_exposes_active_session_without_changing_permission(runtime, session):
     item = runtime(session=session)
     response = item.client.get('/api/v1/settings/mode')

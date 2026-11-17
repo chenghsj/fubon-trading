@@ -2,11 +2,12 @@ import { getApiBase } from './runtime';
 import { marketTime, matchesSnapshot } from './display-book';
 import type { ContractBase } from './types/contract';
 import type { Snapshot } from './types/market';
+import { marketSessionVersion } from './market-session';
 
 const snapshots = new Map<string, Snapshot>();
 const pending = new Map<string, Promise<Snapshot[]>>();
 const listeners = new Set<() => void>();
-const key = (c: ContractBase) => JSON.stringify([getApiBase(), c.security_type, c.exchange, c.target_code || c.code]);
+const key = (c: ContractBase) => JSON.stringify([getApiBase(), c.security_type, c.exchange, c.target_code || c.code, marketSessionVersion(c.code)]);
 export function getMarketSnapshot(c: ContractBase): Snapshot | undefined { return snapshots.get(key(c)); }
 export function pendingMarketSnapshot(c: ContractBase) { return pending.get(key(c)); }
 export function subscribeMarketSnapshots(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
@@ -17,6 +18,7 @@ export function observeMarketSnapshots(contracts: ContractBase[], request: Promi
     void request.then(values => {
         let changed = false;
         for (const { contract: c, cacheKey } of scoped) {
+            if (cacheKey !== key(c)) continue;
             const snapshot = values.find(s => matchesSnapshot(s, c.code, c.target_code));
             if (!snapshot) continue;
             const previous = snapshots.get(cacheKey);

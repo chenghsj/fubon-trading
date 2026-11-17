@@ -6,6 +6,19 @@ const physical = { code: 'TXFI6', target_code: null, security_type: 'FUT', excha
 const alias = { ...physical, code: 'TXFR1', target_code: 'TXFI6' };
 const snap = (datetime: string) => ({ code: 'TXFI6', datetime }) as Snapshot;
 beforeEach(() => { vi.resetModules(); scope.base = 'fixture'; });
+it('discards a previous-session response arriving after the source has switched', async () => {
+    const s = await import('./market-snapshot-store');
+    const { advanceMarketSessions } = await import('./market-session');
+    let resolve!: (v: Snapshot[]) => void;
+    const old = new Promise<Snapshot[]>(r => { resolve = r; });
+    s.observeMarketSnapshots([physical], old);
+    advanceMarketSessions([physical.code]);
+    resolve([snap('2026-11-17 13:45:00')]);
+    await old; await Promise.resolve();
+    expect(s.getMarketSnapshot(physical)).toBeUndefined();
+    await s.observeMarketSnapshots([physical], Promise.resolve([snap('2026-11-17 15:00:01')]));
+    expect(s.getMarketSnapshot(physical)?.datetime).toBe('2026-11-17 15:00:01');
+});
 it('shares batch pending/cache between alias and physical and isolates servers', async () => {
     const s = await import('./market-snapshot-store'); let resolve!: (v: Snapshot[]) => void;
     const pending = new Promise<Snapshot[]>(r => { resolve = r; }); const listener = vi.fn(); const release = s.subscribeMarketSnapshots(listener);

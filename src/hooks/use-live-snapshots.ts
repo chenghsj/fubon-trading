@@ -3,6 +3,7 @@ import { useQuery } from './use-query';
 import { fetchSnapshots } from '../lib/shioaji';
 import { getQuote, subscribeQuoteStore } from '../lib/stream';
 import { retainQuote } from '../lib/quote-ownership';
+import { useMarketSessionVersion } from '../lib/market-session';
 import { registerCodeAlias } from '../lib/stream';
 import type { ContractBase } from '../lib/types/contract';
 import type { Snapshot } from '../lib/types/market';
@@ -22,7 +23,8 @@ const keyOf = (contracts: ContractBase[]) => JSON.stringify(contracts.map(c => [
  * the rest keep their snapshot, and a contract entering `live` is re-queried once
  * so a quiet strike does not show the figures from when the table opened. */
 export function useLiveSnapshots(contracts: ContractBase[], fetcher?: () => Promise<Snapshot[]>, live?: ContractBase[]) {
-    const key = keyOf(contracts);
+    const marketSession = useMarketSessionVersion(contracts.map(c => c.code));
+    const key = `${keyOf(contracts)}:${marketSession}`;
     const tracked = live ?? contracts;
     const liveKey = live ? keyOf(live) : key;
     const query = useQuery(useCallback(() => fetcher ? fetcher() : fetchSnapshots(contracts), [key]), `snapshots:${key}`, contracts.length > 0);

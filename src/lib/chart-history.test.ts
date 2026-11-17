@@ -5,6 +5,17 @@ vi.mock('./shioaji', () => ({ fetchKbars: mocks.fetch }));
 const contract = { code: '2330', exchange: 'TSE', security_type: 'STK', target_code: null } as const;
 beforeEach(() => { vi.resetModules(); mocks.fetch.mockReset().mockResolvedValue({ Close: [100] }); mocks.base = 'fixture'; });
 describe('chart history request sharing', () => {
+    it('retires only changed instruments at a session boundary', async () => {
+        const { fetchChartHistory } = await import('./chart-history');
+        const { advanceMarketSessions } = await import('./market-session');
+        const future = { ...contract, code: 'TMFK6', exchange: 'TAIFEX', security_type: 'FUT' } as const;
+        const old = fetchChartHistory(future, '2026-11-16', '2026-11-17');
+        const stock = fetchChartHistory(contract, '2026-11-16', '2026-11-17');
+        advanceMarketSessions(['TMFK6']);
+        expect(fetchChartHistory(future, '2026-11-16', '2026-11-17')).not.toBe(old);
+        expect(fetchChartHistory(contract, '2026-11-16', '2026-11-17')).toBe(stock);
+        expect(mocks.fetch).toHaveBeenCalledTimes(3);
+    });
     it('shares concurrent and completed requests across presentation rebuilds', async () => {
         const { fetchChartHistory } = await import('./chart-history');
         const a = fetchChartHistory(contract, '2026-09-01', '2026-09-12');

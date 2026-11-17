@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { RefreshButton } from './refresh-button';
 import { fetchChartHistory, nextChartHistoryRevision } from '../lib/chart-history';
+import { useMarketSessionVersion } from '../lib/market-session';
 // src/components/intraday-chart.tsx — 當日走勢圖 (intraday time-price
 // chart): baseline line vs 昨收參考價 with red/green fills, VWAP-style
 // average line, volume strip, fixed full-session time axis. History from
@@ -432,6 +433,7 @@ export function IntradayChart({
     bumpLegendRef.current = bumpLegend;
 
     const quote = useQuote(contract.code);
+    const marketSession = useMarketSessionVersion(contract.code);
     const themeSettings = useThemeSettings();
     const colors = getChartColors(themeSettings);
     const themeKey = themeKeyOf(themeSettings);
@@ -710,7 +712,7 @@ export function IntradayChart({
 
     // ---- history load: pick the last session present in the data ----
     useEffect(() => {
-        const loadKey = `${contract.code}|${reloadSeq}|${optsKey}|${sessionMode}`;
+        const loadKey = `${contract.code}|${reloadSeq}|${optsKey}|${sessionMode}|${marketSession}`;
         const now = nowWallClockUtc();
         const current = sessionWindowFor(contract.security_type, now);
         const previousLoad = historyLoadRef.current;
@@ -1133,7 +1135,7 @@ export function IntradayChart({
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [contract, reloadSeq, optsKey, sessionMode]);
+    }, [contract, reloadSeq, optsKey, sessionMode, marketSession]);
 
     // 線寬即時套用 — 獨立於資料載入，滑桿拖動不觸發 refetch。
     // optsKey 在 deps 裡是為了主題重建 chart 後把寬度補回去
@@ -1149,7 +1151,7 @@ export function IntradayChart({
         if (!liveQuote || liveQuote.code !== contract.code) return;
         if (
             loadedKeyRef.current !==
-            `${contract.code}|${reloadSeq}|${optsKey}|${sessionModeRef.current}`
+            `${contract.code}|${reloadSeq}|${optsKey}|${sessionModeRef.current}|${marketSession}`
         ) {
             return;
         }
@@ -1305,7 +1307,7 @@ export function IntradayChart({
         // NOTE: 依賴 liveQuote 物件本身而非 quote.seq — seq 在 bidask 更新
         // 也會跳，若當 dep 會把同一筆 tick 的量重複累加
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [liveQuote, contract.code]);
+    }, [liveQuote, contract.code, marketSession]);
 
     // ---- legend ----
     // 重載/載入失敗期間沿用上次畫出的時段（同商品、且與目前選的時段

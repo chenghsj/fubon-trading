@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useQuery } from '../hooks/use-query';
 import { fetchVolumeProfile } from '../lib/shioaji';
+import { useMarketSessionVersion } from '../lib/market-session';
 import type { ContractBase } from '../lib/types/contract';
 import { fmtInt, fmtPrice } from '../lib/utils/format';
 import { AsyncStatus } from './async-status';
@@ -10,8 +11,9 @@ import * as styles from './vol-profile.css';
 
 /** Official session-to-date distribution, not a sample of the last 500 ticks. */
 export function FubonVolProfile({ contract }: { contract: ContractBase }) {
+    const marketSession = useMarketSessionVersion(contract.code);
     const query = useQuery(useCallback(() => fetchVolumeProfile(contract), [contract]),
-        `fubon-volumes:${contract.security_type}:${contract.code}`, true);
+        `fubon-volumes:${contract.security_type}:${contract.code}:${marketSession}`, true);
     useEffect(() => {
         const timer = setInterval(() => void query.refresh(), 15_000);
         return () => clearInterval(timer);
