@@ -25,13 +25,13 @@ class MarketData:
         self.cache = {}
 
     def volumes(self, key):
-        contract = self.broker.contract(key)
+        contract = self.broker.market_contract(key)
         if self.broker.config.mode == 'demo':
             quote = self.broker.quote(contract)
             payload = dict(date=now().date().isoformat(), data=[dict(price=quote['close'], volume=100, volumeAtAsk=40, volumeAtBid=50)])
         else:
             payload = self.broker._client(contract['security_type']).intraday.volumes(
-                symbol=contract.get('target_code') or contract['code'], **self.broker._session_args(contract['security_type']))
+                symbol=contract.get('target_code') or contract['code'], **self.broker._session_args(contract['security_type'], contract=contract))
         rows = []
         for row in payload['data']:
             price, volume = finite(row.get('price')), finite(row.get('volume'))
@@ -45,7 +45,7 @@ class MarketData:
             rows.append(dict(price=price, volume=volume, buy_volume=buy, sell_volume=sell))
         return dict(code=contract['code'], date=date.fromisoformat(payload['date']).isoformat(),
                     source='demo' if self.broker.config.mode == 'demo' else 'fubon',
-                    session=self.broker.config.session, levels=sorted(rows, key=lambda row: row['price'], reverse=True))
+                    session=self.broker.session_for(contract), levels=sorted(rows, key=lambda row: row['price'], reverse=True))
 
     def _rank_source(self, scanner_type, descending):
         if scanner_type in {'ChangePercentRank', 'ChangePriceRank'}:

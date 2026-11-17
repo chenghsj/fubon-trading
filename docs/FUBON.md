@@ -30,7 +30,7 @@ React → 同來源 /api proxy → 127.0.0.1:21323
 
 - 倉別：New → New、Cover → Close、Auto → Auto、DayTrade → FdayTrade。
 - 價別：LMT → Limit、MKT → Market、MKP → RangeMarket。市價類拒絕 ROD。
-- 日夜盤由 `FUBON_SESSION` 選擇，分別使用 Future／FutureNight。
+- 期權盤別預設 `FUBON_SESSION=auto`，也可在「交易模式設定」固定 `regular` 日盤／`afterhours` 夜盤；委託分別使用 Future／FutureNight。已保存的手動選擇保留，需選「自動」才恢復跟隨時段。
 - 股票整股一張轉 1000 股；零股維持股數。委託回讀再轉回介面單位。
 - `TXFR1` 轉富邦 `TXF1!`；`MTXR1`／`MXFR1` 轉 `MXF1!`。用 ticker 實際 symbol 解析合約，不信任瀏覽器的 target_code。
 - 下單只接受具體月份；前端先將 R1/R2 轉 target_code，後端再次拒絕 alias。
@@ -42,6 +42,14 @@ React → 同來源 /api proxy → 127.0.0.1:21323
 - 歷史分 K 單次區間約一年；連續月保留 `contractMonth=1!`，未調整換月價差。
 - 行情訂閱保留至服務重啟，避免某面板取消另一個面板的共用訂閱；大量切換商品可能達券商訂閱上限。
 - Fake SDK 與本機模擬驗證，不等同於真實帳號、行情權限或券商成交驗收。
+
+### 自動盤別
+
+自動模式逐商品查詢富邦 [Ticker](https://www.fbs.com.tw/TradeAPI/docs/market-data-future/http-api/intraday/ticker/) 的日盤與夜盤 `openDatetime`／`closeDatetime`，選擇已開盤的最近一盤；休市保留最近一盤供查看，不依固定的 15:00 或自行推算的平日曆切換。夜盤回 404 才視為此商品沒有該盤資料，連線失敗或無法確認時段則回報錯誤，不默默替換來源。股票不查期權盤別。
+
+報價、K 線、逐筆、分價量、五檔訂閱與一般期權委託共用該商品的判斷。服務持續檢查已訂閱商品，已知開盤邊界立即重查，其餘時段資料最多快取 30 秒；跨盤僅重連期權行情，保留 Passkey 工作階段、股票行情與既有委託，不自動取消或平倉。瀏覽器清除該商品前一盤的即時與歷史快取，重新取得資料；進行中的委託確認失效，需重新確認。資料更新或重連失敗期間暫停期權行情處理與新增委託，恢復後重送訂閱。
+
+自動模式新增期權委託要求官方時段包含目前時間；Paper 的 ROD 到期沿用同一商品的官方收盤時間。微台自動策略仍只支援日盤，研究與原生歷史面板的明確盤別查詢維持原有行為。自動切換不改變 Paper／Sandbox／Live 模式與正式下單權限；手動變更盤別偏好仍套用既有閒置檢查與服務重啟流程。
 
 ## 上游圖表與條件單自動交易
 

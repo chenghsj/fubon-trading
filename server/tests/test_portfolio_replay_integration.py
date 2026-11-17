@@ -34,7 +34,7 @@ def filled(ident, action, price, quantity, *, at=AT, account=None, fee=None, tax
 
 
 def paper_portfolio(trades):
-    broker = Broker(Config(mode='paper'))
+    broker = Broker(Config(mode='paper', session='regular'))
     broker.paper.orders = {trade['order']['id']: deepcopy(trade) for trade in trades}
     return PortfolioData(broker)
 
@@ -145,7 +145,7 @@ def test_derivative_profit_loss_requires_a_known_multiplier():
 
 @pytest.fixture
 def native_portfolio():
-    broker = Broker(Config(mode='sandbox'))
+    broker = Broker(Config(mode='sandbox', session='regular'))
     account = dict(account_type='S',broker_id='TEST',account_id='S-FIXTURE')
     broker.accounts_raw = {('S','TEST','S-FIXTURE'):NS(name='isolated native-account fixture')}
     row = dict(date='2026/11/17',realized_profit=1200,realized_loss=200,filled_qty=1000,
@@ -181,7 +181,7 @@ def test_native_profit_loss_rejects_missing_nonfinite_or_negative_financial_fiel
 def replay(monkeypatch):
     import fubon_bridge.broker as broker_module
     monkeypatch.setattr(broker_module,'now',lambda:AT)
-    broker = Broker(Config(mode='paper'))
+    broker = Broker(Config(mode='paper', session='regular'))
     broker.contract = Mock(return_value=deepcopy(CONTRACT))
     trades = Mock()
     broker._client = Mock(return_value=NS(intraday=NS(trades=trades)))

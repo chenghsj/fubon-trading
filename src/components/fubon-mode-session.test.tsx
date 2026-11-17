@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 type Settings = {
     mode: 'demo' | 'paper' | 'sandbox' | 'live'; live_enabled: boolean;
-    session?: 'regular' | 'afterhours'; instance_id: string; available: boolean;
+    session?: 'auto' | 'regular' | 'afterhours'; instance_id: string; available: boolean;
     saved: boolean; sandbox_configured: boolean;
 };
 const fixture = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), restart: vi.fn(), settings: {} as Settings }));
@@ -46,6 +46,26 @@ const sessionInput = () => screen.getByLabelText('期權行情與委託盤別') 
 const apply = (live = false) => screen.getByRole('button', { name: live ? '確認並啟用正式下單' : '套用並重新連線' }) as HTMLButtonElement;
 
 describe('day/night session settings form', () => {
+    it('shows the automatic default and preserves both manual choices', async () => {
+        fixture.settings.session = 'auto';
+        await open();
+        expect(sessionInput().value).toBe('auto');
+        expect(Array.from(sessionInput().options).map(option => option.value)).toEqual(['auto', 'regular', 'afterhours']);
+        expect(apply().disabled).toBe(true);
+        fireEvent.change(sessionInput(), { target: { value: 'regular' } });
+        expect(apply().disabled).toBe(false);
+        fireEvent.change(sessionInput(), { target: { value: 'auto' } });
+        expect(apply().disabled).toBe(true);
+    });
+
+    it('can switch a saved manual preference back to automatic without granting live permission', async () => {
+        await open();
+        fireEvent.change(sessionInput(), { target: { value: 'auto' } });
+        fireEvent.click(apply());
+        await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/settings/mode', {
+            mode: 'paper', live_enabled: false, session: 'auto', instance_id: 'offline-instance', acknowledgement: '確認切換交易環境',
+        }, 30_000));
+    });
     it('changes the active Paper session without selecting a different mode or enabling live orders', async () => {
         await open();
         expect(sessionInput().value).toBe('regular');

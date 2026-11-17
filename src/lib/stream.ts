@@ -19,6 +19,7 @@ import { forgetServerInfo, knownServerInfo } from './server-info-store';
 import { createSharedStream, type StreamWire } from './shared-stream';
 import { invalidateTradingMirror } from './trading-mirror-lease';
 import { invalidateProductCatalog } from './product-catalog-version';
+import { advanceMarketSessions } from './market-session';
 
 /** `stale`: the EventSource still looks open but no heartbeat or event
  *  arrived within the watchdog window (e.g. the sidecar behind a proxy was
@@ -471,7 +472,7 @@ let everDown = false;
 const namedListeners = new Map<string, Set<(raw: string) => void>>();
 // These families may have consumers only in follower popouts. The owner must
 // subscribe to their SSE names even when it has no local listener.
-const sharedNamedEvents = ['index_components', 'calculated_index', 'scanner', 'kbar', 'heartbeat'];
+const sharedNamedEvents = ['index_components', 'calculated_index', 'scanner', 'kbar', 'heartbeat', 'fubon_session_changed'];
 const attachedNamed = new Set<string>();
 
 function attachNamed(source: EventSource, name: string) {
@@ -484,9 +485,24 @@ function attachNamed(source: EventSource, name: string) {
 }
 
 function dispatchNamed(name: string, raw: string) {
+    if (name === 'fubon_session_changed') handleMarketSessionChange(raw);
     // heartbeat is already forwarded by the core listener below.
     if (name !== 'heartbeat') shared?.publish({ kind: 'event', name, raw });
     namedListeners.get(name)?.forEach((listener) => listener(raw));
+}
+
+function handleMarketSessionChange(raw: string) {
+    const value = JSON.parse(raw) as { codes?: unknown };
+    if (!Array.isArray(value.codes)) return;
+    const codes = value.codes.filter((code): code is string => typeof code === 'string');
+    for (const code of codes) { quotes.delete(code); emitQuote(code); }
+    advanceMarketSessions(codes);
+    // An open confirmation must be reviewed again after its source changes.
+    forgetServerInfo(getApiBase());
+    for (const security_type of ['FUT', 'OPT']) emitContractChange({
+        event_id: `session:${Date.now()}:${security_type}`, action: 'SESSION', region: 'TW', security_type,
+        published_at: new Date().toISOString(), base_changed: true, info_changed: true, info_scope: 'ALL', info_shards: [],
+    });
 }
 
 export function onStreamEvent(
@@ -674,6 +690,7 @@ function dispatchWire(wire: StreamWire) {
         lastHeartbeat = Date.now();
         setStatus('live');
     }
+    else if (name === 'fubon_session_changed') handleMarketSessionChange(raw);
     // heartbeat also has a named subscriber (trigger activity).
     if (namedListeners.has(name)) namedListeners.get(name)?.forEach(listener => listener(raw));
 }

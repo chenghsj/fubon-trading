@@ -99,6 +99,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
         async def demo_clock():
             while True:
+                await asyncio.to_thread(broker.refresh_market_sessions)
                 broker.demo_events()
                 await asyncio.to_thread(native_panels.expire_indices)
                 await asyncio.sleep(1)
@@ -246,7 +247,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             protocols=["http", "sse"], simulation=cfg.mode != "live", mode=cfg.mode,
             instance_id=broker.instance_id, connected=cfg.mode == "demo" or bool(broker.sdk and not broker.error),
             market_connected=broker.market_connected(),
-            session=cfg.session, error=broker.error,
+            session=cfg.session, error=broker.error or broker.session_error,
             trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
             supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin", "scanner", "volumes", "option_catalog", "current_session_ticks"] + (["paper_realized_pnl"] if cfg.mode in {'paper', 'demo'} else []),
             limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "選擇權清單支援唯讀查詢；完整即時 T 字與選擇權交易尚未啟用", "標示 API 尚未接通的新功能面板僅提供本機版面，遠端操作停用"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))

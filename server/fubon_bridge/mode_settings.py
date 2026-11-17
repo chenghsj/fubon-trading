@@ -13,7 +13,7 @@ class ModeSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     mode: Literal["demo", "paper", "sandbox", "live"]
     live_enabled: StrictBool = False
-    session: Literal["regular", "afterhours"] | None = None
+    session: Literal["auto", "regular", "afterhours"] | None = None
 
     @model_validator(mode="after")
     def valid_permission(self):

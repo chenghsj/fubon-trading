@@ -12,7 +12,7 @@ import { waitForFubonRestart } from '@/lib/fubon-restart';
 import * as styles from './fubon-mode-settings.css';
 
 type Mode = 'demo' | 'paper' | 'sandbox' | 'live';
-interface Settings { mode: Mode; live_enabled: boolean; session?: 'regular' | 'afterhours'; instance_id: string; available: boolean; saved: boolean; sandbox_configured: boolean }
+interface Settings { mode: Mode; live_enabled: boolean; session?: 'auto' | 'regular' | 'afterhours'; instance_id: string; available: boolean; saved: boolean; sandbox_configured: boolean }
 const modes: Record<Mode, { label: string; detail: string }> = {
     demo: { label: '展示模式', detail: '合成行情，委託在本機模擬；展示帳簿重啟後清除。' },
     paper: { label: 'Paper 模擬交易', detail: '富邦正式行情，委託在本機模擬；保存委託、持倉與費稅。' },
@@ -37,13 +37,13 @@ function LiveTradingConsent({ enabled, onChange, acknowledgement, onAcknowledge,
 
 function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (value: boolean) => void }) {
     const [mode, setMode] = useState(current.mode);
-    const [session, setSession] = useState(current.session ?? 'regular');
+    const [session, setSession] = useState(current.session ?? 'auto');
     // Every new live selection requires a fresh, explicit confirmation.
     const [enabled, setEnabled] = useState(false);
     const [acknowledgement, setAcknowledgement] = useState('');
     const [phase, setPhase] = useState<'ready' | 'saving' | 'restarting' | 'unknown'>('ready');
     const [error, setError] = useState('');
-    const changed = mode !== current.mode || session !== (current.session ?? 'regular');
+    const changed = mode !== current.mode || session !== (current.session ?? 'auto');
     const busy = phase === 'saving' || phase === 'restarting';
     const live = mode === 'live';
     const leavingSandbox = current.mode === 'sandbox' && (mode === 'paper' || mode === 'demo');
@@ -76,9 +76,9 @@ function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (val
         </Field>
         {current.session && <Field><FieldLabel htmlFor="fubon-session">期權行情與委託盤別</FieldLabel>
             <SelectControl id="fubon-session" value={session} onValueChange={value => { setSession(value as typeof session); setError(''); }} disabled={busy || phase === 'unknown'} wrapperClassName="w-full" className="w-full">
-                <SelectOption value="regular">日盤</SelectOption><SelectOption value="afterhours">夜盤</SelectOption>
+                <SelectOption value="auto">自動（依商品與交易時段）</SelectOption><SelectOption value="regular">日盤</SelectOption><SelectOption value="afterhours">夜盤</SelectOption>
             </SelectControl>
-            <FieldDescription>切換期貨／選擇權的報價、K 線、逐筆、五檔及委託盤別；股票行情不受影響。僅適用有該盤別的商品。切換盤別不會啟用正式下單。</FieldDescription>
+            <FieldDescription>預設自動依各商品的交易時段切換報價、K 線、逐筆、五檔與委託盤別；無夜盤商品維持日盤，休市時顯示最近一盤。可手動固定日盤或夜盤。股票不受影響，切換盤別不會啟用正式下單。</FieldDescription>
         </Field>}
         {live && changed && <LiveTradingConsent enabled={enabled} onChange={setEnabled} acknowledgement={acknowledgement} onAcknowledge={setAcknowledgement} disabled={busy || phase === 'unknown'} />}
         {live && !changed && <FieldDescription>正式下單目前已啟用。選擇 Paper 模擬交易並套用，可關閉正式下單。</FieldDescription>}

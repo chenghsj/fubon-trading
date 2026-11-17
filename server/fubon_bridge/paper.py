@@ -94,6 +94,8 @@ class PaperBook:
                     expiry += timedelta(days=1)
             else:
                 expiry = at.replace(hour=13,minute=45 if contract['security_type'] in {'FUT','OPT'} else 30,second=0,microsecond=0)
+            if contract.get('market_close'):
+                expiry = stamp(contract['market_close'])
             ident = 'paper-'+uuid.uuid4().hex
             trade = dict(contract=deepcopy(contract),order=dict(order,id=ident,seqno=ident,ordno=ident,account=account),
                 status=dict(id=ident,status='Submitted',status_code='10',order_ts=at.timestamp(),order_quantity=quantity,

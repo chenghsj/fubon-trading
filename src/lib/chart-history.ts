@@ -2,6 +2,7 @@ import { getApiBase } from './runtime';
 import { fetchKbars } from './shioaji';
 import type { ContractBase } from './types/contract';
 import type { KBars } from './types/market';
+import { marketSessionVersion } from './market-session';
 
 let revision = 0;
 // Shared across mounted charts: a manual refresh must not reuse another
@@ -12,7 +13,7 @@ const requests = new Map<string, Promise<KBars>>();
 /** Presentation rebuilds reuse history, including failures. A manual revision
  * or a new date range explicitly permits another bounded fetchKbars attempt. */
 export function fetchChartHistory(contract: ContractBase, start: string, end: string, opts?: { timeoutMs?: number; revision?: number }) {
-    const key = JSON.stringify([getApiBase(), contract, start, end, opts?.revision ?? 0]);
+    const key = JSON.stringify([getApiBase(), contract, start, end, opts?.revision ?? 0, marketSessionVersion(contract.code)]);
     let request = requests.get(key);
     if (!request) {
         request = fetchKbars(contract, start, end, opts);

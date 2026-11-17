@@ -4,6 +4,7 @@ import { canTrade } from '../lib/account-tradable';
 import { reportOrderError } from '../lib/order-outcome';
 import { RefreshButton } from './refresh-button';
 import { fetchChartHistory, nextChartHistoryRevision } from '../lib/chart-history';
+import { useMarketSessionVersion } from '../lib/market-session';
 // src/components/candle-chart.tsx — K-bar candlestick + volume chart
 // (lightweight-charts v5), live-updated from the SSE tick stream.
 
@@ -334,6 +335,7 @@ export function CandleChart({
     // 圖上目前畫的是哪一組（商品|週期|僅日盤）— 換組時同步清圖
     const drawnKeyRef = useRef('');
     const quote = useQuote(contract.code);
+    const marketSession = useMarketSessionVersion(contract.code);
     const tf = TIMEFRAMES[tfIdx] ?? TIMEFRAMES[DEFAULT_TF_IDX]!;
     const themeSettings = useThemeSettings();
     // 只取這個布林：別的風控欄位變動時不必重繪整張圖
@@ -934,7 +936,7 @@ export function CandleChart({
     // pulled on demand by the visible-range subscription (loadMoreRef)
     useEffect(() => {
         let cancelled = false;
-        const loadKey = `${contract.code}|${tf.minutes}|${dayOnly}`;
+        const loadKey = `${contract.code}|${tf.minutes}|${dayOnly}|${marketSession}`;
         loadedKeyRef.current = ''; // freeze tick updates while loading
         const toRaw = (k: Parameters<typeof kbarsToCandles>[0]) => {
             const raw = kbarsToCandles(k);
@@ -1092,12 +1094,12 @@ export function CandleChart({
         return () => {
             cancelled = true;
         };
-    }, [contract, tf, historySeq, dayOnly]);
+    }, [contract, tf, historySeq, dayOnly, marketSession]);
 
     const { status: maHistoryStatus, retryBackfill: retryMAHistory } = useMAHistoryBackfill({
         // Automatic gap healing may reload history, but only a user refresh
         // or a different chart context starts a fresh MA paging budget.
-        contextKey: `${contract.security_type}|${contract.code}|${tf.minutes}|${dayOnly}|${maHistoryGeneration}`,
+        contextKey: `${contract.security_type}|${contract.code}|${tf.minutes}|${dayOnly}|${maHistoryGeneration}|${marketSession}`,
         required: maRequired, available: barsRef.current.length,
         loading, historyError, paging: historyPaging, loadMore: loadMoreRef,
         restart: refreshHistory,
@@ -1117,7 +1119,7 @@ export function CandleChart({
         if ('simtrade' in liveQuote && liveQuote.simtrade) return;
         // history for this (symbol, timeframe) not in place yet
         if (
-            loadedKeyRef.current !== `${contract.code}|${tf.minutes}|${dayOnly}`
+            loadedKeyRef.current !== `${contract.code}|${tf.minutes}|${dayOnly}|${marketSession}`
         ) {
             return;
         }
@@ -1188,7 +1190,7 @@ export function CandleChart({
         setEmpty(false);
         // Live candles do not repair a failed history read. Keep its retry
         // state until history succeeds, including for MA warmup.
-    }, [liveQuote, quote?.tick?.volume, contract.code, tf.minutes, dayOnly]);
+    }, [liveQuote, quote?.tick?.volume, contract.code, tf.minutes, dayOnly, marketSession]);
 
     // 自訂指標增刪改 → 重算指標 effect；被刪掉的型別把殘留實例一併清掉
     const [customVer, setCustomVer] = useState(0);
@@ -1750,7 +1752,7 @@ export function CandleChart({
     const drawingArmedRef = useRef(false);
     const drawingsRef = useRef<ChartDrawingsApi | null>(null);
     const cancelOrderDragRef = useRef<() => boolean>(() => false);
-    const orderDragContext = `${contract.security_type}:${contract.code}:${tf.minutes}:${dayOnly}:${historySeq}`;
+    const orderDragContext = `${contract.security_type}:${contract.code}:${tf.minutes}:${dayOnly}:${historySeq}:${marketSession}`;
     const orderDragContextRef = useRef(orderDragContext);
     orderDragContextRef.current = orderDragContext;
     // 舊委託線被重建前也要還原／解除拖曳；render 後、effect 前的事件由 context 核對阻擋。
@@ -1970,7 +1972,7 @@ export function CandleChart({
     }, [dataVersion]);
     const drawings = useChartDrawings({
         contract,
-        contextKey: `${tf.minutes}:${dayOnly}:${historySeq}`,
+        contextKey: `${tf.minutes}:${dayOnly}:${historySeq}:${marketSession}`,
         hostRef,
         chartRef,
         seriesRef: candleSeriesRef,

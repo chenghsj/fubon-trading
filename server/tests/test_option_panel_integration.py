@@ -58,7 +58,7 @@ def option_market(monkeypatch):
     import fubon_bridge.market_data as market
     monkeypatch.setattr(options, 'now', lambda: STAMP)
     monkeypatch.setattr(market, 'now', lambda: STAMP)
-    broker = Broker(Config(mode='paper'))
+    broker = Broker(Config(mode='paper', session='regular'))
     products = Mock(side_effect=lambda **_: dict(date=TODAY.isoformat(), data=deepcopy(PRODUCTS)))
     tickers = Mock(side_effect=lambda **_: dict(date=TODAY.isoformat(), data=deepcopy(MONTHLY)))
     ticker = Mock(side_effect=lambda **_: deepcopy(MONTHLY[0]))
@@ -164,7 +164,7 @@ def test_missing_required_option_fields_fail_instead_of_publishing_zero(option_m
 @pytest.fixture
 def http_options(option_market, tmp_path):
     broker, products, tickers, ticker = option_market
-    app = create_app(Config(mode='paper'), passkey_store=PasskeyStore(tmp_path/'passkeys.sqlite3'),
+    app = create_app(Config(mode='paper', session='regular'), passkey_store=PasskeyStore(tmp_path/'passkeys.sqlite3'),
                      research_store=ResearchStore(tmp_path/'research.sqlite3'))
     app.state.broker._client = broker._client
     with TestClient(app, raise_server_exceptions=False) as client:

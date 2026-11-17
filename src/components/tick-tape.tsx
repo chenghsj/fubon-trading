@@ -8,6 +8,7 @@ import { retainQuote } from '../lib/quote-ownership';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { fetchLastTicks } from '../lib/shioaji';
 import { onAnyTick } from '../lib/stream';
+import { useMarketSessionVersion } from '../lib/market-session';
 import type { ContractBase } from '../lib/types/contract';
 import type { HistoryTicks } from '../lib/types/tick';
 import { fmtInt, fmtPrice } from '../lib/utils/format';
@@ -89,6 +90,7 @@ const TapeRowView = memo(function TapeRowView({
 });
 
 export function TickTape({ contract }: { contract: ContractBase }) {
+    const marketSession = useMarketSessionVersion(contract.code);
     const [rows, setRows] = useState<TapeRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [historyError, setHistoryError] = useState(false);
@@ -146,7 +148,7 @@ export function TickTape({ contract }: { contract: ContractBase }) {
             off();
             releaseQuote();
         };
-    }, [contract, retrySeq]);
+    }, [contract, retrySeq, marketSession]);
 
     // big-lot threshold from the rolling average of visible rows
     const bigThreshold = useMemo(() => {

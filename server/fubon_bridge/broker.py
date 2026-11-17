@@ -12,6 +12,7 @@ from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_eve
                       normalize_trade, now, number, snapshot, stamp, symbol_alias, unwrap)
 from .paper import ACTIVE, PaperBook
 from .option_catalog import OptionCatalog
+from .market_session import MarketSessions
 
 
 class Broker:
@@ -39,6 +40,9 @@ class Broker:
         self.paper = PaperBook(emit,paper_store,costs=config.mode=='paper')
         self.instance_id = uuid.uuid4().hex
         self.options = OptionCatalog(self)
+        self.market_sessions = MarketSessions(lambda **params: self._client('FUT').intraday.ticker(**params), clock=lambda: now())
+        self.session_error = None
+        self.pending_session_changes = set()
         self.tick_history_cache = {}
         self.tick_history_lock = threading.RLock()
         if config.mode == "demo":
@@ -113,7 +117,7 @@ class Broker:
         if self.config.mode == "demo":
             return True
         needed = {sub["kind"] for sub in list(self.subscriptions.values())} | getattr(self,'extra_socket_requirements',set())
-        return bool(needed) and needed.issubset(self.connected_sockets)
+        return not self.session_error and bool(needed) and needed.issubset(self.connected_sockets)
 
     def account_rows(self):
         if not self.config.broker_orders:
@@ -143,12 +147,42 @@ class Broker:
         self.ready()
         return self.sdk.marketdata.rest_client.stock if security_type == "STK" else self.sdk.marketdata.rest_client.futopt
 
-    def _session_args(self, kind, listing=False):
+    def session_for(self, contract):
+        if contract['security_type'] == 'STK':
+            return 'regular'
+        if self.config.session != 'auto':
+            return self.config.session
+        return contract.get('market_session', 'regular')
+
+    def _session_args(self, kind, listing=False, contract=None):
         if kind == "STK":
             return {}
+        # Auto listings use the complete regular-session universe. Routing is
+        # resolved separately for each concrete instrument, never globally.
+        session = self.session_for(contract) if contract else self.config.session
         if listing:
-            return {"session": "AFTERHOURS" if self.config.session == "afterhours" else "REGULAR"}
-        return {"session": "afterhours"} if self.config.session == "afterhours" else {}
+            return {"session": "AFTERHOURS" if session == "afterhours" else "REGULAR"}
+        return {"session": "afterhours"} if session == "afterhours" else {}
+
+    def market_contract(self, key):
+        with self.lock:
+            contract = self.contract(key)
+            if self.config.session != 'auto' or self.config.mode == 'demo' or contract['security_type'] == 'STK':
+                return contract
+            code = contract['code']
+            row = self.market_sessions.resolve(symbol_alias(code))
+            info = contract_from_ticker(row, contract['security_type'])
+            info.update({k: row[k] for k in ('market_session', 'market_open', 'market_close')})
+            if row.get('settleDate'):
+                info['delivery_month'] = row['settleDate'].replace('-', '')
+            if info['security_type'] == 'OPT':
+                info = self.options.enrich(info)
+            self.catalog[info['code']] = info
+            self.catalog_full.add(info['code'])
+            if info['code'] != code:
+                info = dict(info, code=code, target_code=info['code'])
+            self.catalog[code] = info
+            return self._future_info(deepcopy(info))
 
     def _demo_catalog(self):
         at = now()
@@ -239,7 +273,7 @@ class Broker:
     def contract_info(self, key):
         """Public market lookup includes specifications even on a cold direct code."""
         with self.lock:
-            row = self.contract(key)
+            row = self.market_contract(key)
             if row['security_type'] == 'FUT':
                 self._future_products()
             if row['security_type'] == 'OPT':
@@ -270,7 +304,8 @@ class Broker:
                     return self._future_info(deepcopy(cached))
                 raise ValueError("展示模式僅提供自選清單中的展示商品")
             # Resolve aliases from Fubon, never trust a client-supplied target.
-            row = self._client(kind).intraday.ticker(symbol=symbol_alias(code), **self._session_args(kind))
+            row = (self.market_sessions.resolve(symbol_alias(code)) if self.config.session == 'auto' and kind != 'STK'
+                   else self._client(kind).intraday.ticker(symbol=symbol_alias(code), **self._session_args(kind)))
             info = contract_from_ticker(row, kind)
             if row.get("settleDate"):
                 info["delivery_month"] = row["settleDate"].replace("-", "")
@@ -283,8 +318,10 @@ class Broker:
             self.catalog[code] = info
             return self._future_info(deepcopy(info))
 
-    def quote(self, contract):
+    def quote(self, contract, *, resolve_session=True):
         with self.lock:
+            if resolve_session and self.config.session == 'auto':
+                contract = self.market_contract(contract)
             if self.config.mode == "demo":
                 ref = contract["reference"]
                 step = .01 if ref < 100 else .5 if contract["security_type"] == "STK" else 1
@@ -296,13 +333,13 @@ class Broker:
                     volume=1, total_volume=1000, amount=0, total_amount=0, change_price=value-ref,
                     change_rate=(value-ref)/ref*100, change_type="", tick_type="0", volume_ratio=0, yesterday_volume=0)
             row = self._client(contract["security_type"]).intraday.quote(
-                symbol=contract.get("target_code") or contract["code"], **self._session_args(contract["security_type"]))
+                symbol=contract.get("target_code") or contract["code"], **self._session_args(contract["security_type"], contract=contract))
             result = snapshot(row, contract["code"])
             self.quotes[contract["code"]] = result
             return result
 
     def kbars(self, key, start, end):
-        contract = self.contract(key)
+        contract = self.market_contract(key)
         start_date, end_date = date.fromisoformat(start), date.fromisoformat(end)
         if end_date < start_date or (end_date-start_date).days > 365:
             raise ValueError("歷史資料區間須為 0–365 天")
@@ -349,14 +386,14 @@ class Broker:
                         contract_month = f'{year}{"ABCDEFGHIJKL".index(month)+1:02d}'
                     params = dict(product=root, contractMonth=contract_month,
                                   timeframe="1", **{"from": start, "to": history_end.isoformat()}, sort="asc",
-                                  **self._session_args(kind))
+                                  **self._session_args(kind, contract=contract))
                 try:
                     rows += client.historical.candles(**params).get("data", [])
                 except Exception as error:
                     if getattr(error, "status_code", None) != 404:
                         raise
             if end_date >= now().date():
-                rows += client.intraday.candles(symbol=contract.get("target_code") or contract["code"], timeframe="1", sort="asc", **self._session_args(kind)).get("data", [])
+                rows += client.intraday.candles(symbol=contract.get("target_code") or contract["code"], timeframe="1", sort="asc", **self._session_args(kind, contract=contract)).get("data", [])
             for row in sorted({r["date"]: r for r in rows}.values(), key=lambda r: r["date"]):
                 if any(row.get(k) is None for k in ("open", "high", "low", "close")):
                     continue
@@ -420,14 +457,14 @@ class Broker:
                 raise ValueError('跨月歷史下載失敗，請檢查行情權限、日期或稍後重試；已保存批次可續傳') from None
 
     def ticks(self, key, requested_date, count=500, *, all_day=False):
-        contract = self.contract(key)
+        contract = self.market_contract(key)
         result = dict(datetime=[], close=[], volume=[], bid_price=[], bid_volume=[], ask_price=[], ask_volume=[], tick_type=[])
         requested = date.fromisoformat(requested_date)
         if abs((requested - now().date()).days) > 4:
             raise ValueError("富邦此介接的逐筆查詢僅支援當日；歷史分析請使用分 K")
         if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 500:
             raise ValueError('最近逐筆筆數須為 1–500')
-        cache_key = (contract['security_type'], contract['code'], requested_date, self.config.session)
+        cache_key = (contract['security_type'], contract['code'], requested_date, self.session_for(contract))
         if self.config.mode == "demo":
             if requested != now().date():
                 raise ValueError('展示逐筆僅提供當日合成資料')
@@ -440,7 +477,7 @@ class Broker:
                 if all_day and cached and time.monotonic() - cached[0] < 15:
                     return deepcopy(cached[1])
                 params = dict(symbol=contract.get('target_code') or contract['code'], limit=500 if all_day else count,
-                              sort='asc' if all_day else 'desc', **self._session_args(contract['security_type']))
+                              sort='asc' if all_day else 'desc', **self._session_args(contract['security_type'], contract=contract))
                 client = self._client(contract['security_type']).intraday
                 rows, previous_end, source_date, limited = [], None, None, False
                 while True:
@@ -521,7 +558,7 @@ class Broker:
 
     def subscribe(self, key, quote_type):
         self.ready()
-        contract = self.contract(key)
+        contract = self.market_contract(key)
         if quote_type not in {"Tick", "BidAsk"}:
             raise ValueError("此介接僅支援 Tick 與 BidAsk 訂閱")
         channel = "trades" if quote_type == "Tick" else "books"
@@ -545,7 +582,7 @@ class Broker:
                                 continue
                             params = dict(channel=sub["channel"], symbol=symbol)
                             if kind == "futopt":
-                                params["afterHours"] = self.config.session == "afterhours"
+                                params["afterHours"] = self.session_for(sub['contract']) == "afterhours"
                             socket.subscribe(params)
                             replayed.add((sub["channel"], symbol))
                         self.connected_sockets.add(kind)
@@ -558,7 +595,7 @@ class Broker:
                 self.market_socket(kind, replay=False)
             args = dict(channel=channel, symbol=contract.get("target_code") or contract["code"])
             if kind == "futopt":
-                args["afterHours"] = self.config.session == "afterhours"
+                args["afterHours"] = self.session_for(contract) == "afterhours"
             try:
                 self.sockets[kind].subscribe(args)
             except Exception:
@@ -583,7 +620,7 @@ class Broker:
                     if sub['kind']==kind:
                         args = dict(channel=sub['channel'],symbol=sub['contract'].get('target_code') or sub['contract']['code'])
                         if kind=='futopt':
-                            args['afterHours'] = self.config.session=='afterhours'
+                            args['afterHours'] = self.session_for(sub['contract'])=='afterhours'
                         socket.subscribe(args)
             return socket
 
@@ -592,6 +629,61 @@ class Broker:
         # bridge restarts so one panel/window cannot unsubscribe another's feed.
         pass
 
+    @staticmethod
+    def _session_identity(contract):
+        return tuple(contract.get(k) for k in ('target_code', 'market_session', 'market_open', 'market_close'))
+
+    def refresh_market_sessions(self):
+        """Replay the futures socket at a per-instrument session boundary.
+
+        The process, Passkey session, accounts and working orders survive.
+        Failed schedule lookups suspend futures consumption until recovery.
+        """
+        if self.config.session != 'auto' or self.config.mode == 'demo' or not self.sdk or self.error:
+            return
+        with self.lock:
+            if self.transitioning:
+                return
+            pending, changed = [], set()
+            try:
+                resolved = {}
+                for sub in self.subscriptions.values():
+                    if sub['kind'] != 'futopt':
+                        continue
+                    old = sub['contract']
+                    code = old['code']
+                    if code not in resolved:
+                        resolved[code] = self.market_contract(old)
+                    current = resolved[code]
+                    pending.append((sub, current))
+                    if self._session_identity(old) != self._session_identity(current):
+                        changed.add(code)
+                recovering = bool(self.session_error)
+                if not changed and not recovering:
+                    return
+                for sub, current in pending:
+                    sub['contract'] = current
+                self.pending_session_changes.update(changed)
+                for code in changed:
+                    self.quotes.pop(code, None)
+                self.tick_history_cache.clear()
+                self.connected_sockets.discard('futopt')
+                socket = self.sockets.get('futopt')
+                if socket:
+                    socket.disconnect()
+                    self.market_socket('futopt')
+                self.session_error = None
+                if self.pending_session_changes:
+                    self.emit('fubon_session_changed', dict(codes=sorted(self.pending_session_changes)))
+                    self.pending_session_changes.clear()
+            except Exception:
+                self.session_error = '期權自動盤別更新失敗，正在重試；期權行情與新增委託暫停'
+                self.connected_sockets.discard('futopt')
+
+    def session_is_regular(self, key):
+        with self.lock:
+            return self.session_for(self.market_contract(key)) == 'regular'
+
     def _on_market(self, kind, raw):
         try:
             message = json.loads(raw) if isinstance(raw, str) else raw
@@ -599,10 +691,19 @@ class Broker:
                 return
             channel, data = message.get("channel"), message.get("data", {})
             with self.lock:
+                if kind == 'futopt' and self.session_error:
+                    return
                 for subscription in list(self.subscriptions.values()):
                     contract = subscription["contract"]
                     if subscription["kind"] != kind or subscription["channel"] != channel or data.get("symbol") != (contract.get("target_code") or contract["code"]):
                         continue
+                    if kind == 'futopt' and self.config.session == 'auto':
+                        current = self.catalog.get(contract['code'], contract)
+                        if self._session_identity(current) != self._session_identity(contract):
+                            continue
+                        at = stamp(data['time'])
+                        if not stamp(contract['market_open']) <= at <= stamp(contract['market_close']):
+                            continue
                     enriched = dict(data, type="EQUITY" if kind == "stock" else "FUTURE")
                     for event, payload in market_events(channel, enriched, contract["code"], self.quotes.get(contract["code"], contract)):
                         self.emit(event, payload)
@@ -671,14 +772,24 @@ class Broker:
                 raise ValueError('paper 成本設定僅供本機模擬')
             if self.config.mode=='paper' and (account.get('account_id')=='PAPER-AUTO-F') != (client_tag is not None):
                 raise ValueError('策略專用模擬帳戶只接受策略委託；手動請選 PAPER-F')
-            if client_tag is not None and (self.config.session!="regular" or account.get("account_type")!="F"
+            if client_tag is not None and (self.config.session=="afterhours" or account.get("account_type")!="F"
                 or not re.fullmatch(r"TMF[A-L]\d",contract_key.get("code","")) or order.get("quantity")!=1
                 or order.get("price_type")!="LMT" or order.get("order_type")!="IOC"
                 or order.get("octype") not in {"New","Cover"} or not float(order.get("price",0)).is_integer() or order.get("price",0)<=0):
                 raise ValueError("策略委託僅支援日盤微台單口限價 IOC")
             self.ready()
-            contract = self.contract(contract_key)
+            self.refresh_market_sessions()
+            contract = self.market_contract(contract_key)
             kind = contract["security_type"]
+            session = self.session_for(contract)
+            if kind != 'STK' and self.session_error:
+                raise ValueError(self.session_error)
+            if client_tag is not None and session != 'regular':
+                raise ValueError('策略委託僅支援日盤微台單口限價 IOC')
+            if self.config.session == 'auto' and kind != 'STK' and self.config.mode != 'demo' and not (
+                stamp(contract['market_open']) <= now() <= stamp(contract['market_close'])
+            ):
+                raise ValueError('此商品目前不在交易時段，請等待開盤後重新確認委託')
             if kind == 'OPT':
                 raise ValueError('富邦選擇權交易級距尚未完成；目前僅提供唯讀行情')
             if kind == 'FUT' and not contract.get('multiplier'):
@@ -695,7 +806,8 @@ class Broker:
                 raise ValueError("請選擇具體月份合約下單，連續月代碼僅供看盤")
             if not self.config.broker_orders:
                 local_order=dict(order,custom_field=client_tag) if client_tag else order
-                return self.paper.place(contract,local_order,account,self.quote(contract),cost=paper_cost,strategy_tag=client_tag,strategy_day=strategy_day,session=self.config.session)
+                quote = self.quote(contract, resolve_session=False) if self.config.session == 'auto' else self.quote(contract)
+                return self.paper.place(contract,local_order,account,quote,cost=paper_cost,strategy_tag=client_tag,strategy_day=strategy_day,session=session)
             if self.config.mode == "live" and not self.config.live_enabled:
                 raise ValueError("正式下單未啟用")
             socket_kind = "stock" if kind == "STK" else "futopt"
@@ -716,7 +828,7 @@ class Broker:
                 row = unwrap(self.sdk.stock.place_order(self.raw_account(account), obj))
             else:
                 market = "Option" if kind == "OPT" else "Future"
-                if self.config.session == "afterhours":
+                if session == "afterhours":
                     market += "Night"
                 obj = FutOptOrder(**shared, lot=order["quantity"], market_type=getattr(FutOptMarketType, market),
                     price_type=getattr(FutOptPriceType, {"LMT": "Limit", "MKT": "Market", "MKP": "RangeMarket"}[order["price_type"]]),

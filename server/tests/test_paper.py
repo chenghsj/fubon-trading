@@ -136,7 +136,7 @@ def test_fee_validation_rejects_nonfinite_and_unknown_fields():
 def paper_trader(tmp_path):
     clock=NS(at=at(9,19),mono=0,price=25020)
     research=ResearchStore(tmp_path/'paper.db')
-    broker=Broker(Config(mode='paper'),paper_store=PaperStore(research))
+    broker=Broker(Config(mode='paper', session='regular'),paper_store=PaperStore(research))
     broker.sdk=NS()  # Truthy sentinel; every execution must stay in PaperBook.
     broker.paper.clock=lambda:clock.at
     broker.connected_sockets.add('futopt')

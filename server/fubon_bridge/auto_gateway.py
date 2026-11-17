@@ -15,7 +15,7 @@ class SandboxGateway:
         return self.broker.config.mode
 
     def prepare(self, config):
-        if self.mode not in self.allowed_modes or self.broker.config.session != "regular":
+        if self.mode not in self.allowed_modes or not self.broker.session_is_regular(dict(code=config['contract_code'], security_type='FUT')):
             raise ValueError("策略自動交易僅支援 sandbox 或 paper 日盤")
         self.broker.ready()
         account = self.broker.account(config["account"])
@@ -29,6 +29,7 @@ class SandboxGateway:
             raise ValueError("請選擇交易日尚未到期的微台具體月份")
         self.broker.subscribe(key, "Tick")
         self.broker.subscribe(key, "BidAsk")
+        self.contract_key = key
         return contract
 
     def quote(self, contract):
@@ -63,7 +64,12 @@ class SandboxGateway:
             self.broker.account(config["account"]), client_tag=tag)
 
     def execution_ready(self):
-        return self.mode in self.allowed_modes and self.broker.config.session=="regular" and not self.broker.error and "futopt" in self.broker.connected_sockets
+        if self.mode not in self.allowed_modes or self.broker.error or self.broker.session_error or 'futopt' not in self.broker.connected_sockets:
+            return False
+        try:
+            return self.broker.session_is_regular(self.contract_key) if self.broker.config.session == 'auto' else self.broker.config.session == 'regular'
+        except (AttributeError, ValueError):
+            return False
 
     def cancel(self, trade_id, tag):
         return self.broker.mutate(trade_id, "cancel", client_tag=tag)

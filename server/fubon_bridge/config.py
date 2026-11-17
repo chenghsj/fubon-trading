@@ -18,7 +18,7 @@ class Config:
     cert_path: str = field(default="", repr=False)
     cert_password: str = field(default="", repr=False)
     live_enabled: bool = False
-    session: str = "regular"
+    session: str = "auto"
     max_quantity: int = 10
     port: int = 21323
     test_id: str = field(default="", repr=False)
@@ -27,8 +27,8 @@ class Config:
     def __post_init__(self):
         if self.mode not in {"demo", "paper", "sandbox", "live"}:
             raise ValueError("FUBON_MODE must be demo, paper, sandbox or live")
-        if self.session not in {"regular", "afterhours"}:
-            raise ValueError("FUBON_SESSION must be regular or afterhours")
+        if self.session not in {"auto", "regular", "afterhours"}:
+            raise ValueError("FUBON_SESSION must be auto, regular or afterhours")
         if self.mode == "live" and not self.live_enabled:
             raise ValueError("Live mode requires FUBON_ENABLE_LIVE_TRADING=true")
         if not 1 <= self.max_quantity <= 10000:
@@ -49,7 +49,7 @@ class Config:
         return cls(
             mode=mode,
             live_enabled=os.getenv("FUBON_ENABLE_LIVE_TRADING", "false").lower() == "true",
-            session=os.getenv("FUBON_SESSION", "regular"),
+            session=os.getenv("FUBON_SESSION", "auto"),
             max_quantity=int(os.getenv("FUBON_MAX_ORDER_QUANTITY", "10")),
             port=int(os.getenv("FUBON_PORT", "21323")),
             test_id=os.getenv("FUBON_TEST_ID", ""),
