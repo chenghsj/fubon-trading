@@ -14,7 +14,7 @@ import { createCancelBatch, readMark, sharedAuthoritativeTrades, verifyCancellat
 import { observeMarketSnapshots } from './market-snapshot-store';
 import { observeTradeResponse } from './trade-observations';
 import { noteStockOrderConditions } from './stock-order-conditions';
-import { beginServerInfoRequest, observeServerInfo } from './server-info-store';
+import { beginServerInfoRequest, knownServerInfo, observeServerInfo } from './server-info-store';
 import { paperCostPayload } from './paper-cost';
 // src/lib/shioaji.ts
 
@@ -116,11 +116,12 @@ export function fetchHealth(opts?: { signal?: AbortSignal }) {
     return apiGet<Health>('/api/v1/health', opts);
 }
 
-export function fetchInfo() {
+export function fetchInfo(opts?: { signal?: AbortSignal }) {
     // Ordered per API base so a slow or failed earlier call cannot overwrite
     // a newer response; the caller still gets its own result/error unchanged.
     const request = beginServerInfoRequest();
-    return apiGet<ServerInfo>('/api/v1/info').then(info => {
+    const query = opts ? apiGet<ServerInfo>('/api/v1/info', opts) : apiGet<ServerInfo>('/api/v1/info');
+    return query.then(info => {
         observeServerInfo(request, info);
         return info;
     }, error => {
@@ -364,7 +365,14 @@ export function fetchOptionRoots(opts?: { signal?: AbortSignal }) {
     );
 }
 
-export function fetchWarrants(
+async function warrantSourceAvailable(opts?: { signal?: AbortSignal }) {
+    if (opts?.signal?.aborted) throw new DOMException('搜尋已取消', 'AbortError');
+    const info = knownServerInfo() ?? await fetchInfo(opts);
+    if (opts?.signal?.aborted) throw new DOMException('搜尋已取消', 'AbortError');
+    return info.broker !== 'fubon';
+}
+
+export async function fetchWarrants(
     underlyingCode: string,
     filters: {
         code?: string;
@@ -376,6 +384,7 @@ export function fetchWarrants(
     } = {},
     opts?: { signal?: AbortSignal },
 ) {
+    if (!await warrantSourceAvailable(opts)) return [];
     return apiGet<ContractInfo[]>(
         `/api/v1/data/contracts/warrants${contractQuery({
             underlying_code: underlyingCode,
@@ -391,7 +400,10 @@ export function fetchWarrants(
     );
 }
 
-export function fetchWarrantUnderlyings(opts?: { signal?: AbortSignal }) {
+export async function fetchWarrantUnderlyings(opts?: { signal?: AbortSignal }) {
+    // Fubon stock names come from its equity catalog. This optional upstream
+    // naming source has no adapter; don't repeatedly call a known 501 route.
+    if (!await warrantSourceAvailable(opts)) return [];
     return apiGet<WarrantUnderlying[]>(
         '/api/v1/data/contracts/warrants/underlyings?region=TW&include_name=true',
         opts,

@@ -368,6 +368,38 @@ async function newFunctionPanelChecks() {
     results.push({ check: 'nine-native-function-panels-no-data-subscribe-submit-requests', types: newPanelTypes, requests: observed });
     await page.setViewportSize({ width: 1600, height: 1100 });
 }
+async function connectedAuditChecks() {
+    const id = await addPanel('診斷 Debug', 'debug'), scope = panel(id);
+    await expect(scope.getByRole('status').filter({ hasText: '券商配額與伺服器監控明細尚未轉接' })).toHaveAttribute('aria-disabled', 'true');
+    await expect(scope.getByRole('button', { name: '暫停監控', exact: true })).toHaveCount(0);
+    await expect(scope).toContainText('SSE');
+    await scope.screenshot({ path: path.join(artifacts, 'debug-fubon-monitor-disabled.png'), animations: 'disabled' });
+    results.push({ check: 'actual-debug-panel-local-diagnostics-monitor-disabled' });
+    // The client must also avoid the optional 501 source before the first
+    // /info has populated its cache, not merely after the app is warm.
+    const coldNames = await page.evaluate(async () => {
+        const store = await import('/src/lib/server-info-store.ts'), runtime = await import('/src/lib/runtime.ts');
+        store.forgetServerInfo(runtime.getApiBase());
+        return window.qaPanels.api.fetchWarrantUnderlyings();
+    });
+    expect(coldNames).toEqual([]);
+    await expect(scope.getByRole('status').filter({ hasText: '券商配額與伺服器監控明細尚未轉接' })).toBeVisible();
+    results.push({ check: 'cold-optional-stock-name-source-loads-info-without-unsupported-route' });
+    for (const [query, code] of [['2330', '2330'], ['2454', '2454'], ['聯發科', '2454'], ['2330', '2330']]) {
+        await page.getByRole('button', { name: /^搜尋商品(?:\s|$)/ }).click();
+        const dialog = page.getByRole('dialog', { name: '搜尋商品與面板', exact: true }), input = dialog.getByRole('combobox');
+        await input.fill(query);
+        await expect(dialog.getByRole('option').filter({ hasText: new RegExp('^' + code) })).toBeVisible({ timeout: 20000 });
+        await expect(dialog.getByText('↑↓ / Ctrl+N、P 選擇 · Enter 切換 · Esc 關閉', { exact: true })).toBeVisible({ timeout: 20000 });
+        const rows = await dialog.getByRole('option').allTextContents();
+        await input.press('Escape'); await expect(dialog).toBeHidden();
+        results.push({ check: 'actual-palette-repeated-catalog-search-completes', query, code, rows });
+    }
+    const forbidden = apiRequests.filter(row => row.path === '/api/v1/auth/usage' || row.path.startsWith('/api/v1/monitor/')
+        || row.path.startsWith('/api/v1/data/contracts/warrants'));
+    expect(forbidden).toEqual([]);
+    results.push({ check: 'zero-monitor-and-warrant-search-generic-501-requests-entire-run' });
+}
 
 try {
     await free(uiPort); await free(apiPort);
@@ -500,7 +532,7 @@ const server=await createServer({...loaded.config,configFile:false,root:${JSON.s
     await exposeApi();
     await expect(page.locator('[data-code="2330"]')).toBeVisible({ timeout: 20000 });
     const baseline = await qa(); expect(baseline.ledger.orders).toEqual([]); expect(baseline.ledger.positions).toEqual([]);
-    await scannerChecks(); await volumeChecks(); await unavailablePanelChecks(); await optionChecks(); await newFunctionPanelChecks();
+    await scannerChecks(); await volumeChecks(); await unavailablePanelChecks(); await optionChecks(); await newFunctionPanelChecks(); await connectedAuditChecks();
     const final = await qa(); expect(final.ledger.orders).toEqual([]); expect(final.ledger.positions).toEqual([]);
     for (const key of ['sdkCalls', 'sdkTransactions', 'keychainCalls', 'outboundCalls']) expect(final.counts[key], key).toBe(0);
     for (const key of ['rank', 'volumes', 'products', 'tickers']) expect(final.counts[key], key).toBeGreaterThan(0);

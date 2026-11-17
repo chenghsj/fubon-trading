@@ -20,10 +20,12 @@ import { appVersion } from '../lib/tauri';
 import * as dockStyles from './bottom-dock.css';
 import * as styles from './debug-panel.css';
 import { ServerMonitor } from './server-monitor';
+import { useServerInfo } from '../lib/server-info-store';
 
 const STATUS_LABEL = { live: 'LIVE', connecting: 'SYNC', down: 'LOST', stale: 'STALE' };
 
 export function DebugPanel() {
+    const provider = useServerInfo();
     const stream = useStreamStatus();
     const [, tick] = useState(0);
     // ticks/sec over a sliding 5s window
@@ -125,7 +127,9 @@ export function DebugPanel() {
     return (
         <div className={styles.wrap}>
             <div className={styles.connection}><strong>SSE {STATUS_LABEL[stream]}</strong><span>心跳 {hbAge === null ? '未知' : `${hbAge}s 前`}（約 30s 一次）· 成交更新 {rate} 筆/秒</span></div>
-            <ServerMonitor />
+            {provider?.broker === 'fubon'
+                ? <div role='status' aria-disabled='true'>券商配額與伺服器監控明細尚未轉接；以下保留本機連線診斷。</div>
+                : provider ? <ServerMonitor /> : <div role='status'>讀取服務監控能力…</div>}
             <details className={styles.details}><summary>App 與連線診斷</summary>
             <div className={styles.grid}>
                 {rows.map((r) => (

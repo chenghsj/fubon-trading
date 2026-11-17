@@ -43,6 +43,8 @@ beforeEach(async () => {
             held.push(response);
             response.on('close', () => { if (!response.writableEnded) closedBeforeReply++; });
             if (mode === 'catalog-failure' && failingBase) reply(failingBase, { message: 'synthetic Base failure' }, 503);
+        } else if (url.pathname === '/api/v1/info') {
+            reply(response, { broker: 'shioaji', name: 'Synthetic upstream', version: '1.7.8', simulation: true, protocols: ['http'] });
         } else if (url.pathname.endsWith('/warrants/underlyings')) {
             reply(response, [{ underlying_code: '2330', name: '台積電' }]);
         } else if (url.pathname === '/api/v1/data/contracts') {
@@ -92,10 +94,13 @@ describe('search cancellation reaches real loopback fetch', () => {
         // A direct stock code also reads the shared stock catalog for same-prefix stocks.
         expect(requests).toEqual(expect.arrayContaining([
             '/api/v1/data/contracts/2330', '/api/v1/data/contracts/2330/info',
+            '/api/v1/info',
             '/api/v1/data/contracts', '/api/v1/data/contracts/warrants/underlyings',
             '/api/v1/data/contracts/futures', '/api/v1/data/contracts/warrants',
         ]));
-        expect(requests).toHaveLength(6);
+        // Provider discovery may be shared with the catalog or begin in the
+        // related-warrant reader; the six actual metadata sources stay unique.
+        expect(requests.filter(path => path !== '/api/v1/info')).toHaveLength(6);
     });
 
     it('one cancelled reader leaves the shared real HTTP request usable for the other reader', async () => {
