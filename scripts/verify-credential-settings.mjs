@@ -25,14 +25,14 @@ function run(command, args, env) {
 async function ready(url) {
     await expect.poll(async () => { try { return (await fetch(url)).status; } catch { return 0; } }, { timeout: 30000 }).toBe(200);
 }
-const dialog = () => page.getByRole('dialog', { name: 'API Key 設定', exact: true });
-const key = () => dialog().getByLabel('新 API Key', { exact: true });
-const save = () => dialog().getByRole('button', { name: '驗證並儲存 API Key', exact: true });
-async function open() { await page.getByRole('button', { name: 'API Key 設定', exact: true }).click(); await expect(key()).toBeVisible(); }
+const dialog = () => page.getByRole('dialog', { name: '富邦連線設定', exact: true });
+const key = () => dialog().getByLabel('API Key', { exact: true });
+const save = () => dialog().getByRole('button', { name: '驗證並儲存連線設定', exact: true });
+async function open() { await page.getByRole('button', { name: '富邦連線設定', exact: true }).click(); await expect(key()).toBeVisible(); }
 async function unlock(first = false) {
     if (first) await page.goto(origin + '/#fubon-launch=' + launch);
     await page.getByRole('button', { name: first ? '建立 Passkey 並解鎖' : '使用 Passkey 解鎖', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'API Key 設定', exact: true })).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole('button', { name: '富邦連線設定', exact: true })).toBeVisible({ timeout: 30000 });
 }
 async function qa(body = {}) {
     return page.evaluate(async body => (await fetch('/api/v1/qa/credentials', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json(), body);
@@ -102,7 +102,7 @@ entry.main()
     page.on('pageerror', error => pageErrors.push(error.message));
     const cdp = await context.newCDPSession(page); await cdp.send('WebAuthn.enable');
     await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
-    await unlock(true); await open(); await expect(dialog()).toContainText('尚未設定登入資料');
+    await unlock(true); await open(); await expect(dialog()).toContainText('首次使用請設定 API Key');
     await fillInitial('fixture-key-cancelled'); await page.keyboard.press('Escape'); await open(); await expect(key()).toHaveValue('');
     expect((await qa()).writes).toBe(0); scenarios.push('cancel discards secret inputs without writes');
     await fillInitial('fixture-key-first'); await dialog().screenshot({ path: path.join(artifacts, 'initial-dark.png') });
@@ -124,7 +124,7 @@ entry.main()
     await page.evaluate(() => { window.qaGet = navigator.credentials.get.bind(navigator.credentials); navigator.credentials.get = async () => { throw new DOMException('cancel', 'NotAllowedError'); }; });
     await save().click(); await expect(dialog().getByRole('alert')).toContainText('Passkey 驗證已取消'); await expect(key()).toHaveValue(''); expect((await qa()).writes).toBe(1);
     await page.evaluate(() => { navigator.credentials.get = window.qaGet; }); await page.keyboard.press('Escape'); scenarios.push('Passkey cancellation never saves');
-    await open(); await expect(dialog()).toContainText('已設定登入資料'); await key().fill('fixture-key-second'); await save().click();
+    await open(); await expect(dialog()).toContainText('連線資料已儲存在 Keychain'); await key().fill('fixture-key-second'); await save().click();
     await expect(page.getByRole('button', { name: '使用 Passkey 解鎖', exact: true })).toBeVisible({ timeout: 35000 });
     await unlock(); state = await qa(); expect(state.writes).toBe(2); expect(state.keyUpdated).toBe(true); expect(state.detailsPreserved).toBe(true);
     expect(await storedSecrets()).not.toMatch(/fixture-(key|password|id)/); scenarios.push('key-only update preserves account/certificate; no secret browser storage');

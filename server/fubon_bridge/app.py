@@ -287,7 +287,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         except (ValueError, ValidationError, TypeError):
             raise HTTPException(400, '登入資料格式不完整或無效，請檢查欄位後重試') from None
         if body.instance_id != broker.instance_id:
-            raise HTTPException(409, '服務已更新，請重新開啟 API Key 設定')
+            raise HTTPException(409, '服務已更新，請重新開啟富邦連線設定')
         passkeys.authenticate(body.request_id, body.credential, purpose='credentials', binding=credential_binding(request))
 
         def save():

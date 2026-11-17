@@ -55,12 +55,12 @@ function CredentialForm({ current, onBusy }: { current: Settings; onBusy: (busy:
 
     return <form ref={form} onSubmit={event => { void save(event); }} autoComplete="off">
         <FieldGroup className="gap-3">
-            <FieldDescription>{current.configured ? '已設定登入資料。只更換 API Key 時，其餘欄位留白即可沿用。' : '尚未設定登入資料。首次使用請填寫 API Key、帳號與憑證資料。'}</FieldDescription>
+            <FieldDescription>{current.configured ? '連線資料已儲存在 Keychain。日常解鎖後會自動連線，不需每次重新輸入。此處只用於更新連線資料。' : '首次使用請設定 API Key、身分證字號與憑證。儲存後，日常解鎖即可自動連線。'}</FieldDescription>
             {!current.available && <Alert><AlertDescription>此啟動方式無法安全儲存。請在 macOS 使用 pnpm start 啟動後再設定。</AlertDescription></Alert>}
             <Field data-disabled={!current.available || busy}>
-                <FieldLabel htmlFor="fubon-api-key">新 API Key</FieldLabel>
+                <FieldLabel htmlFor="fubon-api-key">API Key</FieldLabel>
                 <Input id="fubon-api-key" name="api_key" type="password" autoComplete="new-password" spellCheck={false} autoCapitalize="none" required maxLength={4096} disabled={!current.available || busy} aria-describedby="fubon-api-key-help" />
-                <FieldDescription id="fubon-api-key-help">舊 Key 不會顯示。請貼上富邦核發的新 Key。</FieldDescription>
+                <FieldDescription id="fubon-api-key-help">已儲存的 Key 不會顯示。更新設定時請填入要使用的 Key；只更換 Key 時，其餘資料可留白沿用。</FieldDescription>
             </Field>
             <details open={current.configured ? undefined : true}>
                 <summary>帳號與憑證{current.configured ? '（選填更新）' : '（首次設定必填）'}</summary>
@@ -74,11 +74,11 @@ function CredentialForm({ current, onBusy }: { current: Settings; onBusy: (busy:
                         <Input id="fubon-cert-password" name="cert_password" type="password" autoComplete="new-password" required={!current.configured} maxLength={4096} disabled={!current.available || busy} /></Field>
                 </FieldGroup>
             </details>
-            <FieldDescription>登入資料儲存在 macOS Keychain，供此電腦的 Fubon Trading 共用。不寫入瀏覽器儲存空間或設定檔。儲存前需以 Passkey 驗證。</FieldDescription>
+            <FieldDescription>連線資料儲存在 macOS Keychain，供此電腦的 Fubon Trading 共用。不寫入瀏覽器儲存空間或設定檔。儲存變更前需以 Passkey 驗證。</FieldDescription>
             <FieldDescription>儲存後重啟此服務並重新解鎖，交易模式維持原設定。策略、研究工作、未完成委託與持倉須先處理完畢。</FieldDescription>
             {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
             {busy && <p role="status">{phase === 'verifying' ? '等待 Passkey 驗證…' : phase === 'saving' ? '正在儲存至 Keychain…' : '已儲存，等待服務重新連線…'}</p>}
-            <div className={styles.actions}><Button size="compact" className={styles.action} type="submit" disabled={!current.available || busy || phase === 'unknown'}>驗證並儲存 API Key</Button></div>
+            <div className={styles.actions}><Button size="compact" className={styles.action} type="submit" disabled={!current.available || busy || phase === 'unknown'}>驗證並儲存連線設定</Button></div>
         </FieldGroup>
     </form>;
 }
@@ -96,9 +96,9 @@ export function FubonCredentialSettings() {
         return () => { disposed = true; };
     }, [open]);
     return <Dialog open={open} onOpenChange={value => { if (!busy) setOpen(value); }}>
-        <DialogTrigger asChild><Button size="compact" variant="outline">API Key 設定</Button></DialogTrigger>
+        <DialogTrigger asChild><Button size="compact" variant="outline">富邦連線設定</Button></DialogTrigger>
         <DialogContent className={styles.dialog} showCloseButton={!busy} onEscapeKeyDown={event => { if (busy) event.preventDefault(); }} onPointerDownOutside={event => { if (busy) event.preventDefault(); }}>
-            <DialogHeader className={styles.header}><DialogTitle className={styles.title}>API Key 設定</DialogTitle><DialogDescription className={styles.description}>安全更新富邦登入資料。</DialogDescription></DialogHeader>
+            <DialogHeader className={styles.header}><DialogTitle className={styles.title}>富邦連線設定</DialogTitle><DialogDescription className={styles.description}>管理富邦 API Key、帳號與憑證；日常使用只需解鎖本機介面。</DialogDescription></DialogHeader>
             {open && (settings ? <CredentialForm current={settings} onBusy={setBusy} /> : error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : <p role="status">正在讀取設定狀態…</p>)}
         </DialogContent>
     </Dialog>;

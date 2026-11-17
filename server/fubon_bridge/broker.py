@@ -45,7 +45,7 @@ class Broker:
             cfg = self.config.with_credentials()
             self.config = cfg
             if cfg.mode != "sandbox" and not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
-                self.error = "尚未設定富邦登入資料；請開啟「API Key 設定」儲存至 Keychain 並重新連線"
+                self.error = "尚未設定富邦連線資料；請開啟「富邦連線設定」儲存至 Keychain 並重新連線"
                 return
             factory = self.sdk_factory
             if factory is None:
