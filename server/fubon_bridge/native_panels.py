@@ -8,6 +8,7 @@ from copy import deepcopy
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from functools import lru_cache
 import hashlib
 import json
 import math
@@ -66,6 +67,24 @@ LABELS = {
 PRIVATE = {'password','cert_password','api_key','secret','token','sdk_token','bearer_token','personal_id','person_id'}
 
 
+@lru_cache(maxsize=1)
+def sdk_enum_members():
+    # PyO3 SDK constants report module="builtins" and expose enum members as
+    # class attributes. Match exact SDK types rather than walking those cycles.
+    try:
+        from fubon_neo import constant
+    except ImportError:
+        return {}
+    result = {}
+    for candidate in vars(constant).values():
+        if isinstance(candidate, type):
+            members = tuple((name, member) for name, member in vars(candidate).items()
+                            if not name.startswith('_') and isinstance(member, candidate))
+            if members:
+                result[candidate] = members
+    return result
+
+
 def native_json(value, depth=0):
     if depth > 12:
         raise ValueError('富邦回應結構過深')
@@ -75,6 +94,10 @@ def native_json(value, depth=0):
         if not math.isfinite(value):
             raise ValueError('富邦回應含無效數值')
         return value
+    if isinstance(value, Decimal):
+        if not value.is_finite():
+            raise ValueError('富邦回應含無效數值')
+        return str(value)
     if isinstance(value, (date, datetime)):
         return value.isoformat()
     if isinstance(value, Enum):
@@ -83,8 +106,12 @@ def native_json(value, depth=0):
         return [native_json(row, depth+1) for row in value]
     if isinstance(value, dict):
         return {str(key): native_json(item, depth+1) for key, item in value.items() if str(key).lower() not in PRIVATE}
-    if type(value).__module__.startswith('fubon_neo') and hasattr(value, 'name'):
-        return str(value.name)
+    members = sdk_enum_members().get(type(value))
+    if members:
+        for name, member in members:
+            if value == member:
+                return name
+        raise ValueError('富邦回應含未知列舉值')
     result = {}
     for key in dir(value):
         if key.startswith('_') or key.lower() in PRIVATE:

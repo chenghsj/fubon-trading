@@ -1,6 +1,7 @@
 import { apiGet, apiPost } from './api';
 import { rememberNativeAttempt, forgetNativeAttempt } from './native-attempts';
 import { checkOrderAllowed } from './risk';
+import { FubonApiError, fubonPost } from './fubon-api-detail';
 export interface NativeAccount {account_type:'S'|'F';broker_id:string;account_id:string;label:string;environment:string}
 export interface NativeResult {
     operation:string;source:'fubon';fetched_at:string;columns:{key:string;label:string}[];
@@ -10,7 +11,18 @@ export interface NativeResult {
 export const fetchNativeAccounts=(signal?:AbortSignal)=>apiGet<NativeAccount[]>('/api/v1/native/accounts',{signal});
 export async function queryNative(body:Record<string,unknown>,signal?:AbortSignal) {
     if(signal?.aborted)throw new DOMException('查詢已取消','AbortError');
-    const result=await apiPost<NativeResult>('/api/v1/native/query',body,{timeoutMs:25_000});
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    let result:NativeResult;
+    try{
+        result=await Promise.race([
+            fubonPost<NativeResult>('/api/v1/native/query',body,25_000).catch(error=>{
+                if(error instanceof FubonApiError&&error.status)throw new FubonApiError(`${error.status}：${error.message}`,error.status);
+                throw error;
+            }),
+            // Include error-body decoding in the original request deadline.
+            new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('查詢逾時，請稍後重試')),25_000);}),
+        ]);
+    }finally{if(timer!==undefined)clearTimeout(timer);}
     if(signal?.aborted)throw new DOMException('查詢已取消','AbortError');
     return result;
 }

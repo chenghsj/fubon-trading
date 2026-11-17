@@ -40,4 +40,6 @@ CLI 以每個 checkout 的 `server/.watchlists.json` 保存清單、名稱與商
 
 這些結果證明接線與資料處理，不證明每個真人帳戶都具有所有行情／帳務權限。正式或 Sandbox 原生送單、成交、條件單生效皆未實測，不能將 SDK 接受請求視為已成交或已有保護。真人服務更新、Passkey 與唯讀結果須另行核對。
 
+後續真人 Passkey 與夜盤代表查詢已完成，詳見 [真人服務唯讀驗證](native-live-readonly-verification-2026-11-17.md)。實測另發現 SDK 原生列舉序列化及錯誤訊息／逾時邊界，已補修正與實際 SDK 常數回歸；最新完整前端 6,014 passed／2 skipped、後端 969 passed，型別與 build 通過。期權委託歷程修正版的真人結果仍須部署後另驗；不能把隔離回歸視為已取得真人紀錄。
+
 依官方 [AI 輔助開發](https://www.fbs.com.tw/TradeAPI/docs/welcome/build-with-llm/) 的完整文件核對；[三大法人](https://www.fbs.com.tw/TradeAPI/docs/market-data/http-api/ownership/institutional-trades/) 與 [期權 K 線盤別](https://www.fbs.com.tw/TradeAPI/docs/market-data-future/http-api/intraday/candles/) 為相應原生來源說明。
