@@ -1736,6 +1736,7 @@ function MainApp() {
             <IndicatorInstanceContext.Provider value={indicatorService}>
             <FubonStatus />
             <HudHeader
+                onOpenSearch={openPalette}
                 accBalance={balanceState.data?.acc_balance}
                 onOpenPanelLibrary={() => setPanelLibraryOpen(true)}
                 profiles={profiles}

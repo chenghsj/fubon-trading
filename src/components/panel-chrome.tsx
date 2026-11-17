@@ -1,6 +1,6 @@
 import { CardHeader } from './ui/card';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuGroup, DropdownMenuLabel } from './ui/dropdown-menu';
-import { Input } from '@/components/ui/input';
+import { PanelProductSearch } from './panel-product-search';
 import { Button } from '@/components/ui/button';
 // src/components/panel-chrome.tsx — shared panel title bar: drag handle,
 // link/pin symbol toggle, remove button.
@@ -112,34 +112,28 @@ export function PanelChrome({
             {pinnable && onPinChange && link && (
                 <span className={styles.linkAnchor}>
                     {pinned && (
-                        <Input
+                        <PanelProductSearch key={`pin:${pin}`}
                             className={styles.pinInput}
                             value={editCode}
-                            title='鎖定的商品代碼，Enter 套用'
-                            onChange={(e) => setEditCode(e.target.value)}
-                            onKeyDown={(e) => {
-                                const code = editCode.trim().toUpperCase();
-                                if (e.key === 'Enter' && code) onPinChange(code);
-                            }}
+                            label='搜尋鎖定商品'
+                            onChange={setEditCode}
+                            onSelect={onPinChange}
                         />
                     )}
                     {group && (
-                        <Input
+                        <PanelProductSearch key={`group:${group}:${groupCode}`}
                             className={styles.groupInput[group]}
                             value={editGroupCode}
-                            title={`群組 ${group} 的商品代碼，Enter 全組一起換`}
-                            onChange={(e) => setEditGroupCode(e.target.value)}
-                            onKeyDown={(e) => {
-                                const code = editGroupCode.trim().toUpperCase();
-                                if (e.key === 'Enter' && code) link.onGroupCode(group, code);
-                            }}
+                            label={`搜尋群組 ${group} 商品`}
+                            onChange={setEditGroupCode}
+                            onSelect={code => link.onGroupCode(group, code)}
                         />
                     )}
                     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}><DropdownMenuTrigger asChild><Button size="compact" variant="outline"
                         className={group ? styles.groupBtn[group] : pinned ? styles.pinBtn.pinned : styles.pinBtn.linked}
                         aria-haspopup='menu'
                         aria-expanded={menuOpen}
-                        title={group ? `群組 ${group}：群組內共用一個商品` : pinned ? '已鎖定' : '跟隨自選清單選擇'}
+                        title={group ? `群組 ${group}：群組內共用一個商品` : pinned ? '已鎖定' : '跟隨目前選取商品'}
                     >
                         {group ? <span className={styles.groupDot} style={{ background: GROUP_COLOR[group] }} />
                             : pinned ? <Pin size={10} style={{ verticalAlign: '-1px' }} />
@@ -149,7 +143,7 @@ export function PanelChrome({
                     </Button></DropdownMenuTrigger>
                     <DropdownMenuContent align="end" aria-label="連動方式" className="min-w-64">
                         <DropdownMenuRadioGroup value={link.mode} onValueChange={mode => { setMenuOpen(false); link.onMode(mode as LinkMode); }}>
-                            {([['main', '連動', '自選清單'], ...link.groups.map(g => [g.id, `群組 ${g.id}`, g.count > 0 && g.code ? `${g.code} · ${g.count} 個` : '未使用'] as const)] as const).map(([mode, label, note]) => (
+                            {([['main', '連動', '目前商品'], ...link.groups.map(g => [g.id, `群組 ${g.id}`, g.count > 0 && g.code ? `${g.code} · ${g.count} 個` : '未使用'] as const)] as const).map(([mode, label, note]) => (
                                 <DropdownMenuRadioItem key={mode} value={mode}>
                                     <span className={styles.groupDot} style={{ background: mode === 'main' ? undefined : GROUP_COLOR[mode as LinkGroupId] }} />
                                     {label}<span className={styles.linkNote}>{note}</span>
@@ -168,7 +162,7 @@ export function PanelChrome({
                 (pin === null || pin === undefined ? (
                     <Button size="compact" variant="outline"
                         className={styles.pinBtn.linked}
-                        title='跟隨自選清單選擇；點擊鎖定目前商品'
+                        title='跟隨目前選取商品；點擊鎖定目前商品'
                         onClick={() =>
                             currentCode && onPinChange(currentCode)
                         }
@@ -178,19 +172,12 @@ export function PanelChrome({
                     </Button>
                 ) : (
                     <>
-                        <Input
+                        <PanelProductSearch key={`pin:${pin}`}
                             className={styles.pinInput}
                             value={editCode}
-                            title='鎖定的商品代碼，Enter 套用'
-                            onChange={(e) => setEditCode(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    const code = editCode
-                                        .trim()
-                                        .toUpperCase();
-                                    if (code) onPinChange(code);
-                                }
-                            }}
+                            label='搜尋鎖定商品'
+                            onChange={setEditCode}
+                            onSelect={onPinChange}
                         />
                         <Button size="compact" variant="outline"
                             className={styles.pinBtn.pinned}

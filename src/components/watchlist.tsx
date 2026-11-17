@@ -31,6 +31,7 @@ import {
 import { limitStateOf } from '../lib/limit-state';
 import { useLimitStyle } from '../lib/limit-style-prefs';
 import { neighborCode } from '../lib/list-move';
+import { searchNavigationDirection } from '../lib/search-navigation';
 import { useQuote } from '../hooks/use-stream';
 import type { WatchItem } from '../hooks/use-watchlist';
 import type { ServerWatchlist } from '../lib/shioaji';
@@ -269,7 +270,7 @@ const WatchRow = memo(function WatchRow({
                     </Button>
                 </span>
             ) : (
-                <Button size="compact-icon" variant="destructive"
+                <Button size="compact-icon" variant="ghost"
                     className={styles.rowRemove}
                     title='從清單移除'
                     disabled={!canRemove}
@@ -880,11 +881,12 @@ export function Watchlist({
                     }}
                     onKeyDown={(e) => {
                         if (search.isComposing() || e.nativeEvent?.isComposing || e.keyCode === 229) return;
-                        if (e.key === 'ArrowDown' && suggestions.length > 0) {
+                        const direction = searchNavigationDirection(e);
+                        if (direction === 1 && suggestions.length > 0) {
                             e.preventDefault();
                             setActiveIdentity(suggestionIdentities[(activeIndex + 1) % suggestions.length]!);
                         }
-                        if (e.key === 'ArrowUp' && suggestions.length > 0) {
+                        if (direction === -1 && suggestions.length > 0) {
                             e.preventDefault();
                             setActiveIdentity(suggestionIdentities[activeIndex < 0 ? suggestions.length - 1 : (activeIndex - 1 + suggestions.length) % suggestions.length]!);
                         }

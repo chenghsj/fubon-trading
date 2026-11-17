@@ -29,7 +29,7 @@ vi.mock('../lib/limit-style-prefs', () => ({ useLimitStyle: () => 'none' }));
 vi.mock('./sparkline', () => ({ Sparkline: () => null }));
 
 import {
-    DEBOUNCE, input, key, kinds, render, row, searchLimit, searchOptionsFor, text, type as query, unmountAll,
+    activeText, DEBOUNCE, input, key, kinds, render, row, searchLimit, searchOptionsFor, text, type as query, unmountAll,
 } from './product-search.test-harness';
 
 const otcIndex: ProductSuggestion = {
@@ -64,6 +64,28 @@ describe.each(kinds)('$kind 商品搜尋', ({ kind }) => {
     // The palette jumps by code and type; the watchlist also keeps the resolved contract.
     const submitted = (item: ProductSuggestion) => (kind === 'palette'
         ? [item.code, item.security_type] : [item.code, item.security_type, item.contract]);
+
+    it('Ctrl+N / Ctrl+P 循環選取結果，中文組字不攔截', async () => {
+        mocks.search.mockResolvedValue([otcIndex, warrantSuggestion]);
+        const { view, submit } = render(kind);
+        await query(view, '台積電');
+        const press = (name: string) => {
+            const event = { key: name, ctrlKey: true, preventDefault: vi.fn() };
+            act(() => input(view).props.onKeyDown(event));
+            expect(event.preventDefault).toHaveBeenCalledOnce();
+        };
+        press('n');
+        expect(activeText(view)).toContain(warrant.code);
+        press('n');
+        expect(activeText(view)).toContain(otcIndex.code);
+        press('p');
+        expect(activeText(view)).toContain(warrant.code);
+        act(() => input(view).props.onCompositionStart());
+        const composing = { key: 'n', ctrlKey: true, preventDefault: vi.fn() };
+        act(() => input(view).props.onKeyDown(composing));
+        expect(composing.preventDefault).not.toHaveBeenCalled();
+        expect(submit).not.toHaveBeenCalled();
+    });
 
     it('IND 結果的代碼及型別原樣交出，並明確開啟權證搜尋', async () => {
         mocks.search.mockResolvedValue([otcIndex]);

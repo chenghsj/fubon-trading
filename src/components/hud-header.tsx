@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 // 都收斂進統一設定 dialog（settings-dialog.tsx）；header 只留高頻操作：
 // 伺服器狀態、Kill Switch（一鍵鎖定/解鎖）、新增面板、閃電全開、設定。
 
-import { LayoutGrid, Lock, Settings, Undo2, Unlock, Zap } from 'lucide-react';
+import { LayoutGrid, Lock, Search, Settings, Undo2, Unlock, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useHeaderPopoverFit } from '../hooks/use-header-popover-fit';
 import { useStreamStatus } from '../hooks/use-stream';
@@ -192,6 +192,7 @@ function FlashTilesMenu({ flashCodes }: { flashCodes: string[] }) {
 export function HudHeader({
     accBalance,
     onOpenPanelLibrary,
+    onOpenSearch,
     profiles,
     currentWorkspace,
     onSaveProfile,
@@ -206,6 +207,7 @@ export function HudHeader({
 }: {
     accBalance?: number;
     onOpenPanelLibrary: () => void;
+    onOpenSearch?: () => void;
     flashCodes?: string[];
     profiles: Profile[];
     currentWorkspace: Workspace;
@@ -298,6 +300,13 @@ export function HudHeader({
             <MarketBar />
 
             <div className={styles.spacer} />
+
+            {onOpenSearch && <Button size='compact' variant='outline'
+                className={styles.resetBtn} onClick={onOpenSearch}
+                title='搜尋股票、期貨代碼或名稱；直接切換，不加入自選（⌘K / Ctrl+K）'>
+                <Search size={12} aria-hidden /> 搜尋商品
+                <kbd className={styles.searchShortcut}>⌘K</kbd>
+            </Button>}
 
             {headerItems.bankBalance && accBalance !== undefined && (
                 <div className={`${styles.chip} ${styles.infoAutoHide.second}`}>
