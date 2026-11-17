@@ -18,9 +18,17 @@ const transport = () => nativeFetch ??= globalThis.fetch.bind(globalThis);
 export async function sessionRequest(path: string, body?: unknown, enrollment = false): Promise<Record<string, unknown>> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (enrollment && enrollmentToken) headers.Authorization = `Bearer ${enrollmentToken}`;
+    // Verification also waits for SDK/Keychain initialization after WebAuthn.
+    // A failed Sandbox connection can take 75 seconds before the SDK returns.
+    const connectsBroker = path === '/api/v1/passkeys/register/verify' || path === '/api/v1/passkeys/authenticate/verify';
     const response = await transport()(path, {
         method: body === undefined ? 'GET' : 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body),
-        credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(30_000),
+        credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(connectsBroker ? 120_000 : 30_000),
+    }).catch((cause: unknown) => {
+        if (connectsBroker && cause instanceof Error && cause.name === 'TimeoutError') {
+            throw new Error('富邦連線等待逾時，請再次解鎖；若仍無法連線，請檢查富邦主機或本機服務狀態。');
+        }
+        throw cause;
     });
     if (!response.ok) throw new Error(response.status === 401 ? '授權已失效，請重新啟動後重試。' : '驗證未完成，請重試；若服務未啟動，請執行 pnpm start。');
     return response.json() as Promise<Record<string, unknown>>;

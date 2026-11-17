@@ -59,7 +59,7 @@ export async function confirmCredentialUpdate() {
     return { request_id: options.request_id, credential: serialize(credential as PublicKeyCredential, false) };
 }
 
-export async function unlockWithPasskey(register: boolean): Promise<void> {
+export async function unlockWithPasskey(register: boolean, onDeviceVerified?: () => void): Promise<void> {
     if (!passkeysSupported()) throw new Error('此瀏覽器或網址無法使用 Passkey，請使用新版瀏覽器開啟 localhost 啟動視窗。');
     if (register && !canEnrollPasskey()) throw new Error('首次註冊需要啟動授權，請重新執行 pnpm start。');
     const action = register ? 'register' : 'authenticate';
@@ -73,6 +73,7 @@ export async function unlockWithPasskey(register: boolean): Promise<void> {
         throw new Error('驗證已取消或未完成。請再次點選，使用 Touch ID、裝置解鎖或安全金鑰完成驗證。');
     }
     if (!credential || credential.type !== 'public-key') throw new Error('未取得 Passkey，請重試。');
+    onDeviceVerified?.();
     const result = await sessionRequest(`/api/v1/passkeys/${action}/verify`, {
         request_id: options.request_id, credential: serialize(credential as PublicKeyCredential, register),
     }, register);

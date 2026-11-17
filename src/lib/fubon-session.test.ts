@@ -4,7 +4,7 @@ import { isLocalApi, SseParser } from './fubon-session';
 const launch = 'L'.repeat(43);
 const token = 'T'.repeat(43);
 
-afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.resetModules(); });
 
 function browser(hash: string, saved?: string) {
     const storage = new Map(saved ? [['fubon-trading-session', saved]] : []);
@@ -109,4 +109,26 @@ it('locks locally when logout is unavailable and bounds the request timeout', as
     expect(storage.size).toBe(0);
     expect(location.reload).toHaveBeenCalledOnce();
     expect(native.mock.calls.at(-1)?.[1].signal).toBeInstanceOf(AbortSignal);
+});
+
+
+it.each([
+    ['/api/v1/passkeys/register/verify', 120_000],
+    ['/api/v1/passkeys/authenticate/verify', 120_000],
+    ['/api/v1/passkeys/authenticate/options', 30_000],
+    ['/api/v1/passkeys/status', 30_000],
+])('bounds the request deadline for %s', async (path, deadline) => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({})));
+    const { sessionRequest } = await import('./fubon-session');
+    await sessionRequest(path, {});
+    expect(timeout).toHaveBeenCalledWith(deadline);
+});
+
+it('explains a brokerage connection timeout without granting a session', async () => {
+    const storage = browser('');
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('signal timed out', 'TimeoutError')));
+    const { sessionRequest } = await import('./fubon-session');
+    await expect(sessionRequest('/api/v1/passkeys/authenticate/verify', {})).rejects.toThrow('富邦連線等待逾時');
+    expect(storage.size).toBe(0);
 });

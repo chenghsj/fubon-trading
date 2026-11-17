@@ -16,7 +16,8 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
     const [enrolled, setEnrolled] = useState(false);
     const [loading, setLoading] = useState(local);
     const [connected, setConnected] = useState(false);
-    const [busy, setBusy] = useState(false);
+    const [phase, setPhase] = useState<'idle' | 'device' | 'broker' | 'terminal'>('idle');
+    const busy = phase !== 'idle';
     const [error, setError] = useState('');
     const supported = passkeysSupported();
     useEffect(() => {
@@ -30,18 +31,24 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
     }, [local]);
     const unlock = async () => {
         if (busy) return;
-        setBusy(true); setError('');
-        try { await unlockWithPasskey(!enrolled); await onUnlocked(); }
+        setPhase('device'); setError('');
+        try {
+            await unlockWithPasskey(!enrolled, () => setPhase('broker'));
+            setPhase('terminal');
+            await onUnlocked();
+        }
         catch (cause) {
             // Enrollment may have succeeded before the subsequent login failed.
             try { setEnrolled((await sessionRequest('/api/v1/passkeys/status')).enrolled === true); } catch { /* Keep the last known state. */ }
             setError(cause instanceof Error ? cause.message : '驗證未完成，請重試。');
-            setBusy(false);
+            setPhase('idle');
         }
     };
     const title = !local ? '請使用本機解鎖網址' : loading ? '正在確認解鎖狀態'
         : !connected ? '尚未連上本機服務' : enrolled ? '使用 Passkey 解鎖' : '建立你的 Passkey';
     const description = !local ? 'Passkey 綁定 localhost，請從啟動視窗進入。'
+        : phase === 'broker' ? '裝置驗證完成，正在連線富邦。主機回應較慢時可能需要約 1–2 分鐘。'
+        : phase === 'terminal' ? '解鎖完成，正在開啟交易介面。'
         : loading ? '正在連線至本機交易服務。'
         : !connected ? '請執行 pnpm start，然後重新整理此頁面。'
         : enrolled ? '使用 Touch ID、裝置解鎖或安全金鑰驗證身分，進入交易介面。'
@@ -60,7 +67,7 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
             </CardHeader>
             <CardContent className={styles.content}>
                 {!local && <Button asChild className={styles.action} variant="outline"><a href={`http://localhost:${location.port}/`}>開啟 localhost 介面</a></Button>}
-                {local && connected && supported && (enrolled || canEnrollPasskey()) && <Button className={styles.action} disabled={busy} onClick={() => { void unlock(); }}>{busy ? '等待裝置驗證…' : enrolled ? '使用 Passkey 解鎖' : '建立 Passkey 並解鎖'}</Button>}
+                {local && connected && supported && (enrolled || canEnrollPasskey()) && <Button className={styles.action} disabled={busy} onClick={() => { void unlock(); }}>{phase === 'device' ? '等待裝置驗證…' : phase === 'broker' ? '正在連線富邦…' : phase === 'terminal' ? '正在開啟交易介面…' : enrolled ? '使用 Passkey 解鎖' : '建立 Passkey 並解鎖'}</Button>}
                 {problem && <Alert variant="destructive"><AlertDescription>{problem}</AlertDescription></Alert>}
                 <Separator />
             </CardContent>
