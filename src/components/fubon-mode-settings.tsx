@@ -45,6 +45,7 @@ function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (val
     const changed = mode !== current.mode;
     const busy = phase === 'saving' || phase === 'restarting';
     const live = mode === 'live';
+    const leavingSandbox = current.mode === 'sandbox' && (mode === 'paper' || mode === 'demo');
     const sandboxMissing = mode === 'sandbox' && !current.sandbox_configured;
     const canApply = changed && current.available && !sandboxMissing && (!live || enabled && acknowledgement === '確認啟用正式下單');
     const select = (value: string) => { setMode(value as Mode); setEnabled(false); setAcknowledgement(''); setError(''); };
@@ -75,7 +76,9 @@ function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (val
         {live && !changed && <FieldDescription>正式下單目前已啟用。選擇 Paper 模擬交易並套用，可關閉正式下單。</FieldDescription>}
         {sandboxMissing && <Alert><AlertDescription>尚未備妥官方測試憑證。請依專案設定說明配置 Sandbox，再重新開啟此視窗。</AlertDescription></Alert>}
         {!current.available && <Alert><AlertDescription>此啟動方式不支援切換，請使用 pnpm start 啟動。</AlertDescription></Alert>}
-        <FieldDescription>套用後自動重啟此服務，需重新以 Passkey 解鎖。策略、研究工作、未完成委託與持倉須先處理完畢。</FieldDescription>
+        <FieldDescription>套用後自動重啟此服務，需重新以 Passkey 解鎖。{leavingSandbox
+            ? '本機策略與研究工作須先處理完畢。離開共用 Sandbox 不會取消遠端測試委託或平倉，測試帳務不會帶入本機模擬帳簿。'
+            : '策略、研究工作、未完成委託與持倉須先處理完畢。'}</FieldDescription>
         <FieldDescription>選擇保存在此工作目錄，之後啟動優先沿用；.env 作為初始設定。費率與研究資料保留。</FieldDescription>
         {error && <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert>}
         <div className={styles.actions}>

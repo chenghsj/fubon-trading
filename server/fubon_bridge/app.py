@@ -333,7 +333,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         if body.mode == 'sandbox' and not (cfg.test_id and cfg.test_cert_path and Path(cfg.test_cert_path).expanduser().is_file()):
             raise ValueError('尚未備妥官方測試憑證，請依設定說明配置 sandbox 後再切換')
         with learning.lock, automation.lock, broker.lock:
-            ensure_idle(broker, automation, learning)
+            ensure_idle(broker, automation, learning, target_mode=body.mode)
             settings.save(body)
             switching = True
             broker.transitioning = True
