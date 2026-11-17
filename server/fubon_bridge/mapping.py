@@ -53,7 +53,7 @@ def contract_from_ticker(row, security_type):
     prefix = re.match(r"[A-Z]+", code)
     root = prefix.group() if prefix else code
     # Concrete futures end in a month letter and year digit.
-    if security_type == "FUT" and re.fullmatch(r"[A-Z]+[A-L]\d", code):
+    if security_type == "FUT" and re.fullmatch(r"[A-Z0-9]+[A-L]\d", code):
         root = code[:-2]
     return dict(
         code=code, name=row.get("name", code), security_type=security_type,

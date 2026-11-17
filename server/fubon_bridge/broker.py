@@ -23,6 +23,7 @@ class Broker:
         self.catalog = {}
         self.catalog_loaded = set()
         self.catalog_full = set()
+        self.future_product_catalog = None
         self.quotes = {}
         self.raw_orders = {}
         self.trades = {}
@@ -166,8 +167,12 @@ class Broker:
         if kind not in {"STK", "FUT", "OPT"}:
             return []
         if self.config.mode == "demo":
-            return [deepcopy(x) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
+            if kind == 'FUT':
+                self._future_products()
+            return [self._future_info(deepcopy(x)) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
         with self.lock:
+            if kind == 'FUT':
+                self._future_products()
             if kind not in self.catalog_loaded:
                 client = self._client(kind)
                 if kind == "STK":
@@ -182,7 +187,55 @@ class Broker:
                         if not row.get("isSpread"):
                             self.catalog[row["symbol"]] = contract_from_ticker(row, kind)
                 self.catalog_loaded.add(kind)
-            return [deepcopy(x) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
+            return [self._future_info(deepcopy(x)) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
+
+    def _future_products(self):
+        if self.future_product_catalog is None:
+            if self.config.mode == 'demo':
+                rows = [dict(symbol=row['root'], name=row['name'], contractSize=row.get('multiplier'),
+                             underlyingSymbol=row.get('underlying_code', ''), tradingCurrency=row['currency'])
+                        for row in self.catalog.values() if row['security_type'] == 'FUT' and not row.get('target_code')]
+            else:
+                rows = self._client('FUT').intraday.products(type='FUTURE', exchange='TAIFEX',
+                                                          **self._session_args('FUT', True)).get('data', [])
+            self.future_product_catalog = {row['symbol']: row for row in rows}
+        return self.future_product_catalog
+
+    def _future_info(self, row):
+        if row['security_type'] != 'FUT':
+            return row
+        # Cached order reconciliation must not add a market REST dependency.
+        product = (self.future_product_catalog or {}).get(row['root'])
+        if product:
+            # Products owns the stock relationship and contract specification;
+            # Tickers owns the listed month. Never infer a stock from its name.
+            underlying = product.get('underlyingSymbol') or ('IX0001' if row['root'] in {'TXF', 'MXF', 'TMF'} else None)
+            row['underlying_code'] = underlying
+            if number(product.get('contractSize')) > 0:
+                row['multiplier'] = number(product['contractSize'])
+            if product.get('tradingCurrency'):
+                row['currency'] = product['tradingCurrency']
+        return row
+
+    def future_roots(self):
+        with self.lock:
+            return [dict(root=root, name=product.get('name') or root)
+                    for root, product in self._future_products().items()]
+
+    def futures(self, root='', underlying_code='', delivery_month=''):
+        with self.lock:
+            self._future_products()
+            return [row for row in self.contracts('FUT') if (not root or row['root'] == root)
+                    and (not underlying_code or row.get('underlying_code') == underlying_code)
+                    and (not delivery_month or row.get('delivery_month') == delivery_month)]
+
+    def contract_info(self, key):
+        """Public market lookup includes specifications even on a cold direct code."""
+        with self.lock:
+            row = self.contract(key)
+            if row['security_type'] == 'FUT':
+                self._future_products()
+            return self._future_info(row)
 
     def contract(self, key, *, refresh=False):
         code = key["code"].strip().upper()
@@ -198,10 +251,10 @@ class Broker:
             if cached and not refresh and not cached.get("target_code") and (self.config.mode == "demo" or code in self.catalog_full):
                 if cached["security_type"] != kind:
                     raise ValueError("商品類型不符")
-                return deepcopy(cached)
+                return self._future_info(deepcopy(cached))
             if self.config.mode == "demo":
                 if cached:
-                    return deepcopy(cached)
+                    return self._future_info(deepcopy(cached))
                 raise ValueError("展示模式僅提供自選清單中的展示商品")
             # Resolve aliases from Fubon, never trust a client-supplied target.
             row = self._client(kind).intraday.ticker(symbol=symbol_alias(code), **self._session_args(kind))
@@ -213,7 +266,7 @@ class Broker:
             if info["code"] != code:
                 info = dict(info, code=code, target_code=info["code"])
             self.catalog[code] = info
-            return deepcopy(info)
+            return self._future_info(deepcopy(info))
 
     def quote(self, contract):
         with self.lock:

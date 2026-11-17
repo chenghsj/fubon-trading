@@ -97,6 +97,8 @@
 
 ## 行情與商品資料
 
+後續已補齊期貨商品中文名稱與股票代號關聯篩選（M2），`2330`／`2454` 的一般與小型期貨唯讀驗證通過。詳細來源與冷啟查詢、瀏覽器測試範圍見 [K 棒標籤與期貨搜尋修正](chart-search-fixes-2026-11-17.md)。
+
 | ID／官方功能與來源 | 支援程度 | SDK 方法／本機 API 與實作 | Paper 行為 | 驗證狀態 |
 | --- | --- | --- | --- | --- |
 | M1 [股票列表／基本資料](https://www.fbs.com.tw/TradeAPI/docs/market-data/http-api/getting-started/) | 部分支援 | `stock.intraday.tickers(type=EQUITY,market=TSE/OTC)`、`ticker`；`GET /data/contracts`、`/data/contracts/{code}`。[broker.py:165](../../server/fubon_bridge/broker.py#L165) | 使用富邦行情，不是合成商品 | **抽樣正常**：股票目錄、2330 基本資料與快照回 200；不涵蓋所有商品。 |

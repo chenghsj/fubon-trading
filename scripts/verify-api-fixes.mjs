@@ -135,6 +135,7 @@ def create_app(config,**kwargs):
     broker=app.state.broker
     broker.paper.clock=lambda:paper_time
     broker._demo_catalog()
+    broker.future_product_catalog={c['root']:dict(symbol=c['root'],name='QA synthetic product '+c['root'],contractSize=c.get('multiplier',1),underlyingSymbol='',tradingCurrency='TWD') for c in broker.catalog.values() if c['security_type']=='FUT'}
     broker.catalog['1802']=dict(broker.catalog['2881'],code='1802',root='1802',reference=55,limit_up=60.5,limit_down=49.5)
     for c in broker.catalog.values():
         c['name']='QA fixture '+c['code']

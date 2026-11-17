@@ -372,11 +372,11 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get("/api/v1/data/contracts/futures/roots")
     def futures_roots():
-        return list({row["root"]: dict(root=row["root"], name=row["root"]) for row in broker.contracts("FUT")}.values())
+        return broker.future_roots()
 
     @app.get("/api/v1/data/contracts/futures")
-    def futures(root: str = "", delivery_month: str = ""):
-        return [row for row in broker.contracts("FUT") if (not root or row["root"] == root) and (not delivery_month or row.get("delivery_month") == delivery_month)]
+    def futures(root: str = "", delivery_month: str = "", underlying_code: str = ""):
+        return broker.futures(root, underlying_code, delivery_month)
 
     @app.get("/api/v1/data/contracts/options/roots")
     def options_roots():
@@ -395,7 +395,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.get("/api/v1/data/contracts/{code}/info")
     @app.get("/api/v1/data/contracts/{code}")
     def contract(code: str, security_type: str | None = None):
-        return broker.contract(ContractKey(code=code, security_type=security_type).model_dump())
+        return broker.contract_info(ContractKey(code=code, security_type=security_type).model_dump())
 
     @app.post("/api/v1/data/snapshots")
     def snapshots(body: dict = Body(...)):

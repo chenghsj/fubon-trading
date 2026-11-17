@@ -1,0 +1,368 @@
+{
+  "chart": {
+    "passed": true,
+    "baseline": "12ccac3fb67d181285023ee89c5fd07087f7e98d",
+    "results": [
+      {
+        "name": "adjacent-wicks-dark-wide",
+        "variant": "before",
+        "violations": [
+          "high label enters visible candle range",
+          "high overlaps wick 58",
+          "high overlaps wick 59",
+          "low label enters visible candle range",
+          "low overlaps wick 62",
+          "low overlaps wick 63",
+          "low overlaps wick 64"
+        ]
+      },
+      {
+        "name": "adjacent-wicks-dark-1180",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "left-edge-dark-1180",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "right-edge-dark-1180",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "adjacent-wicks-dark-390",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "left-edge-dark-390",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "right-edge-dark-390",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "no-space-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "extrema-outside-pane-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "short-pane-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "inverted-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "inverted-flat-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "price-axis-scale-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "price-pan-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "time-zoom-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "time-pan-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "live-update-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "live-append-dark",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "adjacent-wicks-light-1180",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "left-edge-light-1180",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "right-edge-light-1180",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "adjacent-wicks-light-390",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "left-edge-light-390",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "right-edge-light-390",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "no-space-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "extrema-outside-pane-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "short-pane-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "inverted-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "inverted-flat-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "price-axis-scale-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "price-pan-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "time-zoom-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "time-pan-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "live-update-light",
+        "variant": "after",
+        "violations": []
+      },
+      {
+        "name": "live-append-light",
+        "variant": "after",
+        "violations": []
+      }
+    ],
+    "pageErrors": []
+  },
+  "search": {
+    "passed": true,
+    "results": [
+      {
+        "check": "cold-public-info-loads-products",
+        "info": {
+          "code": "DVFK6",
+          "name": "聯發科期貨116",
+          "security_type": "FUT",
+          "region": "TW",
+          "exchange": "TAIFEX",
+          "target_code": null,
+          "currency": "TWD",
+          "root": "DVF",
+          "reference": 3745,
+          "limit_up": 4115,
+          "limit_down": 3375,
+          "day_trade": "Yes",
+          "update_date": "2026-11-17",
+          "category": "",
+          "margin_trading_balance": 0,
+          "short_selling_balance": 0,
+          "delivery_date": "2026-11-18",
+          "delivery_month": "202611",
+          "underlying_code": "2454",
+          "multiplier": 2000
+        }
+      },
+      {
+        "check": "rendered-search-select-add",
+        "query": "聯",
+        "select": "CCFK6",
+        "broad": true,
+        "rows": [
+          "2303聯電股票",
+          "3081聯亞股票",
+          "2454聯發科股票",
+          "6001聯合QA01股票",
+          "6002聯合QA02股票",
+          "6003聯合QA03股票",
+          "CCFK6聯電期貨116期貨202611",
+          "DVFK6聯發科期貨116期貨202611",
+          "CCFL6聯電期貨126期貨202612",
+          "DVFL6聯發科期貨126期貨202612"
+        ]
+      },
+      {
+        "check": "rendered-search-select-add",
+        "query": "聯發科",
+        "codes": [
+          "2454",
+          "DVFK6",
+          "DVFL6",
+          "PUFK6",
+          "PUFL6"
+        ],
+        "select": "DVFK6",
+        "rows": [
+          "2454聯發科股票",
+          "DVFK6聯發科期貨116期貨202611",
+          "PUFK6小型聯發科期貨116期貨202611",
+          "DVFL6聯發科期貨126期貨202612",
+          "PUFL6小型聯發科期貨126期貨202612"
+        ]
+      },
+      {
+        "check": "rendered-search-select-add",
+        "query": "2454",
+        "codes": [
+          "2454",
+          "DVFK6",
+          "DVFL6",
+          "PUFK6",
+          "PUFL6"
+        ],
+        "select": "PUFL6",
+        "rows": [
+          "2454聯發科股票直接代碼",
+          "DVFK6聯發科期貨116期貨202611",
+          "PUFK6小型聯發科期貨116期貨202611",
+          "DVFL6聯發科期貨126期貨202612",
+          "PUFL6小型聯發科期貨126期貨202612"
+        ]
+      },
+      {
+        "check": "rendered-search-select-add",
+        "query": "2330",
+        "codes": [
+          "2330",
+          "CDFK6",
+          "CDFL6",
+          "QFFK6",
+          "QFFL6"
+        ],
+        "select": "QFFK6",
+        "rows": [
+          "2330台積電股票直接代碼",
+          "CDFK6台積電期貨116期貨202611",
+          "QFFK6小型台積電期貨116期貨202611",
+          "CDFL6台積電期貨126期貨202612",
+          "QFFL6小型台積電期貨126期貨202612"
+        ]
+      },
+      {
+        "check": "rendered-search-select-add",
+        "query": "DVF",
+        "codes": [
+          "DVFK6",
+          "DVFL6"
+        ],
+        "select": "DVFL6",
+        "rows": [
+          "DVFK6聯發科期貨116期貨202611",
+          "DVFL6聯發科期貨126期貨202612"
+        ]
+      },
+      {
+        "check": "rendered-search-select-add",
+        "query": "CDF",
+        "codes": [
+          "CDFK6",
+          "CDFL6"
+        ],
+        "select": "CDFL6",
+        "rows": [
+          "CDFK6台積電期貨116期貨202611",
+          "CDFL6台積電期貨126期貨202612"
+        ]
+      }
+    ],
+    "final": {
+      "counts": {
+        "sdkCalls": 0,
+        "sdkTransactions": 0,
+        "keychainCalls": 0,
+        "outboundCalls": 0,
+        "products": 2,
+        "tickers": 3,
+        "ticker": 77,
+        "quote": 21,
+        "websocket": 2
+      },
+      "ledger": {
+        "persistent": true,
+        "orders": [],
+        "positions": [],
+        "realizedGross": 0,
+        "fee": 0,
+        "tax": 0,
+        "realizedNet": 0,
+        "costsComplete": true,
+        "day": null,
+        "dateBasis": "Asia/Taipei calendar date",
+        "initialBalance": 1000000
+      },
+      "productWarm": true
+    },
+    "pageErrors": [],
+    "mutations": []
+  },
+  "independent_review": {
+    "standards_unresolved_confirmed": 0,
+    "spec_unresolved_confirmed": 0,
+    "resolved": [
+      "flat inverted price scale",
+      "short pane margins",
+      "cold direct future specification"
+    ]
+  },
+  "automated_checks": {
+    "python_passed": 295,
+    "frontend_passed": 5955,
+    "frontend_skipped": 2,
+    "typecheck": "passed",
+    "build": "passed"
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "checks": [
+    {
+      "name": "cold direct future info before any search",
+      "passed": true,
+      "code": "DVFK6"
+    },
+    {
+      "name": "official searchable root names",
+      "passed": true,
+      "matching_lian": 16
+    },
+    {
+      "name": "stock-to-future 2330",
+      "passed": true,
+      "status": 200,
+      "roots": [
+        "CDF",
+        "QFF"
+      ],
+      "rows": 10
+    },
+    {
+      "name": "resolved future identity 2330",
+      "passed": true,
+      "code": "CDFC7",
+      "multiplier": 2000.0
+    },
+    {
+      "name": "stock-to-future 2454",
+      "passed": true,
+      "status": 200,
+      "roots": [
+        "DVF",
+        "PUF"
+      ],
+      "rows": 10
+    },
+    {
+      "name": "resolved future identity 2454",
+      "passed": true,
+      "code": "DVFK6",
+      "multiplier": 2000.0
+    },
+    {
+      "name": "stock-to-future 2303",
+      "passed": true,
+      "status": 200,
+      "roots": [
+        "CCF"
+      ],
+      "rows": 5
+    },
+    {
+      "name": "resolved future identity 2303",
+      "passed": true,
+      "code": "CCFC7",
+      "multiplier": 2000.0
+    },
+    {
+      "name": "stock-to-future IX0001",
+      "passed": true,
+      "status": 200,
+      "roots": [
+        "MXF",
+        "TMF",
+        "TXF"
+      ],
+      "rows": 18
+    },
+    {
+      "name": "resolved future identity IX0001",
+      "passed": true,
+      "code": "MXFA7",
+      "multiplier": 50.0
+    },
+    {
+      "name": "unknown stock has no unrelated futures",
+      "passed": true
+    },
+    {
+      "name": "no vendor trading or accounting access",
+      "passed": true
+    }
+  ],
+  "passed": 12,
+  "failed": 0,
+  "real_broker_trading_calls": 0,
+  "forbidden_sdk_access": [],
+  "temporary_stores": true
+}
