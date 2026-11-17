@@ -78,7 +78,7 @@ import {
     type IndicatorInstance,
 } from '../lib/indicator-defs';
 import { IndicatorInstanceContext } from '../lib/indicator-instance-context';
-import { addMAPresets, addMALines, type MAPeriod, type MALinePreset } from '../lib/ma-presets';
+import { addMALines, type MALinePreset } from '../lib/ma-presets';
 import { requiredMABars, type HistoryPaging } from '../lib/ma-history';
 import { useMAHistoryBackfill } from '../hooks/use-ma-history-backfill';
 import { MAHistoryNotice } from './ma-history-notice';
@@ -299,6 +299,13 @@ export function CandleChart({
     const toggleHighLow = () => {
         setLocalShowHighLow(!showHighLow);
         onShowHighLowChange?.(!showHighLow);
+    };
+    // A view choice, like a manual price-axis zoom: keep it local to this chart.
+    // Far-away overlays stay outside the candle-focused view until requested.
+    const [includeIndicatorsInScale, setIncludeIndicatorsInScale] = useState(false);
+    const toggleIndicatorScale = () => {
+        setIncludeIndicatorsInScale(value => !value);
+        candleSeriesRef.current?.priceScale().applyOptions({ autoScale: true });
     };
     const highLowRef = useRef<HighLowLayer | null>(null);
     // 讀值列自己訂閱這個 store：讀值變動只重繪讀值列
@@ -1308,10 +1315,11 @@ export function CandleChart({
                 priceLineVisible: false,
                 lastValueVisible: inst.showLabels ?? false,
             };
-            // Main-pane overlays share candle price coordinates, but must not
-            // stretch the visible candle range (e.g. a distant long-term MA).
-            // Oscillators and volume keep their own pane's native autoscaling.
-            const scaleOpts = pane === 0 ? { autoscaleInfoProvider: () => null } : {};
+            // By default, distant overlays do not flatten the visible candles.
+            // The explicit scale toggle includes them without changing the
+            // time window. Sub-panes always keep their native autoscaling.
+            const scaleOpts = pane === 0 && !includeIndicatorsInScale
+                ? { autoscaleInfoProvider: () => null } : {};
             for (const o of def.outputs) {
                 const pts = out[o.key];
                 if (!pts) continue;
@@ -1344,7 +1352,7 @@ export function CandleChart({
                         midPts.push({ time: p.time, value: (p.value + lo) / 2 });
                     }
                     if (bandPoints.length === 0) continue;
-                    // 主圖：不參與自動縮放（牆在畫面外時不硬拉比例）。
+                    // 主圖：使用者開啟「含指標」才把上下緣納入縮放。
                     // 副圖：band 就是這個 pane 唯一的內容，必須提供價格範圍，
                     // 否則整個 pane 沒有尺度（預設 -0.5~0.5），畫了也看不見。
                     // 範圍取可見區間內的上下緣，縮放/捲動時 y 軸跟著調整；
@@ -1364,7 +1372,7 @@ export function CandleChart({
                             lineVisible: false,
                             crosshairMarkerVisible: false,
                             autoscaleInfoProvider:
-                                pane === 0
+                                pane === 0 && !includeIndicatorsInScale
                                     ? () => null
                                     : () => {
                                           const vr = chart
@@ -1610,7 +1618,7 @@ export function CandleChart({
             paneRoRef.current?.disconnect();
             paneRoRef.current = null;
         };
-    }, [dataVersion, instancesKey, themeKey, tf.minutes, customVer, paneInfoHeight]);
+    }, [dataVersion, instancesKey, themeKey, tf.minutes, customVer, paneInfoHeight, includeIndicatorsInScale]);
 
     const commitInstances = (list: IndicatorInstance[]) => {
         if (panelService && panelId && panelState) {
@@ -1629,10 +1637,6 @@ export function CandleChart({
         setSettingsDraft(inst);
         setPickerOpen(false);
         setSettingsFor(inst.id);
-    };
-    const addMAPreset = (periods: readonly MAPeriod[]) => {
-        const next = addMAPresets(savedInstances, periods);
-        if (next !== savedInstances) commitInstances(next);
     };
     const addMAGroup = (lines: readonly MALinePreset[]) => {
         const next = addMALines(savedInstances, lines);
@@ -2148,6 +2152,17 @@ export function CandleChart({
                 >
                     <Maximize2 size={12} />
                 </Button>
+                <Button size="compact" variant="outline"
+                    className={styles.tfBtn[includeIndicatorsInScale ? 'active' : 'normal']}
+                    aria-label="縮放包含主圖指標"
+                    aria-pressed={includeIndicatorsInScale}
+                    title={includeIndicatorsInScale
+                        ? '已將主圖指標納入價格範圍；點擊恢復以 K 棒為主的縮放'
+                        : '將 MA200 等主圖指標一起納入價格範圍；較遠的指標會使 K 棒變小'}
+                    onClick={toggleIndicatorScale}
+                >
+                    含指標
+                </Button>
                 <Button size="compact" variant="ghost"
                     className={styles.iconBtnToggle[showOhlc ? 'on' : 'off']}
                     onClick={toggleOhlc}
@@ -2250,7 +2265,6 @@ export function CandleChart({
                             onToggle: id => patchInstance(id, { hidden: !instances.find(instance => instance.id === id)?.hidden }),
                             onReorder: reorderIndicators, onRemove: removeIndicator, onDuplicate: duplicateIndicator }}
                         onAdd={addIndicator}
-                        onAddMAPreset={addMAPreset}
                         onAddMAGroup={addMAGroup}
                         maHistoryStatus={maHistoryStatus}
                         onRetryMAHistory={retryMAHistory}
@@ -2264,6 +2278,8 @@ export function CandleChart({
                 {settingsInst && (
                     <IndicatorSettingsModal
                         inst={settingsInst}
+                        isNew={settingsNewRef.current}
+                        currentTimeframe={tf.minutes}
                         timeframes={TIMEFRAMES.map((t) => ({
                             label: t.label,
                             minutes: t.minutes,

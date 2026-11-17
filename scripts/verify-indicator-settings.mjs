@@ -61,7 +61,7 @@ export async function indicatorSettingsChecks(page, origin, artifacts) {
         createRoot(mount).render(React.createElement(Harness));
     });
     const dialog = page.getByRole('dialog', { name: '指標設定', exact: true });
-    await dialog.getByRole('tab', { name: '樣式', exact: true }).click();
+    await dialog.getByRole('tab', { name: '外觀', exact: true }).click();
     await dialog.getByTitle('顏色 / 透明度 / 粗細', { exact: true }).click();
     // Replay the real utility rules after the component CSS, as lazy loading
     // and HMR can do; the label must remain readable in either load order.
@@ -80,15 +80,15 @@ export async function indicatorSettingsChecks(page, origin, artifacts) {
         style.textContent = [...late].join('\n');
         document.head.append(style);
     });
-    const confirm = dialog.getByRole('button', { name: '確定', exact: true });
-    const remove = dialog.getByRole('button', { name: '移除', exact: true });
+    const confirm = dialog.getByRole('button', { name: '儲存修改', exact: true });
+    const remove = dialog.getByRole('button', { name: '從圖表移除', exact: true });
     const results = [];
     for (const mode of ['dark', 'light']) {
         await page.evaluate(async mode => {
             const { setThemeSettings } = await import('/src/lib/theme-store.ts');
             setThemeSettings({ mode, custom: undefined, accent: undefined });
         }, mode);
-        for (const [name, control] of [['確定', confirm], ['移除', remove]]) {
+        for (const [name, control] of [['儲存修改', confirm], ['從圖表移除', remove]]) {
             await page.mouse.move(5, 5);
             await settle(control);
             await expect(control).toHaveText(name);

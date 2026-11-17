@@ -322,12 +322,12 @@ export async function chartPaneChecks(browser, source, origin, artifacts) {
         await page.getByRole('button', { name: '指標', exact: true }).click();
         await manager.getByRole('button', { name: 'MACD(12,26,9) 設定', exact: true }).click();
         await fast.fill('7');
-        await manageSettings.getByRole('button', { name: '確定', exact: true }).click();
+        await manageSettings.getByRole('button', { name: '儲存修改', exact: true }).click();
         expect((await saved(page)).find(instance => instance.type === 'macd').params.fast).toBe(7);
         await page.getByRole('button', { name: '指標', exact: true }).click();
         await manager.getByRole('button', { name: 'MACD(7,26,9) 設定', exact: true }).click();
         await fast.fill('12');
-        await manageSettings.getByRole('button', { name: '確定', exact: true }).click();
+        await manageSettings.getByRole('button', { name: '儲存修改', exact: true }).click();
         results.push({ check: 'indicator-manager-visibility-order-settings-cancel-commit-responsive' });
 
         for (const mode of ['dark', 'light']) {
@@ -432,7 +432,7 @@ export async function chartPaneChecks(browser, source, origin, artifacts) {
         await picker.getByPlaceholder('搜尋指標（名稱、縮寫、中英文都可以）').fill('成交量');
         await picker.getByRole('button', { name: /^成交量 / }).click();
         const settings = page.getByRole('dialog', { name: '指標設定', exact: true });
-        await settings.getByRole('button', { name: '確定', exact: true }).click();
+        await settings.getByRole('button', { name: '加入圖表', exact: true }).click();
         await expectGeometry(page, ['macd', 'volume']);
         await mountFixture(page, origin);
         await expectGeometry(page, ['macd', 'volume']);
