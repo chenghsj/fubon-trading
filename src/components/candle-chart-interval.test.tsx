@@ -39,7 +39,7 @@ vi.mock('../lib/chart-history', () => ({
 
 import { CandleChart } from './candle-chart';
 import { newInstance, saveInstances } from '../lib/indicator-defs';
-import { dateStrOffset } from '../lib/utils/kbars';
+import { dateStrOffset, wallClockToUtc } from '../lib/utils/kbars';
 
 const stk = { code: '2330', security_type: 'STK', exchange: 'TSE', target_code: null } as any;
 
@@ -98,6 +98,43 @@ const BARS = kbars([['2026-09-25T09:00:00', '2026-09-25T13:30:00', () => 1000]])
 const fromDays = () => fetchMock.mock.calls.filter(c => c[2] === dateStrOffset(0)).map(c => c[1]);
 
 describe('CandleChart interval persistence (#331)', () => {
+    it.each(['1W', '1M'] as const)('loads and switches to the stored %s interval', async interval => {
+        setNow('2026-09-25T20:00:00');
+        saveInstances([]);
+        fetchMock.mockResolvedValue(BARS);
+        const onChange = vi.fn();
+        const r = mount({ contract: { ...stk }, interval, onIntervalChange: onChange });
+        await flush();
+        expect(btn(r, interval)[0]!.props['aria-pressed']).toBe(true);
+        const series = created.find(s => s.kind === 'Candlestick')!;
+        expect(series.last).toEqual([{ time: wallClockToUtc(interval === '1W' ? '2026-09-21' : '2026-09-01'), open: 1000, high: 1000, low: 1000, close: 1000 }]);
+        act(() => btn(r, interval === '1W' ? '1M' : '1W')[0]!.props.onClick());
+        expect(onChange).toHaveBeenCalledWith(interval === '1W' ? '1M' : '1W');
+    });
+
+    it.each([
+        ['1W', '2026-09-21', '2026-09-28'],
+        ['1M', '2026-09-01', '2026-10-01'],
+    ] as const)('updates the current %s bar and opens the next calendar bar', async (interval, current, next) => {
+        setNow('2026-09-25T20:00:00');
+        saveInstances([]);
+        fetchMock.mockResolvedValue(BARS);
+        mount({ contract: { ...stk }, interval });
+        await flush();
+        const series = created.find(s => s.kind === 'Candlestick')!;
+        const tick = async (date: string, price: number) => {
+            act(() => {
+                quote = { tick: { code: '2330', date, time: '13:31:00', close: price, volume: 1 } };
+                listeners.forEach(l => l());
+            });
+            await flush();
+        };
+        await tick('2026-09-25', 1001);
+        expect(series.update).toHaveBeenLastCalledWith({ time: wallClockToUtc(current), open: 1000, high: 1001, low: 1000, close: 1001 });
+        await tick(next, 1002);
+        expect(series.update).toHaveBeenLastCalledWith({ time: wallClockToUtc(next), open: 1002, high: 1002, low: 1002, close: 1002 });
+    });
+
     it('defaults to 5m when the panel has no stored interval', async () => {
         setNow('2026-09-25T20:00:00');
         fetchMock.mockResolvedValue(BARS);

@@ -32,7 +32,29 @@ export function kbarsToCandles(k: KBars): Candle[] {
     return out;
 }
 
-// Aggregate 1-minute candles into N-minute or daily bars.
+// Calendar buckets use Taiwan wall-clock encoded as UTC, like the source bars.
+// Week labels are Mondays; month labels are the first day, including short months.
+// 10080 / 43200 are timeframe identifiers, not fixed-length week/month arithmetic.
+export function candleBucket(time: number, minutes: number, source: 'history' | 'tick' = 'history'): number {
+    // A history label at 00:00 closes the previous day's 23:59 minute.
+    const calendarTime = source === 'history' ? time - 60 : time;
+    const day = Math.floor(calendarTime / 86400) * 86400;
+    if (minutes === 43200) {
+        const date = new Date(calendarTime * 1000);
+        return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1) / 1000;
+    }
+    if (minutes === 10080) {
+        const weekday = new Date(calendarTime * 1000).getUTCDay();
+        return day - ((weekday + 6) % 7) * 86400;
+    }
+    if (minutes >= 1440) return day;
+    const seconds = minutes * 60;
+    return source === 'tick'
+        ? Math.floor(time / seconds) * seconds + seconds
+        : Math.ceil(time / seconds) * seconds;
+}
+
+// Aggregate 1-minute candles into N-minute, daily, weekly or monthly bars.
 // 1 分 K 是 close-label-right（label 08:46 = 08:45:00–08:45:59 成交），
 // N 分 K 必須沿用同一慣例：ceil 到桶的收盤 label（5 分 K = 08:50、
 // 08:55…13:45，08:50 那根 = label 08:46–08:50）。floor 會整體早移
@@ -41,12 +63,8 @@ export function aggregate(candles: Candle[], minutes: number): Candle[] {
     if (minutes <= 1) return candles;
     const out: Candle[] = [];
     let cur: Candle | null = null;
-    const bucketSec = minutes * 60;
     for (const c of candles) {
-        const bucket =
-            minutes >= 1440
-                ? Math.floor(c.time / 86400) * 86400
-                : Math.ceil(c.time / bucketSec) * bucketSec;
+        const bucket = candleBucket(c.time, minutes);
         if (!cur || cur.time !== bucket) {
             if (cur) out.push(cur);
             cur = { ...c, time: bucket };
@@ -68,6 +86,14 @@ const TW_OFFSET_SEC = 8 * 3600;
 // 現在時刻的台灣牆鐘時間，用 wallClockToUtc 同款編碼
 export function nowWallClockUtc(): number {
     return Math.floor(Date.now() / 1000) + TW_OFFSET_SEC;
+}
+
+// Include the complete first calendar bar when history starts midweek/month.
+// Align every page, including the history floor, so pagination never invents
+// a partial oldest week's/month's OHLC or volume.
+export function calendarHistoryDays(daysAgo: number, minutes: number): number {
+    const today = Math.floor(nowWallClockUtc() / 86400) * 86400;
+    return Math.round((today - candleBucket(today - daysAgo * 86400, minutes, 'tick')) / 86400);
 }
 
 // 台灣日期 N 天前（負數 = 之後）的 YYYY-MM-DD
