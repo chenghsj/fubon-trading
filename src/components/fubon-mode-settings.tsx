@@ -8,6 +8,7 @@ import { SelectControl, SelectOption } from '@/components/ui/select-control';
 import { Switch } from '@/components/ui/switch';
 import { apiGet } from '@/lib/api';
 import { FubonApiError, fubonPost } from '@/lib/fubon-api-detail';
+import { waitForFubonRestart } from '@/lib/fubon-restart';
 import * as styles from './fubon-mode-settings.css';
 
 type Mode = 'demo' | 'paper' | 'sandbox' | 'live';
@@ -34,18 +35,6 @@ function LiveTradingConsent({ enabled, onChange, acknowledgement, onAcknowledge,
     </FieldGroup>;
 }
 
-async function waitForRestart(previous: string) {
-    const deadline = Date.now() + 30_000;
-    while (Date.now() < deadline) {
-        try {
-            const response = await fetch('/api/v1/passkeys/status', { signal: AbortSignal.timeout(1500), cache: 'no-store' });
-            if (response.ok && (await response.json()).instance_id !== previous) { location.reload(); return; }
-        } catch { /* The owned backend is restarting. */ }
-        await new Promise(resolve => setTimeout(resolve, 500));
-    }
-    throw new Error('服務尚未完成重新連線，請重新整理確認目前模式；不要重複套用。');
-}
-
 function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (value: boolean) => void }) {
     const [mode, setMode] = useState(current.mode);
     // Every new live selection requires a fresh, explicit confirmation.
@@ -67,7 +56,7 @@ function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (val
                 mode, live_enabled: live && enabled, instance_id: current.instance_id,
                 acknowledgement: live ? acknowledgement : '確認切換交易環境',
             }, 30_000);
-            if (result.restarting) { setPhase('restarting'); await waitForRestart(current.instance_id); }
+            if (result.restarting) { setPhase('restarting'); await waitForFubonRestart(current.instance_id); }
             else { setPhase('ready'); onBusy(false); }
         } catch (cause) {
             setError(cause instanceof Error ? cause.message : '無法確認切換結果，請重新整理確認目前模式');

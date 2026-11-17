@@ -44,6 +44,21 @@ export function passkeysSupported(): boolean {
     return location.hostname === 'localhost' && window.isSecureContext && typeof PublicKeyCredential !== 'undefined' && !!navigator.credentials;
 }
 
+/** A purpose-bound, single-use assertion; it cannot create a trading session. */
+export async function confirmCredentialUpdate() {
+    if (!passkeysSupported()) throw new Error('請使用 localhost 啟動視窗及支援 Passkey 的瀏覽器。');
+    const { fubonPost } = await import('./fubon-api-detail');
+    const options = await fubonPost<{ request_id: string; public_key: RequestJSON }>('/api/v1/settings/credentials/options', {});
+    let credential: Credential | null;
+    try {
+        credential = await navigator.credentials.get({ publicKey: requestOptions(options.public_key) });
+    } catch {
+        throw new Error('Passkey 驗證已取消，登入資料未儲存。請重新輸入後再試。');
+    }
+    if (!credential || credential.type !== 'public-key') throw new Error('未取得 Passkey，登入資料未儲存。');
+    return { request_id: options.request_id, credential: serialize(credential as PublicKeyCredential, false) };
+}
+
 export async function unlockWithPasskey(register: boolean): Promise<void> {
     if (!passkeysSupported()) throw new Error('此瀏覽器或網址無法使用 Passkey，請使用新版瀏覽器開啟 localhost 啟動視窗。');
     if (register && !canEnrollPasskey()) throw new Error('首次註冊需要啟動授權，請重新執行 pnpm start。');

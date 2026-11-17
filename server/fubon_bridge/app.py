@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 import json
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 import uuid
@@ -27,7 +28,9 @@ from .learning_service import LearningService
 from .learning_data import CollectionRequest
 from .learning_train import TrainingRequest
 from .mode_settings import ModeChange, ModeSettings, ensure_idle
-from pydantic import BaseModel
+from .credential_settings import CredentialChange, CredentialSettings
+from .keychain import KeychainError
+from pydantic import BaseModel, ValidationError
 from typing import Literal
 
 
@@ -44,7 +47,7 @@ class AutoHeartbeat(BaseModel):
     execution_allowed: bool
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None, mode_store=None, on_restart=None):
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None, mode_store=None, on_restart=None, credential_store=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
     public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
@@ -55,6 +58,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     request_lock = asyncio.Lock()
     switching = False
     settings = mode_store or ModeSettings(ROOT / 'server' / '.mode-settings.json')
+    credentials = credential_store if credential_store is not None else CredentialSettings()
     clients = set()
     loop = None
 
@@ -129,7 +133,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                 return JSONResponse({"detail": "Local bridge: invalid Origin"}, status_code=403)
         if request.method in {"POST", "PUT", "DELETE"} and request.headers.get("content-type", "").split(";")[0] != "application/json":
             return JSONResponse({"detail": "application/json required"}, status_code=415)
-        if request.url.path.startswith("/api/v1/passkeys/") and request.method == "POST":
+        if request.url.path.startswith(("/api/v1/passkeys/", "/api/v1/settings/credentials")) and request.method == "POST":
             if origin != public_origin:
                 return JSONResponse({"detail": "Passkey Origin 不符，請使用 localhost 啟動視窗"}, status_code=403)
         public_paths = {"/api/v1/session", "/api/v1/passkeys/status", "/api/v1/passkeys/register/options",
@@ -140,8 +144,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                                     headers={"Cache-Control": "no-store"})
         if switching and request.url.path.startswith('/api/'):
             return JSONResponse({'detail': '交易模式正在切換，請等待重新解鎖'}, status_code=503)
-        if request.url.path == '/api/v1/settings/mode' and request.method == 'POST':
-            # Serialize only mode changes. Ordinary quote requests must never
+        if request.url.path in {'/api/v1/settings/mode', '/api/v1/settings/credentials', '/api/v1/settings/credentials/options'} and request.method == 'POST':
+            # Serialize settings changes. Ordinary quote requests must never
             # delay a heartbeat or cancellation. Broker and worker locks guard
             # requests already admitted before the transition was committed.
             async with request_lock:
@@ -231,6 +235,83 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin"],
             limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
 
+    def restart_response():
+        def restart():
+            # End long-lived SSE before uvicorn waits for graceful shutdown.
+            def disconnect():
+                for queue in list(clients):
+                    while not queue.empty():
+                        queue.get_nowait()
+                    queue.put_nowait(None)
+            loop.call_soon_threadsafe(disconnect)
+            on_restart()
+        return JSONResponse(dict(restarting=True), background=BackgroundTask(restart))
+
+    @app.get('/api/v1/settings/credentials')
+    def credential_status():
+        available = credentials.available()
+        try:
+            saved = credentials.status() if available else dict(configured=False, cert_path='')
+        except Exception:
+            raise HTTPException(503, '無法存取 Keychain，請解鎖 macOS 鑰匙圈後重試') from None
+        return dict(available=available and on_restart is not None, **saved,
+                    storage='macOS Keychain' if available else None, instance_id=broker.instance_id)
+
+    def credential_binding(request):
+        return hashlib.sha256(request.headers.get('authorization', '').encode()).hexdigest()
+
+    def require_credential_editor():
+        if not credentials.available():
+            raise HTTPException(409, '目前安全儲存僅支援 macOS Keychain，無法在此系統儲存')
+        if on_restart is None:
+            raise HTTPException(409, '請使用 pnpm start 啟動，才能儲存並重新連線')
+
+    @app.post('/api/v1/settings/credentials/options')
+    async def credential_options(request: Request):
+        require_credential_editor()
+        return passkeys.authentication_options(purpose='credentials', binding=credential_binding(request))
+
+    @app.post('/api/v1/settings/credentials')
+    async def change_credentials(request: Request):
+        nonlocal switching
+        require_credential_editor()
+        # Parse here rather than through FastAPI's request validation: its
+        # default 422 response includes rejected input, including secret values.
+        raw = bytearray()
+        async for chunk in request.stream():
+            raw.extend(chunk)
+            if len(raw) > 32768:
+                raise HTTPException(413, '登入資料過長，請檢查輸入')
+        try:
+            body = CredentialChange.model_validate(json.loads(raw))
+        except (ValueError, ValidationError, TypeError):
+            raise HTTPException(400, '登入資料格式不完整或無效，請檢查欄位後重試') from None
+        if body.instance_id != broker.instance_id:
+            raise HTTPException(409, '服務已更新，請重新開啟 API Key 設定')
+        passkeys.authenticate(body.request_id, body.credential, purpose='credentials', binding=credential_binding(request))
+
+        def save():
+            nonlocal switching
+            with learning.lock, automation.lock, broker.lock:
+                if broker.config.broker_orders and broker.accounts_raw and broker.error:
+                    raise HTTPException(409, '券商連線中斷，無法核對委託與持倉。若舊 Key 已停用，請先停止策略與本機服務，執行 pnpm credentials set 更新，再啟動服務並核對券商帳務。停止服務不會取消券商委託或平倉。')
+                try:
+                    ensure_idle(broker, automation, learning)
+                except ValueError as error:
+                    raise HTTPException(409, str(error).replace('切換模式', '更新登入資料').replace('再切換', '再更新登入資料')) from None
+                try:
+                    credentials.save(body)
+                except KeychainError as error:
+                    raise HTTPException(400, str(error)) from None
+                except Exception:
+                    raise HTTPException(503, 'Keychain 儲存未完成，請確認鑰匙圈存取權限後重新開啟設定') from None
+                switching = True
+                broker.transitioning = True
+                automation.closing.set()
+                learning.closing = True
+        await asyncio.to_thread(save)
+        return restart_response()
+
     @app.get('/api/v1/settings/mode')
     def mode_settings():
         return dict(mode=cfg.mode, live_enabled=cfg.live_enabled, instance_id=broker.instance_id,
@@ -258,16 +339,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             broker.transitioning = True
             automation.closing.set()
             learning.closing = True
-        def restart():
-            # End long-lived SSE before uvicorn waits for graceful shutdown.
-            def disconnect():
-                for queue in list(clients):
-                    while not queue.empty():
-                        queue.get_nowait()
-                    queue.put_nowait(None)
-            loop.call_soon_threadsafe(disconnect)
-            on_restart()
-        return JSONResponse(dict(restarting=True), background=BackgroundTask(restart))
+        return restart_response()
 
     @app.get("/api/v1/health")
     def health():
