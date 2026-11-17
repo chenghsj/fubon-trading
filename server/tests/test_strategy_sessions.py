@@ -3,6 +3,7 @@ from copy import deepcopy
 from dataclasses import replace
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace as NS
+from unittest.mock import Mock
 
 import pytest
 
@@ -18,6 +19,7 @@ from fubon_bridge.mapping import TAIPEI
 from fubon_bridge.research import ResearchStore
 from fubon_bridge.strategy_session import entry_window, opening_date, schedule, window
 from test_auto_gateway import sandbox_broker
+from test_market_session_qa import market, instant, ticker_row
 from test_paper import AUTO, paper_trader
 
 
@@ -305,3 +307,77 @@ def test_full_session_plans_reject_the_contracts_expiry_opening_day(tmp_path, se
     with pytest.raises(ValueError, match='尚未到期'):
         PaperGateway(broker).prepare(cfg.model_dump(mode='json'))
     assert not broker.paper.overview()['orders']
+
+
+def test_auto_market_session_allows_paper_night_prepare_and_real_book_order(market):
+    broker = market.broker
+    market.clock[0] = instant('2026-11-17T21:00:00')
+    broker.paper.clock = lambda: market.clock[0]
+    sdk_submit = Mock(side_effect=AssertionError('Paper strategy must not call the native order API'))
+    broker.sdk.futopt = NS(place_order=sdk_submit)
+    quote = Mock(return_value=dict(lastPrice=25001, lastTrade=dict(price=25001, bid=25000,
+        ask=25002, time=int(market.clock[0].timestamp() * 1e6))))
+    broker.sdk.marketdata.rest_client.futopt.intraday.quote = quote
+    cfg = AutoConfig(account=AUTO, contract_code='TMFL6', trade_date='2026-11-17',
+        strategy_session='afterhours').model_dump(mode='json')
+    gateway = PaperGateway(broker)
+    contract = gateway.prepare(cfg)
+    broker.connected_sockets.add('futopt')
+    assert broker.config.session == 'auto'
+    assert contract['market_session'] == 'afterhours'
+    assert gateway.execution_ready() is True
+    trade = gateway.submit(cfg, 'Buy', 25003, 'entry', 'FA1234abcd')
+    assert trade['status']['status'] == 'Filled'
+    assert trade['status']['deal_quantity'] == 1
+    assert trade['contract']['market_session'] == 'afterhours'
+    assert trade['paper']['strategyDay'] == '2026-11-17'
+    assert trade['paper']['expiresAt'] == instant('2026-11-18T05:00:00').timestamp()
+    assert broker.paper.overview(AUTO['account_id'])['positions'][0]['signed_qty'] == 1
+    quote.assert_called_once_with(symbol='TMFL6', session='afterhours')
+    sdk_submit.assert_not_called()
+
+
+def test_auto_resolved_night_blocks_sandbox_gateway_and_native_strategy_submission(market):
+    broker = market.broker
+    market.clock[0] = instant('2026-11-17T21:00:00')
+    broker.config = replace(broker.config, mode='sandbox', live_enabled=False)
+    broker.accounts_raw[('F', 'OFFLINE', 'ACCOUNT')] = NS(name='offline QA')
+    sdk_submit = Mock(side_effect=AssertionError('Sandbox night strategy must not reach the native order API'))
+    broker.sdk.futopt = NS(place_order=sdk_submit)
+    broker.connected_sockets.add('futopt')
+    account = broker.account_rows()[0]
+    # Even a regular plan cannot bypass the resolved per-instrument session.
+    selector = {key: account[key] for key in ('account_type', 'broker_id', 'account_id')}
+    cfg = AutoConfig(account=selector, contract_code='TMFL6', trade_date='2026-11-17',
+        strategy_session='regular').model_dump(mode='json')
+    with pytest.raises(ValueError, match='盤別'):
+        SandboxGateway(broker).prepare(cfg)
+    with pytest.raises(ValueError, match='Sandbox 日盤'):
+        broker.place(dict(code='TMFL6', security_type='FUT'),
+            dict(action='Buy', price=25000, quantity=1, price_type='LMT', order_type='IOC', octype='New'),
+            account, client_tag='FA1234abcd')
+    sdk_submit.assert_not_called()
+
+
+@pytest.mark.parametrize('initial', ['regular', 'afterhours'])
+def test_expected_strategy_session_stays_pinned_when_auto_market_session_rolls(market, initial):
+    broker = market.broker
+    market.clock[0] = instant('2026-11-17T13:00:00' if initial == 'regular' else '2026-11-17T21:00:00')
+    cfg = AutoConfig(account=AUTO, contract_code='TMFL6', trade_date='2026-11-17',
+        strategy_session=initial).model_dump(mode='json')
+    gateway = PaperGateway(broker)
+    gateway.prepare(cfg)
+    broker.connected_sockets.add('futopt')
+    assert gateway.execution_ready() is True
+    if initial == 'regular':
+        # Cross the resolver's known opening boundary before its cache TTL.
+        market.clock[0] = instant('2026-11-17T15:00:00')
+    else:
+        # The following day's ticker now advertises the newly opened day session.
+        market.rows['TMFL6']['regular'] = ticker_row('TMFL6', '2026-11-18T08:45:00', '2026-11-18T13:45:00')
+        market.clock[0] = instant('2026-11-18T08:45:00')
+        broker.market_sessions.resolve('TMFL6', refresh=True)
+    assert gateway.execution_ready() is False
+    assert gateway.expected_session == initial
+    assert broker.session_for(broker.market_contract(dict(code='TMFL6', security_type='FUT'))) != initial
+    assert broker.paper.overview()['orders'] == []
