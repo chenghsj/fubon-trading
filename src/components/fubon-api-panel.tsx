@@ -10,6 +10,7 @@ import { todayStr } from '../lib/utils/date';
 import { usePrivacyMode, usePrivacyMoney, maskAccountId, revealText } from '../lib/privacy';
 import { nativeDisplay } from '../lib/native-display';
 import { useNativeAttempt, forgetNativeAttempt } from '../lib/native-attempts';
+import { InstitutionalChart } from './institutional-chart';
 
 type Field = { label: string; type?: 'date' | 'number' | 'text'; options?: string[]; placeholder?: string };
 type View = { title: string; path: string; fields: Field[]; columns: string[]; metrics?: string[]; note: string; action?: string };
@@ -103,6 +104,7 @@ function QueryField({field,value,onChange}:{field:Field;value:string;onChange:(v
 function Results({data,onIndex,accountScoped}:{data:NativeResult;onIndex?:(symbol:string)=>void;accountScoped:boolean}){
  const priv=usePrivacyMode(),money=usePrivacyMoney();
  const display=(value:unknown,key:string)=>text(nativeDisplay(value,key,priv,money,accountScoped),key,data.operation);
+ if(data.operation==='institutional')return <section className={s.section} aria-label='富邦查詢結果'><div className={s.muted}>富邦 · 擷取 {data.fetched_at}</div><InstitutionalChart data={data}/></section>;
  const seriesKeys=['sma','rsi','macdLine','signalLine','k','d','j','upper','middle','lower','close'].filter(key=>data.rows.some(row=>typeof row[key]==='number'));
  const points=data.rows.slice(-200),all=points.flatMap(row=>seriesKeys.flatMap(key=>typeof row[key]==='number'?[row[key] as number]:[]));
  const min=Math.min(...all),max=Math.max(...all),colors=['currentColor','#b87826','#178e7d','#b65f60','#8872a7'];
@@ -190,7 +192,8 @@ function NativeView({type,tab,view,indexCode,onIndex,conditionMarket,initialSymb
   return()=>{active=false;clearInterval(timer);off();offError();void unsubscribeNativeIndex(id,symbol).catch(()=>{});};
  },[live,symbol]);
  return <>
- <div className={s.notice} role='status'><Radio size={15}/><div><strong>富邦原生 API</strong><div className={s.muted}>{kind?'本面板的券商帳戶獨立選擇，不改動主下單面板帳戶。':'查詢富邦原始資料，缺值保留未知。'}{action&&!modeWrites?' Paper／展示模式只可查詢與檢核草稿，不送出券商委託。':''}</div></div></div>
+ <div className={s.notice} role='status'><Radio size={15}/><div><strong>富邦原生 API</strong><div className={s.muted}>{kind?'本面板的券商帳戶獨立選擇，不改動主下單面板帳戶。':type==='fubonownership'?'盤後籌碼資料；三大法人支援圖表與股／張切換，缺值保留未知。':'查詢富邦原始資料，缺值保留未知。'}{action&&!modeWrites?' Paper／展示模式只可查詢與檢核草稿，不送出券商委託。':''}</div></div></div>
+ {type==='fubonownership'&&<div className={s.muted}>分點買賣：目前富邦公開行情 API 未提供券商分點資料；三大法人為身分類別彙總。</div>}
  {kind&&<label className={s.label}>券商查詢帳戶<select className={s.input} value={accountIndex} disabled={sending} onChange={e=>{invalidate();setAccountIndex(e.target.value);setData(null);setReview(null);}}><option value=''>請選擇券商帳戶</option>{accounts.map((row,index)=><option key={`${row.account_type}:${row.broker_id}:${row.account_id}`} value={index}>{row.account_type==='S'?'證券':'期權'} {maskAccountId(row.broker_id,priv)}-{maskAccountId(row.account_id,priv)}{row.environment==='sandbox'?' · 共用測試帳戶':''}</option>)}</select></label>}
  {attemptError&&<div role='alert'>送出結果核對狀態載入失敗，已停止券商送出；請重新選擇帳戶或重新連線。</div>}
  {blockedAttempts.length>0&&<section className={s.notice} aria-label='送出結果待核對'><div><strong>送出結果尚待核對，已鎖住此帳戶的券商送出</strong><p>請先查詢券商委託／條件單紀錄；不要以新識別碼重送相同意圖。</p>{blockedAttempts.map(row=><div key={row.request_id}>{row.operation} · {row.request_id} · {row.created_at}</div>)}<label><input type='checkbox' checked={checked} onChange={e=>setChecked(e.target.checked)}/> 我已於券商核對以上請求的實際結果</label><Button size='sm' variant='outline' disabled={!checked||sending} onClick={()=>{void (async()=>{try{for(const row of blockedAttempts){await reconcileNativeAttempt({account:accountBody(),request_id:row.request_id,instance_id:info?.instance_id,acknowledgement:'已於券商核對此請求'});forgetNativeAttempt(accountKey,row.request_id);}setServerAttempts([]);setChecked(false);setNotice('已記錄人工核對；未重新送出任何券商委託。');}catch(reason){setError(String(reason));}})();}}>記錄核對並解除鎖定</Button></div></section>}
