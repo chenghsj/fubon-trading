@@ -435,6 +435,18 @@ export async function fetchKbars(
     }
 }
 
+export interface VolumeProfileData {
+    code: string;
+    date: string;
+    source: 'fubon' | 'demo';
+    session: string;
+    levels: { price: number; volume: number; buy_volume: number | null; sell_volume: number | null }[];
+}
+
+export function fetchVolumeProfile(contract: ContractBase) {
+    return apiPost<VolumeProfileData>('/api/v1/data/volumes', { contract: marketDataContract(contract) });
+}
+
 export function fetchHistoryTicks(contract: ContractBase, date: string) {
     return apiPost<HistoryTicks>('/api/v1/data/ticks', {
         contract: marketDataContract(contract),
@@ -596,7 +608,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 // wrong (unsupported code, bad ranking) and retrying can't help. A request
 // rejected before dispatch must also stop, rather than retry in another mode.
 function isPermanentApiError(reason: unknown): boolean {
-    return reason instanceof Error && (/^4\d\d\b/.test(reason.message)
+    return reason instanceof Error && (/^(4\d\d|501)\b/.test(reason.message)
         || (reason as { subscriptionNotStarted?: boolean }).subscriptionNotStarted === true);
 }
 
@@ -1251,7 +1263,7 @@ export interface StockProfitLoss {
     date: string;
     dseq: string;
     price: number;
-    pr_ratio: number;
+    pr_ratio: number | null;
     cond: string;
     seqno: string;
 }

@@ -1,3 +1,4 @@
+from datetime import date as Date
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
@@ -13,6 +14,37 @@ class ContractKey(BaseModel):
 class WatchlistContracts(BaseModel):
     model_config = ConfigDict(extra="forbid")
     contracts: list[ContractKey]
+
+
+class ScannerRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    scanner_type: Literal['ChangePercentRank', 'ChangePriceRank', 'DayRangeRank', 'VolumeRank', 'AmountRank']
+    date: Date
+    count: StrictInt = Field(default=30, ge=1, le=200)
+    ascending: bool = False
+
+
+class TicksRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    contract: ContractKey
+    date: Date
+    query_type: Literal['AllDay', 'LastCount'] = 'AllDay'
+    last_cnt: StrictInt = Field(default=500, ge=1, le=500)
+
+
+class VolumesRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    contract: ContractKey
+
+
+class ProfitLossRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    account_type: Literal['S', 'F']
+    broker_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
+    begin_date: Date
+    end_date: Date
+    unit: Literal['Common'] = 'Common'
 
 
 class Order(BaseModel):

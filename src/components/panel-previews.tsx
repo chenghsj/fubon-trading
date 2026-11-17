@@ -6,6 +6,7 @@
 import type { ReactNode } from 'react';
 import type { BlockType } from '../lib/workspace';
 import { vars } from '../theme.css';
+import { FUBON_API_PANELS } from '../lib/fubon-api-panels';
 
 const up = vars.color.up;
 const down = vars.color.down;
@@ -85,6 +86,9 @@ const candles = (
     });
 
 export const PANEL_PREVIEWS: Record<BlockType, ReactNode> = {
+    ...Object.fromEntries(Object.keys(FUBON_API_PANELS).map(type => [type,
+        <Frame key={type}><Ln x={8} y={12} w={70} /><Ln x={8} y={28} w={35} /><Ln x={58} y={28} w={45} /><Ln x={8} y={48} w={95} /><Ln x={8} y={64} w={55} /></Frame>
+    ])) as Record<keyof typeof FUBON_API_PANELS, ReactNode>,
     watchlist: <Frame>{rowList([up, down, up, up, down])}</Frame>,
     movers: (
         <Frame>

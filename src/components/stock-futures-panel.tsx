@@ -19,6 +19,7 @@ import { AsyncStatus } from './async-status';
 import { CatalogRetryAlert } from './catalog-retry-alert';
 import * as panel from './panel.css';
 import { UnderlyingPicker } from './underlying-picker';
+import { useServerInfo } from '../lib/server-info-store';
 
 const STOCK_FUTURE_UNDERLYING = 'sj-pro-stock-future-underlying';
 
@@ -37,6 +38,7 @@ export function StockFuturesPanel({
     onAdd: (contract: ContractInfo) => Promise<unknown>;
     contract?: ContractInfo | null;
 }) {
+    const fubon = useServerInfo()?.broker === 'fubon';
     const [underlying, setUnderlying] = useState<StockMeta | null>(null);
     const [contracts, setContracts] = useState<ContractInfo[]>([]);
     const [mode, setMode] = useState<'continuous' | 'all'>('continuous');
@@ -104,17 +106,28 @@ export function StockFuturesPanel({
     }, [underlying?.code, version, reloads, catalogReady]);
 
     const visible = useMemo(() => {
-        const rows =
+        let rows =
             mode === 'continuous'
                 ? contracts.filter((contract) => /R[12]$/.test(contract.code))
                 : contracts.filter((contract) => !/R[12]$/.test(contract.code));
+        if (fubon && mode === 'continuous') {
+            const perRoot = new Map<string, number>();
+            rows = [...contracts].filter(row => !row.target_code && !!row.delivery_month)
+                .sort((a, b) => (a.delivery_month ?? '').localeCompare(b.delivery_month ?? ''))
+                .filter(row => {
+                    const root = row.root ?? row.code;
+                    const count = perRoot.get(root) ?? 0;
+                    perRoot.set(root, count + 1);
+                    return count < 2;
+                });
+        }
         return [...rows].sort(
             (a, b) =>
                 (a.root ?? '').localeCompare(b.root ?? '') ||
                 aliasRank(a) - aliasRank(b) ||
                 (a.delivery_month ?? '').localeCompare(b.delivery_month ?? ''),
         );
-    }, [contracts, mode]);
+    }, [contracts, mode, fubon]);
 
     const { snapshots: snapshots, refresh: refreshQuotes, loading: quotesLoading, error: quotesError } = useLiveSnapshots(visible.slice(0, 40));
 

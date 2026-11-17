@@ -1,6 +1,7 @@
 // src/lib/workspace.ts — dynamic panel blocks + grid layout + named profiles
 
 import type { LayoutItem } from 'react-grid-layout';
+import { FUBON_API_BLOCK_META, type FubonApiPanelType } from './fubon-api-panels';
 import { isLinkGroup, LINK_GROUPS, type LinkGroupId } from './flash-link';
 import { decodeQuoteBoardFields, encodeQuoteBoardFields } from './quote-board-fields';
 
@@ -46,6 +47,7 @@ export function toRenderGeom(
 }
 
 export type BlockType =
+    | FubonApiPanelType
     | 'watchlist'
     | 'movers'
     | 'dock'
@@ -319,6 +321,7 @@ export interface Profile {
 }
 
 export type PanelCategory =
+    | 'brokerapi'
     | 'market'
     | 'trading'
     | 'account'
@@ -331,6 +334,7 @@ export const PANEL_CATEGORIES: { key: PanelCategory; label: string }[] = [
     { key: 'account', label: '帳務分析' },
     { key: 'derivatives', label: '選擇權/衍生品' },
     { key: 'tools', label: '工具' },
+    { key: 'brokerapi', label: '富邦 API · 版面已備妥' },
 ];
 
 export const BLOCK_META: Record<
@@ -344,6 +348,7 @@ export const BLOCK_META: Record<
         defaultSize: { w: number; h: number; minW: number; minH: number };
     }
 > = {
+    ...FUBON_API_BLOCK_META,
     watchlist: {
         label: '自選清單',
         description: '自選商品即時報價清單',

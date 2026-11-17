@@ -40,6 +40,7 @@ import * as styles from './layout-library.css';
 // 分類→色票：market 藍（accent）、trading 琥珀、account 綠、
 // derivatives 紫、tools 灰。theme-vars 相容（紫色三主題皆可讀）。
 const CATEGORY_COLORS: Record<PanelCategory, string> = {
+    brokerapi: vars.color.mutedForeground,
     market: vars.color.accent,
     trading: vars.color.amber,
     account: vars.color.success,

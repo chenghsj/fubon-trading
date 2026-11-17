@@ -15,6 +15,7 @@ import * as dock from './bottom-dock.css';
 import * as panel from './panel.css';
 import * as styles from './pnl-panel.css';
 import { AsyncStatus } from './async-status';
+import { useServerInfo } from '../lib/server-info-store';
 
 interface PnlRow {
     date: string;
@@ -32,7 +33,12 @@ async function fetchPnl(accounts: Account[]): Promise<PnlRow[]> {
         }, { beforeDispatch: query.assertCurrent }));
         rows.push(...result);
     }
-    return rows.map(r => ({ date: r.date, pnl: Number(r.pnl) || 0 })).sort((a, b) => a.date.localeCompare(b.date));
+    return rows.map(r => {
+        if (typeof r.date !== 'string' || r.pnl === null || r.pnl === undefined || !Number.isFinite(Number(r.pnl))) {
+            throw new Error('損益來源缺少有效日期或金額，未將未知資料補成零');
+        }
+        return { date: r.date, pnl: Number(r.pnl) };
+    }).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function EquityCurve({ rows }: { rows: PnlRow[] }) {
@@ -81,6 +87,7 @@ function EquityCurve({ rows }: { rows: PnlRow[] }) {
 }
 
 export function PnlPanel() {
+    const info = useServerInfo();
     const { accounts } = useAccounts();
     const privMoney = usePrivacyMoney();
     const tradable = accounts.filter(a => canTrade(a) && ['S', 'F'].includes(a.account_type));
@@ -89,6 +96,9 @@ export function PnlPanel() {
         useCallback(() => fetchPnl(tradable), [key]), `pnl-30d:${key}`, tradable.length > 0, tradable,
     );
     const controls = <div className={panel.refreshToolbar}>
+        {info?.broker === 'fubon' && <span>{info.mode === 'paper' || info.mode === 'demo'
+            ? '本機平均成本平倉損益；未設定費稅的商品不含完整費稅'
+            : '僅涵蓋券商目前回傳的紀錄，未保證完整歷史區間'}</span>}
         {error && <span role="status">查詢失敗，保留上次資料：{error}</span>}
         <RefreshButton label="更新已實現損益" loading={loading} disabled={tradable.length === 0} onClick={() => void refresh()} />
     </div>;

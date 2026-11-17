@@ -13,6 +13,8 @@ import * as dock from './bottom-dock.css';
 import * as panel from './panel.css';
 import * as styles from './vol-profile.css';
 import { AsyncStatus } from './async-status';
+import { useServerInfo } from '../lib/server-info-store';
+import { FubonVolProfile } from './fubon-vol-profile';
 
 interface Level {
     buy: number; // 外盤 (成交在賣方掛單價, tick_type 1)
@@ -33,6 +35,11 @@ function addTo(profile: Profile, price: number, vol: number, tickType: number) {
 }
 
 export function VolProfile({ contract }: { contract: ContractBase }) {
+    const info = useServerInfo();
+    return info?.broker === 'fubon' ? <FubonVolProfile contract={contract} /> : <TickVolProfile contract={contract} />;
+}
+
+function TickVolProfile({ contract }: { contract: ContractBase }) {
     const [version, setVersion] = useState(0);
     const [profile, setProfile] = useState<Profile>(new Map());
     const [loading, setLoading] = useState(true);

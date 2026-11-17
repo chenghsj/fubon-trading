@@ -16,7 +16,10 @@ from starlette.background import BackgroundTask
 from .broker import Broker
 from .config import Config, ROOT
 from .mapping import now
-from .models import ContractKey, Mutation, PlaceOrder, WatchlistContracts
+from .models import ContractKey, Mutation, PlaceOrder, ProfitLossRequest, ScannerRequest, TicksRequest, VolumesRequest, WatchlistContracts
+from .market_data import MarketData
+from .portfolio_data import PortfolioData
+from .feature_errors import FeatureUnavailable
 from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
@@ -220,6 +223,10 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     async def invalid(_, error):
         return JSONResponse({"detail": str(error)}, status_code=400)
 
+    @app.exception_handler(FeatureUnavailable)
+    async def unsupported_feature(_, error):
+        return JSONResponse({'detail': str(error)}, status_code=501)
+
     @app.exception_handler(Exception)
     async def unavailable(_, error):
         # Do not expose native SDK exceptions (credentials/paths/identity).
@@ -234,8 +241,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             market_connected=broker.market_connected(),
             session=cfg.session, error=broker.error,
             trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
-            supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin"],
-            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
+            supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin", "scanner", "volumes", "option_catalog", "current_session_ticks"] + (["paper_realized_pnl"] if cfg.mode in {'paper', 'demo'} else []),
+            limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "選擇權清單支援唯讀查詢；完整即時 T 字與選擇權交易尚未啟用", "標示 API 尚未接通的新功能面板僅提供本機版面，遠端操作停用"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
 
     def restart_response():
         def restart():
@@ -380,11 +387,12 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get("/api/v1/data/contracts/options/roots")
     def options_roots():
-        return [{"root": "TXO", "name": "臺指選擇權"}]
+        return broker.options.roots()
 
     @app.get("/api/v1/data/contracts/options")
-    def options():
-        raise HTTPException(501, "選擇權到期、履約價與權利別篩選尚未完成轉接")
+    def options(root: str, delivery_month: str = '', option_right: str = '', strike_min: float | None = None,
+                strike_max: float | None = None, expiry_weekday: str = ''):
+        return broker.options.contracts(root, delivery_month, option_right, strike_min, strike_max, expiry_weekday)
 
     @app.get("/api/v1/data/contracts/tick-bands/{rule}")
     def tick_bands(rule: str, security_type: str = "FUT"):
@@ -396,6 +404,17 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.get("/api/v1/data/contracts/{code}")
     def contract(code: str, security_type: str | None = None):
         return broker.contract_info(ContractKey(code=code, security_type=security_type).model_dump())
+
+    market_data = MarketData(broker)
+
+    @app.post('/api/v1/data/scanner')
+    def scanner(body: ScannerRequest):
+        # Keep the existing client's documented convention: ascending=True means largest first.
+        return market_data.scan(body.scanner_type, body.count, body.ascending, body.date)
+
+    @app.post('/api/v1/data/volumes')
+    def volumes(body: VolumesRequest):
+        return market_data.volumes(body.contract.model_dump())
 
     @app.post("/api/v1/data/snapshots")
     def snapshots(body: dict = Body(...)):
@@ -479,8 +498,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         return dict(format='lightgbm-text',model=learning.store.model(ident))
 
     @app.post("/api/v1/data/ticks")
-    def ticks(body: dict = Body(...)):
-        return broker.ticks(ContractKey.model_validate(body["contract"]).model_dump(), body["date"], min(int(body.get("last_cnt", 500)), 500))
+    def ticks(body: TicksRequest):
+        return broker.ticks(body.contract.model_dump(), body.date.isoformat(), body.last_cnt, all_day=body.query_type == 'AllDay')
 
     @app.post("/api/v1/stream/subscribe")
     @app.post("/api/v1/stream/unsubscribe")
@@ -563,6 +582,20 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.post("/api/v1/portfolio/position_unit")
     def positions(body: dict = Body(...)):
         return broker.positions(broker.account(body))
+
+    portfolio_data = PortfolioData(broker)
+
+    @app.post('/api/v1/portfolio/profit_loss')
+    def profit_loss(body: ProfitLossRequest):
+        return portfolio_data.profit_loss(broker.account(body.model_dump()), body.begin_date, body.end_date)
+
+    @app.post('/api/v1/portfolio/profitloss_sum')
+    def profit_loss_summary(body: ProfitLossRequest):
+        return portfolio_data.summary(broker.account(body.model_dump()), body.begin_date, body.end_date)
+
+    @app.post('/api/v1/portfolio/settlements')
+    def settlements(body: dict = Body(...)):
+        return portfolio_data.settlements(broker.account(body))
 
     @app.post("/api/v1/portfolio/margin")
     def margin(body: dict = Body(...)):

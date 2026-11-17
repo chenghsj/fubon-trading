@@ -9,6 +9,10 @@ export interface Tick {
 }
 
 export interface HistoryTicks {
+    source_date?: string;
+    limited?: boolean;
+    complete?: boolean;
+    message?: string;
     datetime: string[];
     close: number[];
     volume: number[];

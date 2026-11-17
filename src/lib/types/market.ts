@@ -212,16 +212,16 @@ export interface ScannerItem {
     low: number;
     change_price: number;
     change_type: number;
-    average_price: number;
-    price_range: number;
+    average_price: number | null;
+    price_range: number | null;
     rank_value: number;
     total_volume: number;
     total_amount: number;
-    volume_ratio: number;
-    yesterday_volume: number;
-    tick_type: number;
-    buy_price: number;
-    sell_price: number;
+    volume_ratio: number | null;
+    yesterday_volume: number | null;
+    tick_type: number | null;
+    buy_price: number | null;
+    sell_price: number | null;
 }
 
 export type ScannerType =

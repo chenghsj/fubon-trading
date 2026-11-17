@@ -71,11 +71,15 @@ import {
 } from './panel-preview-live';
 import { PANEL_PREVIEWS } from './panel-previews';
 import * as styles from './panel-library.css';
+import { useServerInfo } from '../lib/server-info-store';
+import { panelLimitation, panelUnavailable } from '../lib/fubon-support';
+import { FUBON_API_PANELS } from '../lib/fubon-api-panels';
 
 const RECENTS_KEY = 'sj-pro-panel-recents-v1';
 const RECENTS_LIMIT = 6;
 
 const PANEL_ICONS: Record<BlockType, LucideIcon> = {
+    ...Object.fromEntries(Object.keys(FUBON_API_PANELS).map(type => [type, Table])) as Record<keyof typeof FUBON_API_PANELS, LucideIcon>,
     watchlist: Star,
     movers: TrendingUp,
     dock: Briefcase,
@@ -155,6 +159,7 @@ export function PanelLibrary({
     onLocate: (blockId: string) => void;
     selectedCode?: string | null;
 }) {
+    const serverInfo = useServerInfo();
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const [recents, setRecents] = useState<BlockType[]>(loadRecents);
@@ -249,6 +254,7 @@ export function PanelLibrary({
     if (!open) return null;
 
     const activate = (item: LibraryItem, keepOpen: boolean) => {
+        if (!serverInfo || panelUnavailable(item.type, serverInfo)) return;
         if (item.existingId) {
             onLocate(item.existingId);
             onClose();
@@ -294,10 +300,14 @@ export function PanelLibrary({
         const idx = flatIndex;
         const meta = BLOCK_META[item.type];
         const Icon = PANEL_ICONS[item.type];
+        const unavailable = panelUnavailable(item.type, serverInfo);
+        const limitation = panelLimitation(item.type, serverInfo);
         return (
             <Button size="compact" variant="ghost"
                 key={`${idx}-${item.type}`}
                 data-idx={idx}
+                disabled={!serverInfo || !!unavailable}
+                title={unavailable ? `未支援：${unavailable}` : limitation}
                 className={cn(
                     styles.card[idx === activeIndex ? 'active' : 'normal'],
                     'grid min-w-0 justify-start text-left',
@@ -311,12 +321,12 @@ export function PanelLibrary({
                 <span className={styles.cardText}>
                     <span className={styles.cardTitle}>{meta.label}</span>
                     <span className={styles.cardDesc}>
-                        {item.existingId
+                        {unavailable ? `未支援 · ${unavailable}` : item.existingId
                             ? '已在版面中 · 點擊前往'
-                            : meta.description}
+                            : limitation ?? meta.description}
                     </span>
                 </span>
-                {item.existingId && (
+                {!unavailable && item.existingId && (
                     <span className={styles.cardGo}>前往</span>
                 )}
             </Button>
@@ -426,7 +436,7 @@ export function PanelLibrary({
                                 : ''
                         }`}
                     >
-                        {liveType === activeItem.type ? (
+                        {liveType === activeItem.type && !!serverInfo && !panelUnavailable(activeItem.type, serverInfo) ? (
                             <div
                                 className={styles.livePreviewViewport}
                                 style={{
@@ -446,11 +456,15 @@ export function PanelLibrary({
                             {BLOCK_META[activeItem.type].label}
                         </span>
                         <span className={styles.previewDesc}>
-                            {BLOCK_META[activeItem.type].description}
+                            {panelUnavailable(activeItem.type, serverInfo)
+                                ? `未支援：${panelUnavailable(activeItem.type, serverInfo)}`
+                                : panelLimitation(activeItem.type, serverInfo) ?? BLOCK_META[activeItem.type].description}
                             {activeItem.existingId &&
                                 ' · 已在版面中，選取後前往'}
                         </span>
                         {liveType !== activeItem.type &&
+                            !!serverInfo &&
+                            !panelUnavailable(activeItem.type, serverInfo) &&
                             livePreviewEnabled() &&
                             canLivePreview(activeItem.type) && (
                                 <Button size="compact" variant="outline"

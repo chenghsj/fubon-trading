@@ -4,12 +4,14 @@ import json
 import math
 import re
 import threading
+import time
 import uuid
 
 from .config import Config, SANDBOX_URL
 from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_events, market_trades,
                       normalize_trade, now, number, snapshot, stamp, symbol_alias, unwrap)
 from .paper import ACTIVE, PaperBook
+from .option_catalog import OptionCatalog
 
 
 class Broker:
@@ -36,6 +38,9 @@ class Broker:
         self.transitioning = False
         self.paper = PaperBook(emit,paper_store,costs=config.mode=='paper')
         self.instance_id = uuid.uuid4().hex
+        self.options = OptionCatalog(self)
+        self.tick_history_cache = {}
+        self.tick_history_lock = threading.RLock()
         if config.mode == "demo":
             self._demo_catalog()
 
@@ -235,6 +240,11 @@ class Broker:
             row = self.contract(key)
             if row['security_type'] == 'FUT':
                 self._future_products()
+            if row['security_type'] == 'OPT':
+                self.options._products()
+                row = self.options.enrich(row)
+                self.catalog[row['code']] = deepcopy(row)
+                return row
             return self._future_info(row)
 
     def contract(self, key, *, refresh=False):
@@ -243,7 +253,8 @@ class Broker:
         if not re.fullmatch(r"[A-Z0-9!]{2,24}", code):
             raise ValueError("無效商品代碼")
         if kind is None:
-            kind = "STK" if code.isdigit() else "FUT"
+            kind = self.catalog.get(code, {}).get('security_type') or (
+                'STK' if code.isdigit() else 'OPT' if re.fullmatch(r'[A-Z0-9]{3}\d+[A-X]\d', code) else 'FUT')
         if kind not in {"STK", "FUT", "OPT"}:
             raise ValueError("此富邦轉接器支援股票、期貨與選擇權行情")
         with self.lock:
@@ -261,6 +272,8 @@ class Broker:
             info = contract_from_ticker(row, kind)
             if row.get("settleDate"):
                 info["delivery_month"] = row["settleDate"].replace("-", "")
+            if kind == 'OPT':
+                info = self.options.enrich(info)
             self.catalog[info["code"]] = info
             self.catalog_full.add(info["code"])
             if info["code"] != code:
@@ -404,22 +417,77 @@ class Broker:
                     return []
                 raise ValueError('跨月歷史下載失敗，請檢查行情權限、日期或稍後重試；已保存批次可續傳') from None
 
-    def ticks(self, key, requested_date, count=500):
+    def ticks(self, key, requested_date, count=500, *, all_day=False):
         contract = self.contract(key)
         result = dict(datetime=[], close=[], volume=[], bid_price=[], bid_volume=[], ask_price=[], ask_volume=[], tick_type=[])
-        if requested_date != now().date().isoformat():
+        requested = date.fromisoformat(requested_date)
+        if abs((requested - now().date()).days) > 4:
             raise ValueError("富邦此介接的逐筆查詢僅支援當日；歷史分析請使用分 K")
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 500:
+            raise ValueError('最近逐筆筆數須為 1–500')
+        cache_key = (contract['security_type'], contract['code'], requested_date, self.config.session)
         if self.config.mode == "demo":
+            if requested != now().date():
+                raise ValueError('展示逐筆僅提供當日合成資料')
             q = self.quote(contract)
             rows = [dict(price=q["close"], size=1, bid=q["buy_price"], ask=q["sell_price"], time=int(now().timestamp()*1e6))]
+            source_date, limited = now().date().isoformat(), False
         else:
-            rows = self._client(contract["security_type"]).intraday.trades(symbol=contract.get("target_code") or contract["code"], limit=min(count, 500), **self._session_args(contract["security_type"])).get("data", [])
-        for row in reversed(rows):
+            with self.tick_history_lock:
+                cached = self.tick_history_cache.get(cache_key)
+                if all_day and cached and time.monotonic() - cached[0] < 15:
+                    return deepcopy(cached[1])
+                params = dict(symbol=contract.get('target_code') or contract['code'], limit=500 if all_day else count,
+                              sort='asc' if all_day else 'desc', **self._session_args(contract['security_type']))
+                client = self._client(contract['security_type']).intraday
+                rows, previous_end, source_date, limited = [], None, None, False
+                while True:
+                    payload = client.trades(**params, **({'offset': len(rows)} if all_day else {}))
+                    current_date = date.fromisoformat(payload['date']).isoformat()
+                    if current_date != requested_date:
+                        raise ValueError(f'富邦逐筆目前僅提供 {current_date} 交易日，無法查詢指定歷史日')
+                    if source_date is not None and source_date != current_date:
+                        raise ValueError('逐筆來源已換日，請重新載入')
+                    source_date = current_date
+                    page = payload['data']
+                    if not isinstance(page, list):
+                        raise ValueError('富邦逐筆回傳格式不完整')
+                    if page:
+                        end = (page[-1].get('time'), page[-1].get('serial'))
+                        if all_day and end == previous_end:
+                            raise ValueError('逐筆分頁沒有前進，已停止以避免重複資料')
+                        previous_end = end
+                    rows.extend(page)
+                    if not all_day or len(page) < 500:
+                        break
+                    if len(rows) >= 50_000:
+                        limited = True
+                        break
+        seen = {}
+        for row in sorted(rows, key=lambda item: (item['time'], str(item.get('serial', '')))):
+            if row.get('isTrial'):
+                continue
+            if isinstance(row.get('price'), bool) or isinstance(row.get('size'), bool) or not isinstance(row.get('price'), (int, float)) or not math.isfinite(row['price']) or row['price'] <= 0 or not isinstance(row.get('size'), (int, float)) or not math.isfinite(row['size']) or row['size'] < 0:
+                raise ValueError('富邦逐筆回傳缺少有效成交價量')
+            if row.get('serial') is not None:
+                identity = (row['time'], row['serial'])
+                if identity in seen:
+                    if seen[identity] != row:
+                        raise ValueError('富邦逐筆分頁內容衝突，請重新載入')
+                    continue
+                seen[identity] = row
             result["datetime"].append(stamp(row["time"]).isoformat())
-            for key_, value in [("close", row.get("price", 0)), ("volume", row.get("size", 0)),
+            for key_, value in [("close", row['price']), ("volume", row['size']),
                     ("bid_price", row.get("bid", 0)), ("ask_price", row.get("ask", 0)),
                     ("bid_volume", 0), ("ask_volume", 0), ("tick_type", 0)]:
                 result[key_].append(value)
+        result.update(source_date=source_date, limited=limited, complete=bool(all_day and not limited),
+                      message=f'{source_date} 交易日逐筆；'+('已達 50,000 筆上限，未確認完整性' if limited else '僅提供目前交易日，非歷史逐筆服務'))
+        if all_day:
+            with self.tick_history_lock:
+                if len(self.tick_history_cache) >= 12:
+                    self.tick_history_cache.pop(next(iter(self.tick_history_cache)))
+                self.tick_history_cache[cache_key] = (time.monotonic(), deepcopy(result))
         return result
 
     def _on_sdk_event(self, code, *args):
@@ -593,6 +661,13 @@ class Broker:
             self.ready()
             contract = self.contract(contract_key)
             kind = contract["security_type"]
+            if kind == 'OPT':
+                raise ValueError('富邦選擇權交易級距尚未完成；目前僅提供唯讀行情')
+            if kind == 'FUT' and not contract.get('multiplier'):
+                self._future_products()
+                contract = self._future_info(contract)
+                if not contract.get('multiplier'):
+                    raise ValueError('合約乘數尚未確認，拒絕建立委託')
             if kind == "STK" and order.get("price_type") not in {"LMT", "MKT"}:
                 raise ValueError("股票只支援限價（LMT）或市價（MKT），不支援範圍市價（MKP）")
             if account["account_type"] != ("S" if kind == "STK" else "F"):
