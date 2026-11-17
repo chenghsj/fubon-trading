@@ -9,7 +9,8 @@ import { ContractFeeNote } from './contract-fee-note';
 import { getContractFee, useContractFee } from '../lib/contract-fee';
 import { apiGet } from '../lib/api';
 import { fubonPost } from '../lib/fubon-api-detail';
-import { autoAccountKey, AUTO_STATUS, initialAutoConfig, parseAutoBasket, type AutoAccount, type AutoConfig, type AutoState } from '../lib/auto-trading';
+import { autoAccountKey, AUTO_STATUS, initialAutoConfig, nextAutoTradeDate, parseAutoBasket, type AutoAccount, type AutoConfig, type AutoState } from '../lib/auto-trading';
+import { SESSION_LABEL, SESSION_RULE, type StrategySession } from '../lib/strategy-session';
 import { checkOrderAllowed, getRiskSettings, useRiskSettings } from '../lib/risk';
 import * as s from './auto-trading.css';
 
@@ -93,7 +94,7 @@ export function AutoTradingPanel() {
         finally { if (alive.current) setBusy(''); }
     };
     const runningOrExposed = !!state && (!!state.pending || !!state.position || state.status === 'running' || state.status === 'stopping');
-    const lockedPlan = runningOrExposed || !!state && state.entryCount > 0 && draft.trade_date === state.config?.trade_date;
+    const lockedPlan = runningOrExposed || !!state && state.entryCount > 0 && draft.trade_date === state.config?.trade_date && (draft.strategy_session ?? 'cash') === (state.config?.strategy_session ?? 'cash');
     const editable = !busy && !lockedPlan;
     const globalBlock = checkOrderAllowed(1);
     const mayStart = !!state?.available && !!draft.account.account_id && !busy && !globalBlock && !state.pending && !state.position && !['running', 'stopping'].includes(state.status);
@@ -109,8 +110,8 @@ export function AutoTradingPanel() {
         if (paper && !state?.config && account) setDraft(old => old.account.account_id === 'PAPER-AUTO-F' ? old : { ...old, account });
     }, [paper, state?.config, accounts]);
     return <section className={s.wrap} aria-label={paper ? 'Paper 自動交易' : 'Sandbox 自動交易'}>
-        <div className={s.header}><h2 className={s.title}>自動交易 · 微台日盤</h2><span className={`${s.status} ${state?.status === 'attention' ? s.warning : ''}`}>{state ? AUTO_STATUS[state.status] : '讀取狀態…'}</span></div>
-        <p className={s.muted}>{paper ? 'Paper 正式行情／本機模擬委託' : '官方 sandbox 測試委託'} · 單口、單一部位 · 09:00 開盤區間策略</p>
+        <div className={s.header}><h2 className={s.title}>自動交易 · 微台日／夜盤</h2><span className={`${s.status} ${state?.status === 'attention' ? s.warning : ''}`}>{state ? AUTO_STATUS[state.status] : '讀取狀態…'}</span></div>
+        <p className={s.muted}>{paper ? 'Paper 正式行情／本機模擬委託' : '官方 sandbox 日盤測試委託'} · 單口、單一部位 · {SESSION_LABEL[draft.strategy_session ?? 'cash']}</p>
         <p className={s.notice}><strong>策略驗證：研究中</strong><br />已檢查收盤訊號、缺漏資料與執行風控；已加入固定成本壓力情境，仍未通過穩健性檢查；尚缺獨立樣本外與盤中前測。啟動僅用於 paper／sandbox 流程測試，不代表已通過獲利驗證。</p>
         {state && !state.available && <p role="status" className={s.notice}>目前為 {state.mode}。此面板支援 paper 本機模擬或官方 sandbox 日盤，正式交易不可啟動。</p>}
         <div className={s.notice} role="status"><strong>{state?.reason ?? '正在連線'}</strong><br />{state?.owned ? `本分頁持有控制權 · 心跳剩餘 ${state.leaseSeconds} 秒` : state?.id && activeStatuses.has(state.status) ? '此分頁可停止或對帳；尚未持有新倉控制權。' : '啟動前不會產生委託。'}</div>
@@ -126,13 +127,15 @@ export function AutoTradingPanel() {
             <div className={s.metric}>估計未實現淨損益<strong className={s.number}>{state?.position ? `$${amount(state.unrealizedNet)}` : '—'}</strong></div>
         </div>
         <form onSubmit={e => { e.preventDefault(); void start(); }}>
-            <label className={`${s.field} ${s.dateField}`}>單次交易日期<Input className={s.control} type="date" required disabled={!!busy || runningOrExposed} value={draft.trade_date} onChange={e => setDraft(old => ({ ...old, trade_date: e.target.value }))} /></label>
+            <label className={`${s.field} ${s.dateField}`}>實際開盤日期（夜盤為15:00所在日）<Input className={s.control} type="date" required disabled={!!busy || runningOrExposed} value={draft.trade_date} onChange={e => setDraft(old => ({ ...old, trade_date: e.target.value }))} /></label>
+            <label className={s.field}>策略盤別<SelectControl aria-label="策略盤別" value={draft.strategy_session ?? 'cash'} disabled={!!busy || runningOrExposed} onValueChange={value => setDraft(old => ({ ...old, strategy_session: value as StrategySession, trade_date: nextAutoTradeDate(Date.now(), value as StrategySession), model_run_id: null, decision_minutes: 5, use_basket: false }))} wrapperClassName="w-full">{Object.entries(SESSION_LABEL).map(([key,label]) => <SelectOption key={key} value={key} disabled={key === 'afterhours' && !paper}>{label}</SelectOption>)}</SelectControl></label>
+            <p className={s.muted}>{SESSION_RULE[draft.strategy_session ?? 'cash']}請在上方交易模式設定選擇相同的行情盤別；同一時間只執行一份計畫。</p>
             <fieldset className={s.fieldset} disabled={!editable}>
                 <legend className={s.heading}>策略與執行設定</legend>
                 <div className={s.grid}>
                     <label className={s.field}>{paper ? '策略模擬帳戶' : '期貨測試帳戶'}<SelectControl aria-label={paper ? '策略模擬帳戶' : '期貨測試帳戶'} wrapperClassName="w-full" disabled={!editable} className={s.control} value={autoAccountKey(draft.account)} onValueChange={selectedValue => { const a = accounts.find(a => autoAccountKey(a) === selectedValue); if (a) setDraft(old => ({ ...old, account: a })); }}><SelectOption value=":">選擇帳戶</SelectOption>{choices.map(a => <SelectOption key={autoAccountKey(a)} value={autoAccountKey(a)}>{a.broker_id}-{a.account_id}</SelectOption>)}</SelectControl></label>
                     <label className={s.field}>微台具體合約<Input className={s.control} value={draft.contract_code} required pattern="TMF[A-L][0-9]" placeholder="TMFK6" onChange={e => setDraft(old => ({ ...old, contract_code: e.target.value.toUpperCase() }))} /></label>
-                    <label className={s.field}>權值股濾網<SelectControl aria-label="權值股濾網" wrapperClassName="w-full" disabled={!editable || !!draft.model_run_id} className={s.control} value={draft.use_basket ? 'basket' : 'baseline'} onValueChange={selectedValue => setDraft(old => ({ ...old, use_basket: selectedValue === 'basket' }))}><SelectOption value="baseline">開盤區間突破</SelectOption><SelectOption value="basket">突破＋權值股方向濾網</SelectOption></SelectControl></label>
+                    <label className={s.field}>權值股濾網<SelectControl aria-label="權值股濾網" wrapperClassName="w-full" disabled={!editable || !!draft.model_run_id || (draft.strategy_session ?? 'cash') !== 'cash'} className={s.control} value={draft.use_basket ? 'basket' : 'baseline'} onValueChange={selectedValue => setDraft(old => ({ ...old, use_basket: selectedValue === 'basket' }))}><SelectOption value="baseline">開盤區間突破</SelectOption><SelectOption value="basket">突破＋權值股方向濾網</SelectOption></SelectControl></label>
                     <label className={s.field}>策略版本<SelectControl aria-label="策略版本" wrapperClassName="w-full" disabled={!editable || !!draft.model_run_id} className={s.control} value={draft.strategy_version ?? 'orb_v1'} onValueChange={value => setDraft(old => ({ ...old, strategy_version: value as AutoConfig['strategy_version'] }))}><SelectOption value="orb_v1">V1 固定停損</SelectOption><SelectOption value="orb_atr_v2">V2 波動風控（研究候選）</SelectOption></SelectControl></label>
                 </div>
                 <AutoModelField draft={draft} setDraft={setDraft} editable={editable} />
@@ -150,10 +153,10 @@ export function AutoTradingPanel() {
             <div className={s.actions}><Button size="compact" type="submit" disabled={!mayStart}>啟動／恢復 {paper ? 'paper' : 'sandbox'} 策略</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('pause')}>停止新倉</Button><Button size="compact" type="button" variant="destructive" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('stop')}>停止並退出</Button><Button size="compact" type="button" variant="outline" disabled={!!busy || !state?.id || !activeStatuses.has(state.status)} onClick={() => void control('reconcile')}>重新對帳與接管監控</Button></div>
         </form>
         {busy && <p role="status">{busy}</p>}
-        <p className={s.muted}>首 15 分鐘建立區間；09:20–13:10 只處理啟動後的新 5 分收盤訊號，每方向最多一次進場意圖，每次 1 口。限價 IOC 未成交也占用進場額度；模型計畫另限訊號後20分鐘，最晚13:20嘗試退出。新委託的停損停利以確認成交價為基準；成交價未明時暫用限價，由本機服務每 5 秒監控，沒有建立券商端保護單。</p>
+        <p className={s.muted}>首 15 分鐘建立區間，只處理啟動後的新 {draft.decision_minutes ?? 5} 分收盤訊號，每方向每盤最多一次進場意圖，每次 1 口。日盤與夜盤分開計額度，午夜不重設；限價 IOC 未成交也占用額度。模型計畫限訊號後20分鐘，並在所選盤別退出期限嘗試退出。停損停利以確認成交價為基準，由本機服務每 5 秒監控，沒有建立券商端保護單。</p>
         <p className={s.muted}>面板關閉、鎖定或心跳逾時 15 秒會停止新倉；服務在線時仍追蹤既有曝險。風控鎖會阻擋所有自動送單。退出最多嘗試三張已確認結果的 IOC；未知結果不重送。服務重啟後須手動恢復／對帳。</p>
         {state?.position && <div className={s.notice}>本策略成交推導：{state.position.side === 'Buy' ? '多' : '空'} 1 口 · 成交價 {amount(state.position.entryPrice)}<br />{state.position.referenceType === 'fill' ? '確認成交價基準' : '限價暫估／舊計畫基準'} {state.position.referencePrice} · 停損 {state.position.stop} · 停利 {state.position.target}<br />{state.monitoring ? '後端監控中' : '尚未接管退出監控，請重新對帳'}</div>}
-        {paper && state?.position && <div className={s.actions}><Button size="compact" variant="destructive" disabled={!!busy || risk.locked || !!state.pending} onClick={() => void control('flatten')}>確認退出保存的 paper 策略部位</Button><p className={s.muted}>可處理隔日保留的部位，僅使用原具體合約的新鮮日盤行情；不恢復新倉。</p></div>}
+        {paper && state?.position && <div className={s.actions}><Button size="compact" variant="destructive" disabled={!!busy || risk.locked || !!state.pending} onClick={() => void control('flatten')}>確認退出保存的 paper 策略部位</Button><p className={s.muted}>可處理隔日保留的部位，僅使用原具體合約與所選盤別的新鮮行情；不恢復新倉。</p></div>}
         {state?.quote && <p className={s.muted}>最近報價 {amount(state.quote.price)} · {when(state.quote.time)}{state.quote.trial ? ' · 試撮' : ''}</p>}
         {state?.position?.exitDeadline && <p className={s.muted}>模型訊號退出期限：{when(state.position.exitDeadline)}</p>}
         {state?.lastSignal?.model && <p className={s.muted}>模型 {state.lastSignal.model.runId.slice(0, 12)} · 分數 {state.lastSignal.model.score?.toFixed(3) ?? '無法計算'} / 門檻 {state.lastSignal.model.threshold} · {state.lastSignal.model.accepted ? '保留訊號' : '跳過進場'}</p>}

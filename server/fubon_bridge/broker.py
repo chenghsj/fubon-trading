@@ -441,14 +441,35 @@ class Broker:
                     return []
                 raise ValueError(f"{symbol} 歷史行情查詢失敗；請確認行情權限、連線與日期") from None
 
-    def learning_candles(self, kind, symbol, start, end):
+    def learning_candles(self, kind, symbol, start, end, *, session='regular'):
         """Read-only continuous history, preserving actual contract months per row."""
         if self.config.mode == 'demo':
+            if kind == 'FUT':
+                from .strategy_session import schedule
+                profile = 'afterhours' if session == 'afterhours' else 'regular'
+                spec = schedule(profile)
+                rows = []
+                first, last = date.fromisoformat(start), date.fromisoformat(end)
+                for n in range((last-first).days+1):
+                    trading_day = first+timedelta(days=n)
+                    if trading_day.weekday() >= 5:
+                        continue
+                    opening_day = trading_day
+                    if profile == 'afterhours':
+                        opening_day -= timedelta(days=1)
+                        while opening_day.weekday() >= 5:
+                            opening_day -= timedelta(days=1)
+                    begin = spec.window(opening_day)[0]
+                    for minute in range(spec.duration):
+                        x = minute/12+opening_day.toordinal()%7
+                        o,c = round(25000+30*math.sin(x)+minute*.04),round(25000+30*math.sin(x+.09)+minute*.04)
+                        rows.append(dict(date=(begin+timedelta(minutes=minute)).isoformat(),open=o,high=max(o,c)+2,low=min(o,c)-2,close=c,volume=10+minute%17,contractMonth=trading_day.strftime('%Y%m')))
+                return rows
             rows = self.research_candles(kind,symbol,'',start,end)
             return [dict(row,contractMonth=row['date'][:7].replace('-','')) for row in rows] if kind=='FUT' else rows
         with self.lock:
             params = dict(timeframe='1',sort='asc',**{'from':start,'to':end})
-            params.update(dict(symbol=symbol) if kind=='STK' else dict(product=symbol,contractMonth='1!',session='regular'))
+            params.update(dict(symbol=symbol) if kind=='STK' else dict(product=symbol,contractMonth='1!',session=session))
             try:
                 return self._client(kind).historical.candles(**params).get('data',[])
             except Exception as error:
@@ -772,7 +793,7 @@ class Broker:
                 raise ValueError('paper 成本設定僅供本機模擬')
             if self.config.mode=='paper' and (account.get('account_id')=='PAPER-AUTO-F') != (client_tag is not None):
                 raise ValueError('策略專用模擬帳戶只接受策略委託；手動請選 PAPER-F')
-            if client_tag is not None and (self.config.session=="afterhours" or account.get("account_type")!="F"
+            if client_tag is not None and (self.config.session=="afterhours" and self.config.mode!='paper' or account.get("account_type")!="F"
                 or not re.fullmatch(r"TMF[A-L]\d",contract_key.get("code","")) or order.get("quantity")!=1
                 or order.get("price_type")!="LMT" or order.get("order_type")!="IOC"
                 or order.get("octype") not in {"New","Cover"} or not float(order.get("price",0)).is_integer() or order.get("price",0)<=0):
@@ -784,8 +805,8 @@ class Broker:
             session = self.session_for(contract)
             if kind != 'STK' and self.session_error:
                 raise ValueError(self.session_error)
-            if client_tag is not None and session != 'regular':
-                raise ValueError('策略委託僅支援日盤微台單口限價 IOC')
+            if client_tag is not None and session != 'regular' and self.config.mode != 'paper':
+                raise ValueError('策略委託僅支援 Sandbox 日盤或 Paper 日／夜盤微台單口限價 IOC')
             if self.config.session == 'auto' and kind != 'STK' and self.config.mode != 'demo' and not (
                 stamp(contract['market_open']) <= now() <= stamp(contract['market_close'])
             ):

@@ -1,12 +1,18 @@
 import type { ResearchConfig } from './intraday-research';
+import type { StrategySession } from './strategy-session';
+export type LearningFeatureSet = 'base' | 'mtf_1_3_15';
+export const FEATURE_SET_LABEL: Record<LearningFeatureSet, string> = {
+    base: '原版特徵 · 每5分鐘判斷', mtf_1_3_15: '1m＋3m＋15m · 每1分鐘判斷',
+};
 
 export interface LearningDataset {
     id: string; source: string; product: string; start: string; end: string;
     futuresBars: number; stockBars: Record<string, number>; completeDays: number;
     excludedDays: string[]; absentWeekdays: string[]; contracts: string[];
+    strategySession?: StrategySession; openingStart?: string; openingEnd?: string;
 }
 export interface LearningJob { id: string; action: 'collect' | 'train'; status: 'running' | 'completed' | 'failed' | 'interrupted'; message: string; progress: number; resultId: string | null }
-export interface LearningRun { id: string; createdAt: string; datasetId: string; status: string; metricsPassed: boolean; modelBytes: number }
+export interface LearningRun { id: string; createdAt: string; datasetId: string; status: string; metricsPassed: boolean; modelBytes: number; strategySession?: StrategySession; featureSet?: LearningFeatureSet }
 export interface LearningOverview { datasets: LearningDataset[]; runs: LearningRun[]; jobs: LearningJob[]; databaseBytes: number }
 interface Performance { net: number; maxDrawdown: number; count: number; profitFactor: number | null }
 export interface LearningReport {
@@ -18,4 +24,8 @@ export interface LearningReport {
     model: { hash: string; bytes: number; importance: Record<string, number> } | null;
     predictions: { time: number; side: string; score: number; label: number }[];
     packages: { lightgbm: string; numpy: string };
+    strategySession?: StrategySession;
+    featureSet?: LearningFeatureSet;
+    researchMethod?: 'fixed' | 'walkforward'; modelKind?: 'binary' | 'net_return'; entryThreshold?: number;
+    selection?: { passed: boolean; selected: { kind: string; threshold: number }; candidates: { kind: string; threshold: number; passed: boolean; normal: Performance; stress: Performance }[] };
 }

@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from .mapping import TAIPEI, now
 from .research import BasketMember
 from .intraday_strategy import opening_signal, entry_plan, futures_tax
+from .strategy_session import StrategySession, schedule, window, opening_date, entry_window, market_session
 
 
 class AutoAccount(BaseModel):
@@ -41,10 +42,16 @@ class AutoConfig(BaseModel):
     use_basket: bool = False
     strategy_version: Literal['orb_v1','orb_atr_v2'] = 'orb_v1'
     model_run_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
+    strategy_session: StrategySession = 'cash'
+    decision_minutes: Literal[1,5] = 5
     basket: list[BasketMember] = Field(default_factory=lambda:[BasketMember(code="2330",weight=.4),BasketMember(code="2454",weight=.04),BasketMember(code="2317",weight=.02),BasketMember(code="2881",weight=.01)], min_length=1, max_length=12)
 
     @model_validator(mode="after")
     def valid_basket(self):
+        if self.decision_minutes != 5 and not self.model_run_id:
+            raise ValueError('1分鐘判斷須使用相符的多週期模型')
+        if self.strategy_session != 'cash' and self.use_basket:
+            raise ValueError('完整期貨日盤與夜盤不使用同步現貨籃子')
         if self.model_run_id and (self.strategy_version != 'orb_atr_v2' or self.use_basket):
             raise ValueError('LightGBM 濾網須使用 V2 並關閉權值股方向濾網')
         if len({m.code for m in self.basket}) != len(self.basket) or sum(m.weight for m in self.basket)>1.000001:
@@ -53,7 +60,7 @@ class AutoConfig(BaseModel):
 
 
 def empty_state():
-    return dict(id=None, status="idle", reason="設定單日日盤策略後啟動", config=None, contract=None,
+    return dict(id=None, status="idle", reason="設定單次日盤或夜盤策略後啟動", config=None, contract=None,
         entryCount=0, usedSides=[], lastDecision=0, lastSignal=None, orders=[], pending=None,
         position=None, quote=None, realizedNet=0, unrealizedNet=None, exitRequested=False,
         exitReason="", updatedAt=None, manualResolved=False,executionBlocked=False)
@@ -117,10 +124,13 @@ class SandboxAutoTrader:
             cfg = config.model_dump(mode="json")
             at = self.clock()
             day = config.trade_date
-            if day < at.date() or day>at.date()+timedelta(days=7) or day.weekday()>=5:
+            session_start, session_end = window(cfg)
+            if session_end <= at or day>at.date()+timedelta(days=7) or day.weekday()>=5:
                 raise ValueError("請選擇今天至未來 7 天內的平日；休市日將不產生委託")
-            if day==at.date() and at.hour*60+at.minute>=790:
-                raise ValueError("13:10 後不再啟動新進場，請選擇下一個交易日")
+            if at >= session_start+timedelta(minutes=schedule(cfg['strategy_session']).last_entry):
+                raise ValueError("已過此盤別新進場截止時間，請選擇下一個開盤日")
+            if cfg['strategy_session'] == 'afterhours' and self.gateway.mode != 'paper':
+                raise ValueError('夜盤自動交易僅供 Paper 本機模擬')
             if self.state["id"] and not self.state.get("manualResolved"):
                 self._rebuild()
             if self.state["status"] in {"running","stopping"} or self.state["pending"] or self.state["position"]:
@@ -130,7 +140,7 @@ class SandboxAutoTrader:
             prior_control = self.monitoring,self.owner,self.lease_until,self.last_heartbeat_received
             prior_filter = self.entry_filter
             try:
-                previous = self.store.for_day(cfg["account"],cfg["trade_date"])
+                previous = self.store.for_day(cfg["account"],cfg["trade_date"],cfg['strategy_session'])
                 if previous:
                     previous['config']=AutoConfig.model_validate(previous['config']).model_dump(mode='json')
                 if previous and previous.get("manualResolved"):
@@ -149,7 +159,7 @@ class SandboxAutoTrader:
                 contract = self.gateway.prepare(cfg)
                 self.state = previous or empty_state()
                 self.state.update(id=self.state["id"] or uuid.uuid4().hex,config=cfg,contract=contract,
-                    status="running",reason="等待啟動後新完成的 5 分訊號",lastDecision=int(at.timestamp())//300*300)
+                    status="running",reason=f"等待啟動後新完成的 {cfg['decision_minutes']} 分訊號",lastDecision=int(at.timestamp())//(cfg['decision_minutes']*60)*(cfg['decision_minutes']*60))
                 self.owner, self.lease_until = header,self.monotonic()+15
                 self.last_heartbeat_received = self.monotonic()
                 self.entries_blocked.clear()
@@ -296,7 +306,9 @@ class SandboxAutoTrader:
         if q["bid"]>q["ask"]:
             return False
         age = self.clock().timestamp()-q["time"]
-        return -2<=age<=15 and datetime.fromtimestamp(q["time"],TAIPEI).date().isoformat()==(day or self.state["config"]["trade_date"])
+        cfg = self.state['config']
+        start, end = window(dict(cfg, trade_date=day or cfg['trade_date']))
+        return -2<=age<=15 and start.timestamp() <= q['time'] < end.timestamp()
 
     def _owned_trade(self, trade, order):
         cfg = self.state["config"]
@@ -391,11 +403,11 @@ class SandboxAutoTrader:
         if not self.monitoring or self.state.get("manualResolved"):
             raise ValueError("尚未人工接管監控，不可建立委託")
         cfg, at = self.state["config"],self.clock()
-        minute = at.hour*60+at.minute
-        day=at.date().isoformat() if recovery else cfg['trade_date']
-        if at.date().isoformat()!=day or day<cfg['trade_date'] or not 540<=minute<825 or not self._valid_quote(day) or self.state["pending"]:
+        day=opening_date(at.timestamp(),cfg['strategy_session']) if recovery else cfg['trade_date']
+        start, end = window(dict(cfg,trade_date=day))
+        if not start<=at<end or day<cfg['trade_date'] or not self._valid_quote(day) or self.state["pending"]:
             raise ValueError("送單前日期、行情或待確認狀態不符")
-        if role=="entry" and (self.state["status"]!="running" or not self.owner or not self.authorize(self.owner) or self.monotonic()>self.lease_until or not 560<=minute<=790):
+        if role=="entry" and (self.state["status"]!="running" or not self.owner or not self.authorize(self.owner) or self.monotonic()>self.lease_until or not entry_window(cfg,at)):
             raise ValueError("新倉控制權或交易時段已失效")
         if role=="entry" and self.entries_blocked.is_set():
             self.state.update(status="paused",reason="已收到停止新倉控制，不建立委託")
@@ -422,7 +434,7 @@ class SandboxAutoTrader:
                 model = (self.state['lastSignal'] or {}).get('model') or {}
                 if (self.entry_filter is None or model.get('runId') != cfg['model_run_id']
                     or model.get('hash') != self.entry_filter.hash or model.get('accepted') is not True
-                    or self.state['lastSignal']['time'] != int(at.timestamp())//300*300):
+                    or self.state['lastSignal']['time'] != int(at.timestamp())//(cfg['decision_minutes']*60)*(cfg['decision_minutes']*60)):
                     raise ValueError('缺少本次已確認模型訊號，禁止進場')
             # Keep the trained R before rounding the ATR-adjusted target. The UI's
             # integer target_points only describes the nominal minimum distance.
@@ -434,7 +446,8 @@ class SandboxAutoTrader:
                 return
             if cfg.get('model_run_id'):
                 plan.update(modelRunId=model['runId'], modelHash=model['hash'], modelScore=model['score'],
-                    modelThreshold=model['threshold'], exitDeadline=self.state['lastSignal']['time']+20*60)
+                    modelThreshold=model['threshold'], exitDeadline=min(self.state['lastSignal']['time']+20*60,
+                        int((window(cfg)[0]+timedelta(minutes=schedule(cfg['strategy_session']).exit_minute)).timestamp())))
         tag = "FA"+uuid.uuid4().hex[:8]
         order = dict(tag=tag,role=role,action=action,limit=limit,status="Sending",filled=0,fillPrice=None,
             orderId=None,submittedAt=at.timestamp(),cancelRequested=False,
@@ -480,24 +493,25 @@ class SandboxAutoTrader:
 
     def _tick(self):
         cfg, at = self.state["config"],self.clock()
+        spec = schedule(cfg['strategy_session'])
+        start, end = window(cfg)
         if self.state["status"]=="running" and (not self.owner or not self.authorize(self.owner) or self.monotonic()>self.lease_until):
             self.state.update(status="paused",reason="面板心跳逾時或介面已鎖定；暫停新倉，既有曝險仍監控退出")
             self._save(self.state["reason"],"control")
-        if at.date().isoformat()<cfg["trade_date"]:
+        if at < start:
             if self.state["status"]=="running":
                 self.state["reason"] = "等待指定交易日；不使用先前交易日報價"
             return
-        if self.state.get("metadataDay")!=at.date().isoformat():
+        if self.state.get("metadataDay")!=cfg['trade_date']:
             self.state["contract"] = self.gateway.prepare(cfg)
-            self.state["metadataDay"] = at.date().isoformat()
+            self.state["metadataDay"] = cfg['trade_date']
         self._reconcile()
         # Exposure comes from confirmed fills, independently of quote availability.
         self._rebuild()
         self.state["quote"] = self.gateway.quote(self.state["contract"])
         self._rebuild()
-        minute = at.hour*60+at.minute
-        if at.date().isoformat()>cfg["trade_date"] or minute>=825:
-            self.state.update(status="attention" if self.state["position"] or self.state["pending"] else "completed",reason="本次日盤已結束；未確認曝險須人工處理，不跨日自動交易")
+        if at >= end:
+            self.state.update(status="attention" if self.state["position"] or self.state["pending"] else "completed",reason="本次盤別已結束；未確認曝險須人工處理，不接續下一盤自動交易")
             self.monitoring,self.owner,self.lease_until = False,None,0
             self.store.release(self.writer)
             return
@@ -515,8 +529,8 @@ class SandboxAutoTrader:
         loss_hit = estimated is not None and estimated<=-cfg["loss_limit"]
         if loss_hit:
             self.state.update(status="stopping",exitRequested=True,exitReason="估計損失門檻",reason="已達估計損失門檻，停止新倉並嘗試退出")
-        if minute>=800:
-            self.state.update(status="stopping",exitRequested=True,exitReason="13:20 日內退出")
+        if at >= start+timedelta(minutes=spec.exit_minute):
+            self.state.update(status="stopping",exitRequested=True,exitReason="盤別收盤前退出")
         if position:
             price, buy = self.state["quote"]["price"],position["side"]=="Buy"
             stop_hit = price<=position["stop"] if buy else price>=position["stop"]
@@ -549,23 +563,25 @@ class SandboxAutoTrader:
         if self.state["entryCount"]>=cfg["max_entries"]:
             self.state.update(status="paused",reason="已達本日進場委託上限；重新啟動不會重設額度")
             return
-        decision = int(at.timestamp())//300*300
-        if not 560<=minute<=790 or decision<=self.state["lastDecision"] or at.timestamp()-decision>90:
+        interval = cfg.get('decision_minutes',5)*60
+        decision = int(at.timestamp())//interval*interval
+        if not entry_window(cfg,at) or decision<=self.state["lastDecision"] or at.timestamp()-decision>90:
             return
         self.state["lastDecision"] = decision
-        bars = self.gateway.bars(cfg["contract_code"],cfg["trade_date"])
+        bars = (self.gateway.bars(cfg['contract_code'],cfg['trade_date']) if cfg['strategy_session'] == 'cash'
+            else self.gateway.bars(cfg['contract_code'],cfg['trade_date'], 'FUT', cfg['strategy_session']))
         closed = [b for b in bars if b["time"]<=decision]
         month = self.state["contract"].get("delivery_date", "").replace("-", "")[:6]
-        self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"FUT","TMF",month,"regular"),closed)
+        self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"FUT","TMF",month,market_session(cfg['strategy_session'])),closed)
         stocks = {}
-        if cfg["use_basket"] or cfg.get('model_run_id'):
+        if cfg["use_basket"] or cfg.get('model_run_id') and cfg['strategy_session'] == 'cash':
             from .learning_data import STOCKS
             codes = STOCKS if cfg.get('model_run_id') else [member['code'] for member in cfg['basket']]
             for code in codes:
                 values = self.gateway.bars(code,cfg["trade_date"],"STK")
                 stocks[code] = [b for b in values if b["time"]<=decision]
                 self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"STK",code,"","regular"),stocks[code])
-        signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks)
+        signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks, cfg['strategy_session'],cfg.get('decision_minutes',5))
         if signal['side'] and cfg.get('model_run_id'):
             if self.entry_filter is None or self.entry_filter.ident != cfg['model_run_id']:
                 raise ValueError('所選模型尚未載入，禁止進場')

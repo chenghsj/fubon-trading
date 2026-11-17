@@ -3,6 +3,8 @@ from datetime import datetime
 import math
 
 from .mapping import stamp
+from .strategy_session import market_session, schedule
+from .research import normalize
 
 
 class SandboxGateway:
@@ -15,21 +17,29 @@ class SandboxGateway:
         return self.broker.config.mode
 
     def prepare(self, config):
-        if self.mode not in self.allowed_modes or not self.broker.session_is_regular(dict(code=config['contract_code'], security_type='FUT')):
-            raise ValueError("策略自動交易僅支援 sandbox 或 paper 日盤")
+        profile = config.get('strategy_session','cash')
+        expected_session = market_session(profile)
+        if self.mode not in self.allowed_modes or expected_session == 'afterhours' and self.mode != 'paper':
+            raise ValueError("策略自動交易僅支援 sandbox 日盤或 paper 日／夜盤")
         self.broker.ready()
         account = self.broker.account(config["account"])
         if account["account_type"] != "F":
             raise ValueError("請選擇期貨測試帳戶")
         key = dict(code=config["contract_code"], security_type="FUT")
         contract = self.broker.contract(key,refresh=True)
+        if self.broker.config.session == 'auto':
+            contract = self.broker.market_contract(key)
+        if self.broker.session_for(contract) != expected_session:
+            raise ValueError('策略盤別與商品目前行情盤別不符，請確認開盤時間與交易模式設定')
         if (contract.get("target_code") or contract.get("security_type") != "FUT"
             or not contract["code"].startswith("TMF") or contract.get("multiplier") != 10
-            or not contract.get("delivery_date") or contract["delivery_date"] < config["trade_date"]):
+            or not contract.get("delivery_date") or contract["delivery_date"] < config["trade_date"]
+            or profile != 'cash' and contract['delivery_date'] == config['trade_date']):
             raise ValueError("請選擇交易日尚未到期的微台具體月份")
         self.broker.subscribe(key, "Tick")
         self.broker.subscribe(key, "BidAsk")
         self.contract_key = key
+        self.expected_session = expected_session
         return contract
 
     def quote(self, contract):
@@ -37,7 +47,17 @@ class SandboxGateway:
         return dict(price=value.get("close", 0), bid=value.get("buy_price", 0), ask=value.get("sell_price", 0),
             time=stamp(value["datetime"]).timestamp(), trial=bool(value.get("is_trial")))
 
-    def bars(self, code, day, kind="FUT"):
+    def bars(self, code, day, kind="FUT", strategy_session='cash'):
+        if strategy_session == 'afterhours':
+            key = dict(code=code, security_type=kind)
+            if self.mode != 'paper' or kind != 'FUT' or self.broker.session_for(self.broker.market_contract(key)) != 'afterhours':
+                raise ValueError('夜盤分鐘資料只供 Paper 期貨策略')
+            # Intraday owns the current physical session, including Friday to
+            # Saturday. Do not guess the exchange trading date for history.
+            with self.broker.lock:
+                rows = self.broker._client('FUT').intraday.candles(symbol=code,timeframe='1',sort='asc',session='afterhours').get('data',[])
+            start,end = schedule(strategy_session).window(day)
+            return [b for b in normalize(rows,start.date(),end.date()) if start.timestamp()<b['time']<=end.timestamp()]
         raw = self.broker.kbars(dict(code=code, security_type=kind), day, day)
         result = {}
         for i, value in enumerate(raw["datetime"]):
@@ -67,7 +87,8 @@ class SandboxGateway:
         if self.mode not in self.allowed_modes or self.broker.error or self.broker.session_error or 'futopt' not in self.broker.connected_sockets:
             return False
         try:
-            return self.broker.session_is_regular(self.contract_key) if self.broker.config.session == 'auto' else self.broker.config.session == 'regular'
+            session = self.broker.session_for(self.broker.market_contract(self.contract_key)) if self.broker.config.session == 'auto' else self.broker.config.session
+            return session == self.expected_session and (session == 'regular' or self.mode == 'paper')
         except (AttributeError, ValueError):
             return False
 
