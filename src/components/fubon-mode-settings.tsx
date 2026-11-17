@@ -12,7 +12,7 @@ import { waitForFubonRestart } from '@/lib/fubon-restart';
 import * as styles from './fubon-mode-settings.css';
 
 type Mode = 'demo' | 'paper' | 'sandbox' | 'live';
-interface Settings { mode: Mode; live_enabled: boolean; instance_id: string; available: boolean; saved: boolean; sandbox_configured: boolean }
+interface Settings { mode: Mode; live_enabled: boolean; session?: 'regular' | 'afterhours'; instance_id: string; available: boolean; saved: boolean; sandbox_configured: boolean }
 const modes: Record<Mode, { label: string; detail: string }> = {
     demo: { label: '展示模式', detail: '合成行情，委託在本機模擬；展示帳簿重啟後清除。' },
     paper: { label: 'Paper 模擬交易', detail: '富邦正式行情，委託在本機模擬；保存委託、持倉與費稅。' },
@@ -37,12 +37,13 @@ function LiveTradingConsent({ enabled, onChange, acknowledgement, onAcknowledge,
 
 function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (value: boolean) => void }) {
     const [mode, setMode] = useState(current.mode);
+    const [session, setSession] = useState(current.session ?? 'regular');
     // Every new live selection requires a fresh, explicit confirmation.
     const [enabled, setEnabled] = useState(false);
     const [acknowledgement, setAcknowledgement] = useState('');
     const [phase, setPhase] = useState<'ready' | 'saving' | 'restarting' | 'unknown'>('ready');
     const [error, setError] = useState('');
-    const changed = mode !== current.mode;
+    const changed = mode !== current.mode || session !== (current.session ?? 'regular');
     const busy = phase === 'saving' || phase === 'restarting';
     const live = mode === 'live';
     const leavingSandbox = current.mode === 'sandbox' && (mode === 'paper' || mode === 'demo');
@@ -55,6 +56,7 @@ function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (val
         try {
             const result = await fubonPost<{ restarting: boolean }>('/api/v1/settings/mode', {
                 mode, live_enabled: live && enabled, instance_id: current.instance_id,
+                ...(current.session ? { session } : {}),
                 acknowledgement: live ? acknowledgement : '確認切換交易環境',
             }, 30_000);
             if (result.restarting) { setPhase('restarting'); await waitForFubonRestart(current.instance_id); }
@@ -72,6 +74,12 @@ function ModeSettingsForm({ current, onBusy }: { current: Settings; onBusy: (val
             </SelectControl>
             <FieldDescription>{modes[mode].detail}</FieldDescription>
         </Field>
+        {current.session && <Field><FieldLabel htmlFor="fubon-session">期權行情與委託盤別</FieldLabel>
+            <SelectControl id="fubon-session" value={session} onValueChange={value => { setSession(value as typeof session); setError(''); }} disabled={busy || phase === 'unknown'} wrapperClassName="w-full" className="w-full">
+                <SelectOption value="regular">日盤</SelectOption><SelectOption value="afterhours">夜盤</SelectOption>
+            </SelectControl>
+            <FieldDescription>切換期貨／選擇權的報價、K 線、逐筆、五檔及委託盤別；股票行情不受影響。僅適用有該盤別的商品。切換盤別不會啟用正式下單。</FieldDescription>
+        </Field>}
         {live && changed && <LiveTradingConsent enabled={enabled} onChange={setEnabled} acknowledgement={acknowledgement} onAcknowledge={setAcknowledgement} disabled={busy || phase === 'unknown'} />}
         {live && !changed && <FieldDescription>正式下單目前已啟用。選擇 Paper 模擬交易並套用，可關閉正式下單。</FieldDescription>}
         {sandboxMissing && <Alert><AlertDescription>尚未備妥官方測試憑證。請依專案設定說明配置 Sandbox，再重新開啟此視窗。</AlertDescription></Alert>}

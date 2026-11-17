@@ -334,7 +334,7 @@ export const PANEL_CATEGORIES: { key: PanelCategory; label: string }[] = [
     { key: 'account', label: '帳務分析' },
     { key: 'derivatives', label: '選擇權/衍生品' },
     { key: 'tools', label: '工具' },
-    { key: 'brokerapi', label: '富邦 API · 版面已備妥' },
+    { key: 'brokerapi', label: '富邦原生 API' },
 ];
 
 export const BLOCK_META: Record<

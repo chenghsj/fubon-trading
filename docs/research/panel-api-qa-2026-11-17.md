@@ -1,5 +1,7 @@
 # 面板 API 隔離瀏覽器驗收
 
+> 歷史驗收紀錄。九個新版面的查詢與訂閱後續已接線，「新面板遠端停用」與 chips gate 的當時斷言已由 [原生面板接線驗收](native-panel-connection-qa-2026-11-17.md) 取代。其餘當時證據保留。
+
 **PASS：53/53 checks，2026-11-17。** 真正 CLI、FastAPI、Broker、市場 adapter、`shioaji.ts`、React 與 Chrome；只有 vendor 行情與公開名稱 feed 為合成 fixture。本報告不宣稱已接通真人富邦帳戶或新增面板的遠端 API。
 
 ## 結果與基準

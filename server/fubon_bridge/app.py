@@ -20,6 +20,9 @@ from .models import ContractKey, Mutation, PlaceOrder, ProfitLossRequest, Scanne
 from .market_data import MarketData
 from .portfolio_data import PortfolioData
 from .feature_errors import FeatureUnavailable
+from .native_panels import NativePanels
+from .native_models import NativeQuery, NativeAction, IndexLease, NativeAccount, NativeReconcile
+from .native_attempts import NativeAttempts
 from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
@@ -33,6 +36,7 @@ from .learning_service import LearningService
 from .learning_data import CollectionRequest
 from .learning_train import TrainingRequest
 from .mode_settings import ModeChange, ModeSettings, ensure_idle
+from .watchlist_store import WatchlistStore
 from .credential_settings import CredentialChange, CredentialSettings
 from .keychain import KeychainError
 from pydantic import BaseModel, ValidationError
@@ -52,7 +56,7 @@ class AutoHeartbeat(BaseModel):
     execution_allowed: bool
 
 
-def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None, mode_store=None, on_restart=None, credential_store=None):
+def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=None, passkey_store=None, public_origin=None, research_store=None, automation_factory=None, mode_store=None, on_restart=None, credential_store=None, watchlist_store=None):
     cfg = config or Config.from_env()
     session = Session(launch_token)
     public_origin = localhost_ui_origin(public_origin or "http://localhost:5179")
@@ -83,6 +87,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     research = research_store or ResearchStore(ROOT / "server" / ".research.sqlite3")
     broker = Broker(cfg,publish,sdk_factory,paper_store=PaperStore(research) if cfg.mode=='paper' else None)
+    native_panels = NativePanels(broker,NativeAttempts(research))
     gateway = PaperGateway(broker) if cfg.mode=='paper' else SandboxGateway(broker)
     automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(gateway,AutoStore(research,cfg.mode),session.authorize)
     learning = LearningService(broker,LearningStore(research),automation)
@@ -95,6 +100,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         async def demo_clock():
             while True:
                 broker.demo_events()
+                await asyncio.to_thread(native_panels.expire_indices)
                 await asyncio.sleep(1)
         async def automation_clock():
             while True:
@@ -120,6 +126,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     app = FastAPI(title="Fubon Trading local bridge", lifespan=lifespan)
     app.state.broker = broker
+    app.state.native_panels = native_panels
     app.state.session = session
     app.state.automation = automation
     app.state.learning = learning
@@ -234,7 +241,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get("/api/v1/info")
     def info():
-        return dict(name="Fubon Trading", version="0.1.0", broker="fubon", sdk_version="2.5.0",
+        return dict(name="Fubon Trading", version="0.1.0", broker="fubon", sdk_version="2.5.0", native_panel_api=1,
             description="Independent fork of Shioaji Pro; Fubon Neo local adapter",
             protocols=["http", "sse"], simulation=cfg.mode != "live", mode=cfg.mode,
             instance_id=broker.instance_id, connected=cfg.mode == "demo" or bool(broker.sdk and not broker.error),
@@ -323,7 +330,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
     @app.get('/api/v1/settings/mode')
     def mode_settings():
-        return dict(mode=cfg.mode, live_enabled=cfg.live_enabled, instance_id=broker.instance_id,
+        return dict(mode=cfg.mode, live_enabled=cfg.live_enabled, session=cfg.session, instance_id=broker.instance_id,
                     available=on_restart is not None, saved=settings.path.exists(),
                     sandbox_configured=bool(cfg.test_id and cfg.test_cert_path and Path(cfg.test_cert_path).expanduser().is_file()))
 
@@ -334,7 +341,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             raise HTTPException(409, '此啟動方式不支援介面切換，請使用 pnpm start')
         if body.instance_id != broker.instance_id:
             raise HTTPException(409, '服務已更新，請重新開啟設定並確認目前模式')
-        if body.mode == cfg.mode and body.live_enabled == cfg.live_enabled:
+        body = body.model_copy(update={'session': body.session or cfg.session})
+        if body.mode == cfg.mode and body.live_enabled == cfg.live_enabled and body.session == cfg.session:
             return dict(restarting=False)
         expected = '確認啟用正式下單' if body.mode == 'live' else '確認切換交易環境'
         if body.acknowledgement != expected:
@@ -404,6 +412,38 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.get("/api/v1/data/contracts/{code}")
     def contract(code: str, security_type: str | None = None):
         return broker.contract_info(ContractKey(code=code, security_type=security_type).model_dump())
+
+    @app.get('/api/v1/native/accounts')
+    def native_accounts():
+        return native_panels.accounts()
+
+    @app.post('/api/v1/native/query')
+    def native_query(body: NativeQuery):
+        return native_panels.query(body)
+
+    @app.post('/api/v1/native/draft/validate')
+    def native_validate(body: NativeAction):
+        return native_panels.validate_action(body)
+
+    @app.post('/api/v1/native/action')
+    def native_action(body: NativeAction):
+        return native_panels.action(body)
+
+    @app.post('/api/v1/native/attempts')
+    def native_attempts(body: NativeAccount):
+        return native_panels.pending_attempts(body)
+
+    @app.post('/api/v1/native/reconcile')
+    def native_reconcile(body: NativeReconcile):
+        return native_panels.reconcile(body)
+
+    @app.post('/api/v1/native/index/subscribe')
+    def native_index_subscribe(body: IndexLease):
+        return native_panels.subscribe_index(body)
+
+    @app.post('/api/v1/native/index/unsubscribe')
+    def native_index_unsubscribe(body: IndexLease):
+        return native_panels.unsubscribe_index(body.lease_id,body.symbol)
 
     market_data = MarketData(broker)
 
@@ -520,7 +560,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             try:
                 yield 'retry: 2000\n\n'
                 while not switching and session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
-                    needed = {sub["kind"] for sub in list(broker.subscriptions.values())}
+                    needed = {sub["kind"] for sub in list(broker.subscriptions.values())} | getattr(broker,'extra_socket_requirements',set())
                     if cfg.mode != "demo" and needed and not needed.issubset(broker.connected_sockets):
                         yield 'event: fubon_connection_status\ndata: {"market_connected":false}\n\n'
                         # Close even when another market continues sending ticks.
@@ -611,8 +651,14 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             raise ValueError("銀行餘額查詢需選擇證券帳戶")
         return broker.balance(account)
 
-    watchlists = {}
+    saved_watchlists = watchlist_store or WatchlistStore()
+    watchlists = saved_watchlists.load()
     watchlist_lock = threading.RLock()
+
+    def save_watchlists(candidate):
+        nonlocal watchlists
+        saved_watchlists.save(candidate)
+        watchlists = candidate
 
     def watchlist_key(contract):
         code = contract['code'].strip().upper()
@@ -621,59 +667,73 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.get("/api/v1/watchlist")
     def watchlist():
         with watchlist_lock:
-            if not watchlists:
+            if watchlists is None:
                 # Server-side defaults keep the fork independent of Shioaji aliases.
-                watchlists["default"] = dict(id="default", name="台指期與股票", contracts=[
+                defaults = dict(id="default", name="台指期與股票", contracts=[
                     broker.contract(dict(code=code, security_type=kind)) for code, kind in
                     [("TMFR1", "FUT"), ("TXFR1", "FUT"), ("MXFR1", "FUT"), ("2330", "STK")]])
+                save_watchlists({'default': defaults})
             return deepcopy(list(watchlists.values()))
 
     @app.post("/api/v1/watchlist")
     def create_watchlist(body: dict = Body(...)):
         with watchlist_lock:
             ident = uuid.uuid4().hex
-            watchlists[ident] = dict(id=ident, name=str(body["name"])[:100], contracts=body.get("contracts", []))
+            candidate = deepcopy(watchlists or {})
+            candidate[ident] = dict(id=ident, name=str(body["name"])[:100], contracts=body.get("contracts", []))
+            save_watchlists(candidate)
             return deepcopy(watchlists[ident])
 
     @app.put("/api/v1/watchlist/{ident}")
     def sync_watchlist(ident: str, body: dict = Body(...)):
         with watchlist_lock:
-            if ident not in watchlists:
+            if not watchlists or ident not in watchlists:
                 raise HTTPException(404, "自選清單不存在")
-            watchlists[ident]["contracts"] = body.get("contracts", [])
+            candidate = deepcopy(watchlists)
+            if 'contracts' in body:
+                candidate[ident]["contracts"] = body['contracts']
+            if 'name' in body:
+                candidate[ident]['name'] = str(body['name'])[:100]
+            save_watchlists(candidate)
             return deepcopy(watchlists[ident])
 
     @app.post("/api/v1/watchlist/{ident}/contracts")
     def add_watchlist_contracts(ident: str, body: WatchlistContracts):
         with watchlist_lock:
-            if ident not in watchlists:
+            if not watchlists or ident not in watchlists:
                 raise HTTPException(404, "自選清單不存在")
             # Resolve the entire batch before changing membership; a failed
             # lookup must not leave a partially added list.
             additions = [broker.contract(key.model_dump(exclude_none=True)) for key in body.contracts]
-            contracts = watchlists[ident]['contracts']
+            candidate = deepcopy(watchlists)
+            contracts = candidate[ident]['contracts']
             seen = {watchlist_key(contract) for contract in contracts}
             for contract in additions:
                 key = watchlist_key(contract)
                 if key not in seen:
                     contracts.append({field: contract[field] for field in ('code', 'security_type', 'exchange')})
                     seen.add(key)
+            save_watchlists(candidate)
             return deepcopy(watchlists[ident])
 
     @app.delete("/api/v1/watchlist/{ident}/contracts")
     def remove_watchlist_contracts(ident: str, body: WatchlistContracts):
         with watchlist_lock:
-            if ident not in watchlists:
+            if not watchlists or ident not in watchlists:
                 raise HTTPException(404, "自選清單不存在")
             removed = {watchlist_key(key.model_dump()) for key in body.contracts}
-            watchlists[ident]['contracts'] = [contract for contract in watchlists[ident]['contracts']
+            candidate = deepcopy(watchlists)
+            candidate[ident]['contracts'] = [contract for contract in watchlists[ident]['contracts']
                                             if watchlist_key(contract) not in removed]
+            save_watchlists(candidate)
             return deepcopy(watchlists[ident])
 
     @app.delete("/api/v1/watchlist/{ident}")
     def delete_watchlist(ident: str):
         with watchlist_lock:
-            watchlists.pop(ident, None)
+            candidate = deepcopy(watchlists or {})
+            candidate.pop(ident, None)
+            save_watchlists(candidate)
             return {"success": True}
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])

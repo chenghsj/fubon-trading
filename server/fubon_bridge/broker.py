@@ -112,7 +112,7 @@ class Broker:
     def market_connected(self):
         if self.config.mode == "demo":
             return True
-        needed = {sub["kind"] for sub in list(self.subscriptions.values())}
+        needed = {sub["kind"] for sub in list(self.subscriptions.values())} | getattr(self,'extra_socket_requirements',set())
         return bool(needed) and needed.issubset(self.connected_sockets)
 
     def account_rows(self):
@@ -216,6 +216,8 @@ class Broker:
             # Tickers owns the listed month. Never infer a stock from its name.
             underlying = product.get('underlyingSymbol') or ('IX0001' if row['root'] in {'TXF', 'MXF', 'TMF'} else None)
             row['underlying_code'] = underlying
+            if product.get('contractType') in {'I', 'R', 'B', 'C', 'S', 'E'}:
+                row['underlying_kind'] = product['contractType']
             if number(product.get('contractSize')) > 0:
                 row['multiplier'] = number(product['contractSize'])
             if product.get('tradingCurrency'):
@@ -553,13 +555,7 @@ class Broker:
                 return
             self.ready()
             if kind not in self.sockets:
-                socket = getattr(self.sdk.marketdata.websocket_client, kind)
-                self.sockets[kind] = socket
-                socket.on("message", lambda raw, k=kind: self._on_market(k, raw))
-                socket.on("disconnect", lambda *_, k=kind: self.connected_sockets.discard(k))
-                socket.on("error", lambda *_, k=kind: self.connected_sockets.discard(k))
-                socket.connect()
-                self.connected_sockets.add(kind)
+                self.market_socket(kind, replay=False)
             args = dict(channel=channel, symbol=contract.get("target_code") or contract["code"])
             if kind == "futopt":
                 args["afterHours"] = self.config.session == "afterhours"
@@ -568,6 +564,28 @@ class Broker:
             except Exception:
                 self.subscriptions.pop(registry_key, None)
                 raise
+
+    def market_socket(self, kind, *, replay=True):
+        """Shared native socket; panel leases add channels without resetting SDK."""
+        self.ready()
+        with self.lock:
+            socket = self.sockets.get(kind)
+            if socket is None:
+                socket = getattr(self.sdk.marketdata.websocket_client,kind)
+                self.sockets[kind] = socket
+                socket.on('message',lambda raw,k=kind:self._on_market(k,raw))
+                socket.on('disconnect',lambda *_,k=kind:self.connected_sockets.discard(k))
+                socket.on('error',lambda *_,k=kind:self.connected_sockets.discard(k))
+            if kind not in self.connected_sockets:
+                socket.connect()
+                self.connected_sockets.add(kind)
+                for sub in self.subscriptions.values() if replay else []:
+                    if sub['kind']==kind:
+                        args = dict(channel=sub['channel'],symbol=sub['contract'].get('target_code') or sub['contract']['code'])
+                        if kind=='futopt':
+                            args['afterHours'] = self.config.session=='afterhours'
+                        socket.subscribe(args)
+            return socket
 
     def unsubscribe(self, key, quote_type):
         # Upstream panels share process-level subscriptions. Retain until the

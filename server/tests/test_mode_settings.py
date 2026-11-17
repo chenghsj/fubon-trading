@@ -36,7 +36,7 @@ def test_authenticated_settings_do_not_expose_credentials(runtime):
     client, app, settings, restart = runtime
     response = client.get('/api/v1/settings/mode')
     assert response.status_code == 200
-    assert response.json() == dict(mode='demo', live_enabled=False, instance_id=app.state.broker.instance_id,
+    assert response.json() == dict(mode='demo', live_enabled=False, session='regular', instance_id=app.state.broker.instance_id,
                                    available=True, saved=False, sandbox_configured=False)
     client.headers.clear()
     assert client.get('/api/v1/settings/mode').status_code == 401
@@ -70,7 +70,7 @@ def test_confirmed_switch_persists_and_retires_old_app(runtime, mode):
     assert response.status_code == 200, response.text
     assert response.json() == {'restarting': True}
     restart.assert_called_once()
-    assert json.loads(settings.path.read_text()) == dict(mode=mode, live_enabled=mode == 'live')
+    assert json.loads(settings.path.read_text()) == dict(mode=mode, live_enabled=mode == 'live', session='regular')
     assert settings.path.stat().st_mode & 0o777 == 0o600
     assert settings.apply(Config()).mode == mode
     assert app.state.broker.config.mode == 'demo'  # No hot swapping a broker.

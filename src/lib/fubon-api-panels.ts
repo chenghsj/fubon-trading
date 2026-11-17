@@ -1,5 +1,4 @@
-/** Function screens for documented native APIs whose adapters are not ready.
- * These definitions contain no requests and no fabricated response values. */
+/** Purpose-based native API panels. All requests use the authenticated bridge. */
 export const FUBON_API_PANELS = {
     fuboncredit: { label: '資券與當沖配額', description: '融資、融券額度與個股當沖資格' },
     fubonaccount: { label: '券商交割與損益', description: '交割明細、已實現損益與期權平倉紀錄' },

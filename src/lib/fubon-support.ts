@@ -9,7 +9,6 @@ export function isFubonBroker() { return knownServerInfo()?.broker === 'fubon'; 
 // These panels depend on adapters absent from this fork. Keep the same gate
 // for every entry point and for restored workspaces; don't mount their feeds.
 const unavailable: Partial<Record<BlockType, string>> = {
-    chips: '尚未轉接信用額度、借券來源與完整處置資訊',
     warrants: '尚未轉接完整權證清單與標的篩選',
     combo: '尚未轉接複式單解析與原子委託',
     combolist: '尚未轉接組合商品清單與報價',
@@ -37,7 +36,10 @@ const limitations: Partial<Record<BlockType, string>> = {
 };
 
 export function panelUnavailable(type: BlockType, info = knownServerInfo()): string | undefined {
+    if (isFubonApiPanel(type) && info?.broker !== 'fubon') return '此功能需要富邦 API 服務';
+    if (isFubonApiPanel(type) && info?.native_panel_api !== 1) return '後端尚未更新至原生面板 API 版本';
     if (info?.broker !== 'fubon') return undefined;
+    if (type === 'chips' && info.native_panel_api !== 1) return '籌碼查詢需要新版富邦原生面板 API';
     if (type === 'pnl' && info.mode !== 'paper' && info.mode !== 'demo') {
         return '尚未支援完整的券商證券／期貨歷史損益；請使用券商帳務查詢';
     }
@@ -48,8 +50,11 @@ export function panelUnavailable(type: BlockType, info = knownServerInfo()): str
 }
 
 export function panelLimitation(type: BlockType, info: ServerInfo | undefined): string | undefined {
-    if (isFubonApiPanel(type)) return '版面已備妥 · API 尚未接通，資料操作停用';
+    if (isFubonApiPanel(type)) return type==='fuboncondition'||type==='fubonadvanced'
+        ? '原生查詢與草稿檢核；Paper 不送出券商委託'
+        : '富邦原生 API 資料查詢';
     if (info?.broker !== 'fubon') return undefined;
+    if (type === 'chips') return '富邦盤後籌碼：法人、董監、ETF 與集保分布；非帳戶資券配額';
     if (type === 'pnl') return '本機平均成本平倉損益，費稅依模擬設定';
     if (type === 'autotrade') return '本機 Paper／Sandbox 策略，不支援正式自動交易';
     return limitations[type];

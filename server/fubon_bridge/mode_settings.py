@@ -13,6 +13,7 @@ class ModeSelection(BaseModel):
     model_config = ConfigDict(extra="forbid")
     mode: Literal["demo", "paper", "sandbox", "live"]
     live_enabled: StrictBool = False
+    session: Literal["regular", "afterhours"] | None = None
 
     @model_validator(mode="after")
     def valid_permission(self):
@@ -37,14 +38,18 @@ class ModeSettings:
             selected = ModeSelection.model_validate_json(self.path.read_text())
         except (OSError, ValueError):
             raise ValueError("本機模式設定無法讀取，請檢查設定檔；不會自動改用其他交易模式") from None
-        return replace(config, mode=selected.mode, live_enabled=selected.live_enabled)
+        return replace(config, mode=selected.mode, live_enabled=selected.live_enabled,
+                       session=selected.session or config.session)
 
     def save(self, selection):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         fd, temporary = tempfile.mkstemp(prefix=".mode-", dir=self.path.parent)
         try:
             with os.fdopen(fd, "w") as stream:
-                json.dump(dict(mode=selection.mode, live_enabled=selection.live_enabled), stream)
+                value = dict(mode=selection.mode, live_enabled=selection.live_enabled)
+                if selection.session is not None:
+                    value['session'] = selection.session
+                json.dump(value, stream)
                 stream.flush()
                 os.fsync(stream.fileno())
             os.replace(temporary, self.path)

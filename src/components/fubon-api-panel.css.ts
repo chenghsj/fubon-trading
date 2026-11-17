@@ -16,7 +16,9 @@ export const tableWrap = style({ overflowX: 'auto', minHeight: 110, borderTop: `
 export const table = style({ width: '100%', borderCollapse: 'collapse', whiteSpace: 'nowrap', textAlign: 'right' });
 globalStyle(`.${table} th`, { padding: '9px 8px', fontWeight: 500, borderBottom: `1px solid ${vars.color.border}` });
 globalStyle(`.${table} th:first-child`, { textAlign: 'left' });
-globalStyle(`.${table} td`, { padding: '24px 8px', textAlign: 'center', color: vars.color.mutedForeground });
+globalStyle(`.${table} td`, { padding: '8px', textAlign: 'right' });
+globalStyle(`.${table} td:first-child`, { textAlign: 'left' });
+globalStyle(`.${table} td[colspan]`, { padding: '24px 8px', textAlign: 'center', color: vars.color.mutedForeground });
 export const actions = style({ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 'auto' });
 export const condition = style({ display: 'grid', gridTemplateColumns: 'minmax(90px, 1fr) 76px minmax(75px, 1fr) auto', gap: 6, alignItems: 'end', '@container': { '(max-width: 360px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } } });
 export const section = style({ display: 'flex', flexDirection: 'column', gap: 8 });

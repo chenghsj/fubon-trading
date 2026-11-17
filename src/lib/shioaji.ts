@@ -64,6 +64,7 @@ import { contractMarket } from './contract-market';
 import { todayStr } from './utils/date';
 
 export interface ServerInfo {
+    native_panel_api?: number;
     broker?: string;
     mode?: 'demo' | 'paper' | 'sandbox' | 'live';
     connected?: boolean;
