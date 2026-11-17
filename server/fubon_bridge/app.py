@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 import hashlib
 import threading
+from time import monotonic
 from pathlib import Path
 from urllib.parse import urlparse
 import uuid
@@ -573,6 +574,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
         async def events():
             try:
+                # Active quotes must not postpone explicit stream heartbeats.
+                next_heartbeat = monotonic()+30
                 yield 'retry: 2000\n\n'
                 while not switching and session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
                     needed = {sub["kind"] for sub in list(broker.subscriptions.values())} | getattr(broker,'extra_socket_requirements',set())
@@ -582,15 +585,21 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                         # Reconnection replays all subscriptions, including the lost feed.
                         break
                     try:
-                        item = await asyncio.wait_for(queue.get(), timeout=10)
+                        remaining = next_heartbeat-monotonic()
+                        if remaining <= 0:
+                            raise asyncio.TimeoutError
+                        item = await asyncio.wait_for(queue.get(), timeout=min(10, remaining))
                         if item is None:
                             break
                         event, data = item
                     except asyncio.TimeoutError:
-                        needed = {sub["kind"] for sub in broker.subscriptions.values()}
+                        if monotonic() < next_heartbeat:
+                            continue
+                        needed = {sub["kind"] for sub in list(broker.subscriptions.values())} | getattr(broker,'extra_socket_requirements',set())
                         feed_down = cfg.mode != "demo" and (broker.error or not needed.issubset(broker.connected_sockets))
                         event = "fubon_connection_status" if feed_down else "heartbeat"
                         data = {"time": now().isoformat(), "market_connected": not feed_down}
+                        next_heartbeat = monotonic()+30
                     if not session.authorize(request.headers.get("authorization", "")):
                         break
                     yield f'event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n'
