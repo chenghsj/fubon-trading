@@ -1308,6 +1308,10 @@ export function CandleChart({
                 priceLineVisible: false,
                 lastValueVisible: inst.showLabels ?? false,
             };
+            // Main-pane overlays share candle price coordinates, but must not
+            // stretch the visible candle range (e.g. a distant long-term MA).
+            // Oscillators and volume keep their own pane's native autoscaling.
+            const scaleOpts = pane === 0 ? { autoscaleInfoProvider: () => null } : {};
             for (const o of def.outputs) {
                 const pts = out[o.key];
                 if (!pts) continue;
@@ -1418,7 +1422,7 @@ export function CandleChart({
                 if (st.plot === 'histogram') {
                     s = chart.addSeries(
                         HistogramSeries,
-                        { color, ...labelOpts, ...priceFormatOpt },
+                        { color, ...labelOpts, ...priceFormatOpt, ...scaleOpts },
                         pane,
                     );
                     s.setData(
@@ -1452,6 +1456,7 @@ export function CandleChart({
                             crosshairMarkerVisible: false,
                             ...labelOpts,
                             ...priceFormatOpt,
+                            ...scaleOpts,
                         },
                         pane,
                     );
@@ -1480,6 +1485,7 @@ export function CandleChart({
                                 : {}),
                             ...labelOpts,
                             ...priceFormatOpt,
+                            ...scaleOpts,
                         },
                         pane,
                     );
