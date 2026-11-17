@@ -2,6 +2,8 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NativeResult } from '../lib/native-panels';
 import { InstitutionalChart } from './institutional-chart';
+import { SelectControl } from './ui/select-control';
+import { ToggleGroup } from './ui/toggle-group';
 
 // Source shape is the native flattened response; figures are synthetic.
 const data: NativeResult = { operation: 'institutional', source: 'fubon', fetched_at: '2026-11-17',
@@ -18,20 +20,21 @@ describe('法人圖表與每日明細', () => {
     it('切換法人、累計和單位時，圖表、明細、摘要同步更新', () => {
         act(() => { view = create(<InstitutionalChart data={data}/>); });
         const root = () => view.root;
-        const select = () => root().findAllByType('select');
+        const select = () => root().findAllByType(SelectControl);
+        const group = () => root().findAllByType(ToggleGroup);
         const button = (label: string) => root().findAllByType('button').find(node => text(node).startsWith(label))!;
         expect(text(button('三大法人合計'))).toContain('+0.9 張');
         const chart = () => root().findAllByType('svg').find(node => node.props.role === 'img')!;
         expect(chart().props['aria-label']).toContain('單位張');
         expect(text(root().findByType('table'))).toContain('外資買進（張）');
-        act(() => button('外資及陸資').props.onClick());
+        act(() => group()[0]!.props.onValueChange('foreign.net'));
         expect(text(root().findByType('output'))).toContain('-1 張');
-        act(() => button('區間累計走勢').props.onClick());
+        act(() => group()[1]!.props.onValueChange('cumulative'));
         expect(text(root().findByType('output'))).toContain('+0.5 張');
-        act(() => select()[0]!.props.onChange({ target: { value: 'shares' } }));
+        act(() => select()[0]!.props.onValueChange('shares'));
         expect(text(root().findByType('output'))).toContain('+500 股');
         expect(text(root().findByType('table'))).toContain('外資買進（股）');
-        act(() => select()[1]!.props.onChange({ target: { value: '2026-11-10' } }));
+        act(() => select()[1]!.props.onValueChange('2026-11-10'));
         expect(text(root().findByType('output'))).toContain('+1,500 股');
         expect(chart().findAll(node => Object.values(node.props).some(value => typeof value === 'number' && !Number.isFinite(value)))).toHaveLength(0);
     });
