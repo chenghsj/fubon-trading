@@ -1,16 +1,27 @@
 """Session-anchored, completed-candle features shared by training and inference."""
 from typing import Literal
 
-FeatureSet = Literal['base', 'mtf_1_3_15']
+FeatureSet = Literal['base', 'mtf_1_3_15', 'regime_1_3_15']
 TIMEFRAMES = (1, 3, 15)
 MTF_FEATURES = [f'm{minutes}{name}' for minutes in TIMEFRAMES
     for name in ('Return', 'RangeRatio', 'BodyRatio', 'CloseLocation', 'VolumeRatio', 'Trend')]
 
 
 def decision_minutes(feature_set='base'):
-    if feature_set not in {'base', 'mtf_1_3_15'}:
+    if feature_set not in {'base', 'mtf_1_3_15', 'regime_1_3_15'}:
         raise ValueError('未知的模型特徵版本，請重新訓練')
-    return 1 if feature_set == 'mtf_1_3_15' else 5
+    return 1 if feature_set in {'mtf_1_3_15', 'regime_1_3_15'} else 5
+
+
+def candle_features(rows, side):
+    b = rows[-1]
+    width = b['high']-b['low']
+    average_volume = sum(r['volume'] for r in rows[-5:])/len(rows[-5:])
+    return [side*(b['close']/b['open']-1), width/b['close'],
+        side*(b['close']-b['open'])/width if width else 0.,
+        side*(2*(b['close']-b['low'])/width-1) if width else 0.,
+        b['volume']/max(1, average_volume),
+        side*(b['close']/rows[-min(3,len(rows))]['open']-1)]
 
 
 def closed_candles(bars, start, decision, minutes):
@@ -37,14 +48,7 @@ def multiframe_features(bars, start, decision, side):
         rows = closed_candles(bars, start, decision, minutes)
         if not rows:
             raise ValueError('多週期尚無完整已收盤K棒')
-        b = rows[-1]
-        width = b['high']-b['low']
-        average_volume = sum(r['volume'] for r in rows[-5:])/len(rows[-5:])
         # During session warmup, trend/volume use up to 3/5 completed candles.
         # The short window never borrows another session or fills partial bars.
-        values.extend([side*(b['close']/b['open']-1), width/b['close'],
-            side*(b['close']-b['open'])/width if width else 0.,
-            side*(2*(b['close']-b['low'])/width-1) if width else 0.,
-            b['volume']/max(1, average_volume),
-            side*(b['close']/rows[-min(3,len(rows))]['open']-1)])
+        values.extend(candle_features(rows, side))
     return values

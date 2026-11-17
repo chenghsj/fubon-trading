@@ -30,6 +30,9 @@ def cash_atr(bars, decision, session='cash'):
     return atr
 
 def entry_plan(cfg, signal, action, limit, price, realized):
+    if cfg.get('strategy_version') == 'regime_mtf_v3':
+        from .regime_strategy import entry_plan as regime_entry_plan
+        return regime_entry_plan(cfg, signal, action, limit, price, realized)
     side=1 if action=='Buy' else -1
     boundary=signal.get('high') if side==1 else signal.get('low')
     close=signal.get('close')

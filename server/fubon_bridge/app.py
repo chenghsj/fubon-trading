@@ -35,6 +35,7 @@ from .learning_store import LearningStore
 from .learning_service import LearningService
 from .learning_data import CollectionRequest
 from .learning_train import TrainingRequest
+from .regime_research import RegimeReports, RegimeRequest
 from .mode_settings import ModeChange, ModeSettings, ensure_idle
 from .watchlist_store import WatchlistStore
 from .credential_settings import CredentialChange, CredentialSettings
@@ -91,6 +92,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     gateway = PaperGateway(broker) if cfg.mode=='paper' else SandboxGateway(broker)
     automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(gateway,AutoStore(research,cfg.mode),session.authorize)
     learning = LearningService(broker,LearningStore(research),automation)
+    regime_reports = RegimeReports(research)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -529,6 +531,18 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.post('/api/v1/research/learning/train')
     def learning_train(body: TrainingRequest):
         return learning.start('train',body)
+
+    @app.post('/api/v1/research/regime/run')
+    def regime_run(body: RegimeRequest):
+        return learning.start('regime', body)
+
+    @app.get('/api/v1/research/regime/runs')
+    def regime_runs():
+        return regime_reports.overview()
+
+    @app.get('/api/v1/research/regime/runs/{ident}')
+    def regime_report(ident: str):
+        return regime_reports.get(ident)
 
     @app.get('/api/v1/research/learning/runs/{ident}')
     def learning_run(ident: str):

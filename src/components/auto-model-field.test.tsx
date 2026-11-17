@@ -15,8 +15,8 @@ vi.mock('./ui/select-control', () => ({
 import { AutoModelField } from './auto-model-field';
 
 afterEach(cleanup);
-function Harness() {
-    const [draft,setDraft] = useState(initialAutoConfig);
+function Harness({ regime = false }: { regime?: boolean }) {
+    const [draft,setDraft] = useState(() => ({ ...initialAutoConfig(), ...(regime ? { strategy_version: 'regime_mtf_v3' as const, decision_minutes: 1 as const } : {}) }));
     return <><AutoModelField draft={draft} setDraft={setDraft} editable /><output aria-label="策略設定">{JSON.stringify(draft)}</output></>;
 }
 it('pins the selected model cadence and restores five minutes when removing the model', async () => {
@@ -36,4 +36,20 @@ it('pins the selected model cadence and restores five minutes when removing the 
     expect(config()).toMatchObject({model_run_id:null,decision_minutes:5});
     fireEvent.change(select,{target:{value:'b'.repeat(64)}});
     expect(config()).toMatchObject({model_run_id:'b'.repeat(64),decision_minutes:5});
+});
+
+it('keeps regime models separate from ORB and preserves one minute when removing a regime model', async () => {
+    api.get.mockResolvedValue([
+        { id:'a'.repeat(64),source:'fubon-paper',status:'diagnostic',metricsPassed:false,reasons:[],dataEnd:'2026-11-16',targetR:2,blocked:null,
+            featureSet:'mtf_1_3_15',strategySession:'regular',settings:{strategy_version:'orb_atr_v2',decision_minutes:1,use_basket:false} },
+        { id:'c'.repeat(64),source:'fubon-paper',status:'diagnostic',metricsPassed:false,reasons:[],dataEnd:'2026-11-16',targetR:2,blocked:null,
+            featureSet:'regime_1_3_15',strategySession:'afterhours',settings:{strategy_version:'regime_mtf_v3',decision_minutes:1,use_basket:false} },
+    ]);
+    render(<Harness regime />);
+    const select=screen.getByLabelText('進場模型') as HTMLSelectElement;
+    await waitFor(() => expect(Array.from(select.options,o => o.value)).toEqual(['','c'.repeat(64)]));
+    fireEvent.change(select,{target:{value:'c'.repeat(64)}});
+    expect(JSON.parse(screen.getByLabelText('策略設定').textContent!)).toMatchObject({strategy_version:'regime_mtf_v3',decision_minutes:1,model_run_id:'c'.repeat(64)});
+    fireEvent.change(select,{target:{value:''}});
+    expect(JSON.parse(screen.getByLabelText('策略設定').textContent!)).toMatchObject({strategy_version:'regime_mtf_v3',decision_minutes:1,model_run_id:null});
 });

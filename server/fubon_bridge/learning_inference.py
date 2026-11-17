@@ -15,8 +15,8 @@ class ModelInferenceError(ValueError):
 
 def model_settings(report):
     config = report['config']
-    return dict(strategy_version='orb_atr_v2', use_basket=False,strategy_session=report.get('strategySession','cash'),
-        decision_minutes=1 if report.get('featureSet') == 'mtf_1_3_15' else 5,
+    return dict(strategy_version='regime_mtf_v3' if report.get('featureSet') == 'regime_1_3_15' else 'orb_atr_v2', use_basket=False,strategy_session=report.get('strategySession','cash'),
+        decision_minutes=1 if report.get('featureSet') in {'mtf_1_3_15', 'regime_1_3_15'} else 5,
         stop_points=config['stopPoints'], target_points=math.ceil(config['stopPoints']*config['targetR']),
         slippage_points=config['slippagePoints'], fee_per_side=config['feePerSide'],
         fee_source=config['feeSource'], tax_rate=config['taxRate'],

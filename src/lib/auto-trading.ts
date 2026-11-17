@@ -5,7 +5,7 @@ export interface AutoConfig {
     account: AutoAccount; contract_code: string; trade_date: string;
     stop_points: number; target_points: number; slippage_points: number;
     max_entries: number; loss_limit: number; fee_per_side: number; tax_rate: number;
-    strategy_version?: 'orb_v1' | 'orb_atr_v2'; fee_source?: 'assumed' | 'statement';
+    strategy_version?: 'orb_v1' | 'orb_atr_v2' | 'regime_mtf_v3'; fee_source?: 'assumed' | 'statement';
     model_run_id?: string | null;
     decision_minutes?: 1 | 5;
     strategy_session?: StrategySession;
@@ -24,6 +24,7 @@ export interface AutoState {
     position: { side: 'Buy' | 'Sell'; quantity: number; entryPrice: number | null; referencePrice: number; referenceType?: 'fill' | 'limit'; stop: number; target: number; exitDeadline?: number } | null;
     quote: { price: number; time: number; bid: number; ask: number; trial: boolean } | null;
     lastSignal: { time: number; side: 'Buy' | 'Sell' | null; high: number | null; low: number | null; score: number | null; close?: number; atr?: number | null; reason: string;
+        regime?: 'warming' | 'range' | 'trend' | 'uncertain'; efficiency?: number | null; direction?: 'up' | 'down' | null;
         model?: { runId: string; hash: string; score: number | null; threshold: number; accepted: boolean; reason: string } } | null;
     orders: AutoOrder[]; events: { id: number; time: string; kind: string; message: string }[];
 }

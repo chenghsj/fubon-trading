@@ -14,6 +14,11 @@ POLICY = dict(version='orb-lightgbm-v1',horizonMinutes=20,threshold=.5,lossLimit
 
 def features_for(session='cash', feature_set='base'):
     decision_minutes(feature_set)
+    if feature_set == 'regime_1_3_15':
+        from .regime_strategy import FEATURES as REGIME_FEATURES
+        if session == 'cash':
+            raise ValueError('區間／順勢模型須使用完整期貨日盤或夜盤')
+        return REGIME_FEATURES
     base = FEATURES if session == 'cash' else FEATURES[:8]
     return base + MTF_FEATURES if feature_set == 'mtf_1_3_15' else base
 
@@ -21,6 +26,12 @@ def features_for(session='cash', feature_set='base'):
 def policy_for(session='cash', feature_set='base'):
     interval = decision_minutes(feature_set)
     spec = schedule(session)
+    if feature_set == 'regime_1_3_15':
+        from .regime_strategy import POLICY as REGIME_POLICY
+        features_for(session, feature_set)
+        return dict(POLICY, version='regime-lightgbm-v1', strategySession=session,
+            featureSet=feature_set, decisionMinutes=1, signalPolicy=REGIME_POLICY,
+            startMinute=spec.start_minute, duration=spec.duration, exitMinute=spec.exit_minute, lastEntry=spec.last_entry)
     policy = POLICY if session == 'cash' else dict(POLICY, version='futures-orb-lightgbm-v1', strategySession=session,
         startMinute=spec.start_minute, duration=spec.duration, exitMinute=spec.exit_minute, lastEntry=spec.last_entry)
     if feature_set == 'base':
@@ -32,6 +43,13 @@ def policy_for(session='cash', feature_set='base'):
 
 def signal_features(bars, decision, stocks, session='cash', feature_set='base'):
     """Identical closed-bar input for historical training and online inference."""
+    if feature_set == 'regime_1_3_15':
+        from .regime_strategy import regime_signal
+        signal = regime_signal(bars, decision, session)
+        values = signal.get('features', [])
+        if not signal['side'] or len(values) != len(features_for(session, feature_set)) or not all(math.isfinite(v) for v in values):
+            raise ValueError('沒有有效區間／順勢訊號或多週期資料不完整')
+        return signal, values
     spec = schedule(session)
     start = int(spec.window(opening_date(decision, session))[0].timestamp())
     closed = [b for b in bars if start < b['time'] <= decision]
@@ -76,6 +94,10 @@ def signal_features(bars, decision, stocks, session='cash', feature_set='base'):
 
 
 def build_events(data, feature_set='base'):
+    if feature_set == 'regime_1_3_15':
+        from .regime_research import build_events as build_regime_events
+        events, diagnostics = build_regime_events(data)
+        return events, dict(diagnostics, missingStockEvents=0)
     session = data.get('strategySession', 'cash')
     spec = schedule(session)
     interval = decision_minutes(feature_set)
@@ -117,12 +139,15 @@ def outcome(event, config, extra_slippage=0, day_net=0):
     side = 1 if event['side']=='Buy' else -1
     slip = config['slippagePoints']+extra_slippage
     entry = path[0]['open']+side*slip
-    cfg = dict(strategy_version='orb_atr_v2',stop_points=config['stopPoints'],target_points=config['stopPoints']*config['targetR'],
+    cfg = dict(strategy_version=event.get('strategyVersion','orb_atr_v2'),stop_points=config['stopPoints'],target_points=config['stopPoints']*config['targetR'],
         slippage_points=slip,fee_per_side=config['feePerSide'],tax_rate=config['taxRate'],loss_limit=1000)
     plan,_ = entry_plan(cfg,event['signal'],event['side'],entry,path[0]['open'],day_net)
     if plan is None:
         return None
     stop,target = entry-side*plan['stopPoints'],entry+side*plan['targetPoints']
+    if event.get('strategyVersion') == 'regime_mtf_v3':
+        from .regime_strategy import protection
+        stop,target = protection(cfg,plan,event['side'],entry)
     fee,tax = config['feePerSide'],config['taxRate']
     cost = lambda price: fee+futures_tax(price,10,tax)
     marks=[]
@@ -146,14 +171,17 @@ def outcome(event, config, extra_slippage=0, day_net=0):
             net=(exit_price-entry)*side*10-cost(entry)-cost(exit_price)
             marks.append(dict(time=b['time'],value=net))
             return dict(time=event['time'],exitTime=b['time'],side=event['side'],entry=entry,exit=exit_price,
-                net=net,label=int(net>0),stopPoints=plan['stopPoints'],reason=reason,marks=marks)
+                net=net,label=int(net>0),stopPoints=plan['stopPoints'],reason=reason,marks=marks,
+                **({'regime':event['signal']['regime']} if event.get('strategyVersion') == 'regime_mtf_v3' else {}))
         marks.append(dict(time=b['time'],value=marked))
 
 
-def simulate(events, config, scores=None, extra_slippage=0):
+def simulate(events, config, scores=None, extra_slippage=0, *, regimes=None):
     balance=peak=drawdown=0
     day=None;day_net=0;used=set();busy=0;trades=[]
     for event in events:
+        if regimes is not None and event['signal'].get('regime') not in regimes:
+            continue
         if event['day']!=day:
             day=event['day'];day_net=0;used=set();busy=0
         if event['time']<busy or event['side'] in used or day_net<=-1000:
