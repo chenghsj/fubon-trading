@@ -53,6 +53,12 @@ export async function maLegendChecks(browser, source, origin, artifacts) {
         await page.evaluate(async () => (await import('/src/lib/theme-store.ts')).setThemeSettings({ mode: 'light' }));
         await chart.screenshot({ path: path.join(artifacts, 'ma-legend-light.png'), animations: 'disabled' });
         await page.setViewportSize({ width: 390, height: 844 });
+        // ResizeObserver and RGL transitions finish after the viewport changes.
+        // Exercise keyboard access once the chart has reached the narrow layout.
+        await expect.poll(() => chart.evaluate(el => {
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.width <= window.innerWidth;
+        })).toBe(true);
         await chart.scrollIntoViewIfNeeded();
         await oneLine();
         const scroll = row.getByRole('group', { name: '均線數值，可左右捲動', exact: true });
