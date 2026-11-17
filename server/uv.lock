@@ -271,6 +271,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "python-dotenv" },
     { name = "uvicorn" },
     { name = "webauthn" },
@@ -285,7 +286,6 @@ learning = [
     { name = "numpy" },
 ]
 test = [
-    { name = "httpx" },
     { name = "pytest" },
 ]
 
@@ -293,7 +293,7 @@ test = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "fubon-neo", marker = "extra == 'fubon'", specifier = "==2.5.0" },
-    { name = "httpx", marker = "extra == 'test'", specifier = ">=0.27,<1" },
+    { name = "httpx", specifier = ">=0.27,<1" },
     { name = "lightgbm", marker = "extra == 'learning'", specifier = "==4.7.0" },
     { name = "numpy", marker = "extra == 'learning'", specifier = ">=2.0,<3" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8,<10" },
