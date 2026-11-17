@@ -139,6 +139,17 @@ describe('orderResults groups', () => {
     const warrants = ['W1', 'W2', 'W3'].map(code => row(code, 'WRT'));
     const indices = [row('IX0043', 'IND')];
 
+    it('reserves space for futures when broad 聯 matches fill the stock limit', () => {
+        const stocks = Array.from({length:12}, (_, i) => stock(String(1200+i), `聯測試${i}`));
+        const anchor = pickAnchor(parseProductQuery('聯'), stocks, null);
+        const partial = orderResults(anchor, {priority:[], stocks}, 10);
+        const final = orderResults(anchor, {priority:[], stocks, futures, warrants:[], indices:[]}, 10);
+        expect(final).toHaveLength(10);
+        expect(final.filter(r => r.security_type === 'FUT')).toHaveLength(4);
+        expect(final.some(r => r.security_type === 'STK')).toBe(true);
+        expect(final.slice(0, partial.length)).toEqual(partial);
+    });
+
     it('lists an exact stock, its futures, other matching stocks, warrants, then indices', () => {
         const anchor = pickAnchor(parseProductQuery('南亞'), [stock('1303', '南亞'), stock('2408', '南亞科')], null);
         const rows = orderResults(anchor, {

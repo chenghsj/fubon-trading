@@ -1,0 +1,17 @@
+{
+  "event": "data",
+  "channel": "trades",
+  "data": {
+    "symbol": "2330",
+    "type": "EQUITY",
+    "exchange": "TWSE",
+    "time": 1794890429867981,
+    "price": 2185,
+    "size": 1,
+    "bid": 2180,
+    "ask": 2185,
+    "volume": 38679,
+    "isContinuous": true,
+    "serial": 26679747
+  }
+}

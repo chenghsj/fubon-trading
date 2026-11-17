@@ -20,7 +20,11 @@ export const overlay = style({
 
 export const box = style({
     ...searchSurface,
-    width: '26rem',
+    position: 'fixed',
+    left: '50%',
+    top: paletteTop,
+    transform: 'translateX(-50%)',
+    width: '32rem',
     maxWidth: 'calc(100vw - 2rem)',
     // Keep expanded details reachable below the top inset, including short windows.
     maxHeight: `calc(100vh - ${paletteTop} - 1rem)`,
@@ -49,6 +53,13 @@ export const input = style({
     borderBottom: `1px solid ${vars.color.border}`,
     padding: `${vars.space.md} ${vars.space.lg}`,
     outline: 'none',
+    selectors: {
+        '&&': { borderRadius: 0, boxShadow: 'none' },
+        '&&:focus-visible': {
+            outline: 'none', boxShadow: 'none',
+            borderBottomColor: vars.color.mutedForeground,
+        },
+    },
     textTransform: 'uppercase',
     '::placeholder': {
         color: vars.color.mutedForeground,
@@ -57,6 +68,7 @@ export const input = style({
     },
     '@media': {
         '(max-height: 360px)': { padding: `${vars.space.sm} ${vars.space.lg}` },
+        '(forced-colors: active)': { selectors: { '&&:focus-visible': { borderBottomColor: 'Highlight' } } },
     },
 });
 

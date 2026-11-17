@@ -1,0 +1,27 @@
+import { globalStyle, style } from '@vanilla-extract/css';
+import { vars } from '../theme.css';
+
+export const root = style({ display: 'flex', flexDirection: 'column', gap: 12, padding: 12, minWidth: 0, height: '100%', overflow: 'auto', containerType: 'inline-size', fontFamily: vars.font.body, fontSize: '0.78rem' });
+export const notice = style({ display: 'flex', alignItems: 'flex-start', gap: 8, paddingBottom: 10, borderBottom: `1px solid ${vars.color.border}`, lineHeight: 1.6 });
+export const badge = style({ whiteSpace: 'nowrap', fontWeight: 600 });
+export const muted = style({ color: vars.color.mutedForeground, fontSize: '0.72rem', lineHeight: 1.6 });
+export const tabs = style({ display: 'flex', gap: 4, flexWrap: 'wrap' });
+export const fields = style({ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 145px), 1fr))', gap: 10, alignItems: 'end' });
+export const label = style({ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 });
+export const input = style({ width: '100%', minWidth: 0, minHeight: 32, padding: '5px 8px', border: `1px solid ${vars.color.border}`, borderRadius: 4, background: vars.color.panel, color: vars.color.foreground, font: 'inherit', ':focus-visible': { outline: `2px solid ${vars.color.accent}`, outlineOffset: 1 } });
+export const metrics = style({ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 });
+export const metric = style({ borderBottom: `1px solid ${vars.color.border}`, padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 6 });
+export const value = style({ fontFamily: vars.font.mono, fontSize: '1.3rem', fontVariantNumeric: 'tabular-nums' });
+export const tableWrap = style({ overflowX: 'auto', minHeight: 110, borderTop: `1px solid ${vars.color.border}` });
+export const table = style({ width: '100%', borderCollapse: 'collapse', whiteSpace: 'nowrap', textAlign: 'right' });
+globalStyle(`.${table} th`, { padding: '9px 8px', fontWeight: 500, borderBottom: `1px solid ${vars.color.border}` });
+globalStyle(`.${table} th:first-child`, { textAlign: 'left' });
+globalStyle(`.${table} td`, { padding: '8px', textAlign: 'right' });
+globalStyle(`.${table} td:first-child`, { textAlign: 'left' });
+globalStyle(`.${table} td[colspan]`, { padding: '24px 8px', textAlign: 'center', color: vars.color.mutedForeground });
+export const actions = style({ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 'auto' });
+export const condition = style({ display: 'grid', gridTemplateColumns: 'minmax(90px, 1fr) 76px minmax(75px, 1fr) auto', gap: 6, alignItems: 'end', '@container': { '(max-width: 360px)': { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } } });
+export const section = style({ display: 'flex', flexDirection: 'column', gap: 8 });
+export const calendar = style({ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 1, background: vars.color.border, border: `1px solid ${vars.color.border}` });
+export const day = style({ minHeight: 46, padding: 6, background: vars.color.panel, fontFamily: vars.font.mono, fontSize: '0.72rem' });
+export const chart = style({ minHeight: 100, display: 'grid', placeItems: 'center', borderLeft: `1px solid ${vars.color.border}`, borderBottom: `1px solid ${vars.color.border}`, color: vars.color.mutedForeground });

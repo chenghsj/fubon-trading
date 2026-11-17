@@ -236,7 +236,8 @@ def test_continuous_history_keeps_continuous_month():
 
 def test_no_unsupported_feature_reports_success(client):
     assert client.post("/api/v1/order/place_comboorder", json={}).status_code == 501
-    assert client.post("/api/v1/data/scanner", json={}).status_code == 501
+    # Scanner is supported; an absent request still cannot report success.
+    assert client.post("/api/v1/data/scanner", json={}).status_code == 422
 
 
 def test_partial_ioc_fill_and_cancel_is_terminal():

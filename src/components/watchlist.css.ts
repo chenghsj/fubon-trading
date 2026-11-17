@@ -281,9 +281,18 @@ export const rowRemove = style({
     opacity: 0,
     transition: 'opacity 0.12s',
     selectors: {
+        '&&': {
+            background: vars.color.panelRaised,
+            color: vars.color.mutedForeground,
+            border: `1px solid ${vars.color.border}`,
+            borderRadius: vars.radius.sm,
+        },
         [`${rowBase}:hover &`]: { opacity: 1 },
-        '&:hover': { color: vars.color.danger, borderColor: vars.color.danger },
+        [`${rowBase}:focus-within &`]: { opacity: 1 },
+        '&&:hover': { color: vars.color.danger, borderColor: vars.color.danger },
+        '&&:focus-visible': { opacity: 1 },
     },
+    '@media': { '(prefers-reduced-motion: reduce)': { transition: 'none' } },
 });
 
 export const loadingHint = style({

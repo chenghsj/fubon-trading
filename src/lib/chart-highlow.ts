@@ -1,13 +1,14 @@
 // src/lib/chart-highlow.ts — K 線圖可見範圍最高／最低標記（issue #240）
 //
-// 目前畫面上看得到的 K 棒中，最高價那根的上影線頂端標「最高 xxx」、
-// 最低價那根的下影線底端標「最低 xxx」，平移縮放時跟著重算。
+// 在可見 K 棒最高影線的上方標「最高 xxx」、最低影線的下方標「最低 xxx」，
+// 平移縮放時跟著重算，標籤底框不進入 K 棒價格範圍。
 //
 // 用 series primitive 畫（跟畫圖物件同一套機制）：draw() 由圖表自己的
 // 重繪迴圈驅動，平移、縮放、拖價格軸都不會慢一拍，也不必另外監聽事件。
 // 只畫在主圖 pane 上、不吃滑鼠事件，不影響點價與畫圖工具。
 
 import type {
+    AutoscaleInfo,
     IChartApi,
     IPrimitivePaneRenderer,
     IPrimitivePaneView,
@@ -137,29 +138,8 @@ interface MarkSpec {
     color: string;
     x: number;
     y: number;
-    /** 標籤中心 y（最高最低很接近時錯開，不疊在一起） */
+    /** 標籤中心 y，朝可見 K 棒價格範圍外移 */
     labelY: number;
-}
-
-/** 兩個標籤框（版面已夾回 pane 之後）若重疊，把最低往下、放不下就把最高往上 */
-export function resolveOverlap(high: MarkLayout, low: MarkLayout, paneHeight: number): void {
-    const xOverlap = high.boxX < low.boxX + low.boxW && low.boxX < high.boxX + high.boxW;
-    if (!xOverlap) return;
-    const gap = 2;
-    if (low.boxY >= high.boxY + high.boxH + gap) return;
-    const maxY = paneHeight - MARK_EDGE_PX - low.boxH;
-    low.boxY = Math.min(high.boxY + high.boxH + gap, maxY);
-    if (low.boxY < high.boxY + high.boxH + gap) {
-        high.boxY = Math.max(MARK_EDGE_PX, low.boxY - gap - high.boxH);
-    }
-}
-
-/** 最高、最低標籤中心：兩者距離不到一個標籤高就上下錯開 */
-export function separateLabels(highY: number, lowY: number): { high: number; low: number } {
-    const need = MARK_LABEL_H + 2;
-    if (lowY - highY >= need) return { high: highY, low: lowY };
-    const mid = (highY + lowY) / 2;
-    return { high: Math.min(highY, mid - need / 2), low: Math.max(lowY, mid + need / 2) };
 }
 
 class HighLowRenderer implements IPrimitivePaneRenderer {
@@ -181,10 +161,14 @@ class HighLowRenderer implements IPrimitivePaneRenderer {
                 const wordW = valueW + gap + ctx.measureText(m.word).width <= avail ? ctx.measureText(m.word).width : 0;
                 if (valueW > avail) return null;
                 const total = wordW ? wordW + gap + valueW : valueW;
-                return { m, wordW, total, l: layoutMark(m.x, m.y, total, mediaSize, m.labelY) };
+                const l = layoutMark(m.x, m.y, total, mediaSize, m.labelY);
+                // Manual price scaling can leave no room outside the wicks.
+                // Omit the label instead of clamping its opaque box onto bars.
+                const above = m.labelY < m.y;
+                if (l.boxY + l.boxH > mediaSize.height - MARK_EDGE_PX ||
+                    (above ? l.boxY + l.boxH > m.y - MARK_GAP_PX : l.boxY < m.y + MARK_GAP_PX)) return null;
+                return { m, wordW, total, l };
             });
-            const [a, b] = planned;
-            if (a && b) resolveOverlap(a.l, b.l, mediaSize.height);
             for (const p of planned) {
                 if (!p) continue;
                 const { m, l, wordW } = p;
@@ -202,7 +186,7 @@ class HighLowRenderer implements IPrimitivePaneRenderer {
                 ctx.beginPath();
                 ctx.arc(m.x, m.y, 1.75, 0, Math.PI * 2);
                 ctx.fill();
-                // 標籤底（圖表標籤底色＋外框，壓在 K 棒上仍看得清楚）
+                // 標籤底位於可見 K 棒價格範圍之外。
                 roundRect(ctx, l.boxX + 0.5, l.boxY + 0.5, l.boxW - 1, l.boxH - 1, 3);
                 ctx.fillStyle = style.labelBg;
                 ctx.globalAlpha = 0.92;
@@ -284,6 +268,17 @@ export class HighLowLayer implements ISeriesPrimitive<Time> {
         this._requestUpdate?.();
     }
 
+    autoscaleInfo(): AutoscaleInfo | null {
+        if (!this.style.visible) return null;
+        const margin = MARK_LABEL_H + MARK_GAP_PX + MARK_EDGE_PX;
+        if (this._series) {
+            const height = this._series.getPane().getHeight();
+            const {top, bottom} = this._series.priceScale().options().scaleMargins;
+            if (height * (1 - top - bottom) <= margin * 2 + 1) return null;
+        }
+        return { priceRange: null, margins: { above: margin, below: margin } };
+    }
+
     /** 目前要畫的標記（pane 座標）；隱藏或資料不足回空陣列 */
     marks(): MarkSpec[] {
         const series = this._series;
@@ -300,21 +295,20 @@ export class HighLowLayer implements ISeriesPrimitive<Time> {
         const hit = visibleHighLow(at, range.from, range.to);
         if (!hit) return [];
         const out: MarkSpec[] = [];
-        const push = (h: HighLowHit, word: string, color: string) => {
+        const highY = series.priceToCoordinate(hit.high.price);
+        const lowY = series.priceToCoordinate(hit.low.price);
+        const inverted = series.priceScale().options().invertScale;
+        if (highY !== null && lowY !== null && highY !== lowY && (highY > lowY) !== inverted) return [];
+        const offset = MARK_LABEL_H / 2 + MARK_GAP_PX;
+        const push = (h: HighLowHit, y: number | null, word: string, color: string, direction: number) => {
             const time = at(h.index)?.time;
             if (time === undefined) return;
             const x = chart.timeScale().timeToCoordinate(time);
-            const y = series.priceToCoordinate(h.price);
             if (x === null || y === null) return;
-            out.push({ word, value: this.style.format(h.price), color, x, y, labelY: y });
+            out.push({ word, value: this.style.format(h.price), color, x, y, labelY: y + direction * offset });
         };
-        push(hit.high, '最高', this.style.highColor);
-        push(hit.low, '最低', this.style.lowColor);
-        if (out.length === 2) {
-            const sep = separateLabels(out[0]!.y, out[1]!.y);
-            out[0]!.labelY = sep.high;
-            out[1]!.labelY = sep.low;
-        }
+        push(hit.high, highY, '最高', this.style.highColor, inverted ? 1 : -1);
+        push(hit.low, lowY, '最低', this.style.lowColor, inverted ? -1 : 1);
         return out;
     }
 }

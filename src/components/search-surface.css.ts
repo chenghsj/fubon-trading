@@ -1,4 +1,4 @@
-import { createContainer, createVar, style, type StyleRule } from '@vanilla-extract/css';
+import { createContainer, createVar, globalStyle, style, type StyleRule } from '@vanilla-extract/css';
 import { PRODUCT_SEARCH_ACTIVE } from '../lib/product-badge-presentation';
 import { vars } from '../theme.css';
 
@@ -73,7 +73,6 @@ export const resultRow = style({
 export const resultActive = style({
     background: vars.color[PRODUCT_SEARCH_ACTIVE.background],
     color: vars.color[PRODUCT_SEARCH_ACTIVE.color],
-    boxShadow: `inset 2px 0 0 ${vars.color[PRODUCT_SEARCH_ACTIVE.indicator]}`,
     '@media': {
         '(forced-colors: active)': { outline: '1px solid Highlight', outlineOffset: -1 },
     },
@@ -112,6 +111,7 @@ export const resultName = style({
 });
 
 export const resultDetail = style({
+    flex: '1 1 0',
     color: vars.color.foreground,
     fontSize: resultDetailSize,
     minWidth: 0,
@@ -122,7 +122,7 @@ export const resultDetail = style({
 });
 
 export const resultMeta = style({
-    flex: '0 4 auto',
+    flex: '0 0 10rem',
     maxWidth: '42%',
     minWidth: 0,
     display: 'flex',
@@ -138,4 +138,9 @@ export const resultMeta = style({
             clipPath: 'inset(50%)', border: 0,
         },
     },
+});
+
+// Keep type badges and expiry/details in the same columns across every result.
+globalStyle(`${resultMeta} > [data-slot="badge"]`, {
+    width: '3.5rem', boxSizing: 'border-box', justifyContent: 'center',
 });

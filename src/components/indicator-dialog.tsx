@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { SelectControl, SelectOption } from '@/components/ui/select-control';
 // src/components/indicator-dialog.tsx — TradingView-style indicator picker
 // (search / category sidebar / favorites / add-in-place) and the
-// per-instance settings modal（輸入 / 樣式 分頁、確定/取消）.
+// per-instance settings modal（計算參數 / 外觀 / 顯示週期）.
 
 import {
     Check,
@@ -22,7 +22,7 @@ import {
     Waves,
     X,
 } from 'lucide-react';
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
     CUSTOM_PREFIX,
     customType,
@@ -47,7 +47,7 @@ import {
 } from '../lib/indicator-defs';
 import { CustomIndicatorEditor } from './custom-indicator-editor';
 import { bandColors } from '../lib/price-band';
-import { MA_PRESETS, MA_PRESET_GROUP, type MAPeriod, type MALinePreset } from '../lib/ma-presets';
+import type { MALinePreset } from '../lib/ma-presets';
 import { listMAGroups, subscribeMAGroups, type MAGroup } from '../lib/ma-groups';
 import type { MAHistoryStatus } from '../lib/ma-history';
 import { MAGroupEditor } from './ma-group-editor';
@@ -84,7 +84,6 @@ const CATEGORIES: { key: Category; label: string }[] = [
 export function IndicatorDialog({
     instances,
     onAdd,
-    onAddMAPreset,
     onAddMAGroup,
     maHistoryStatus,
     onRetryMAHistory,
@@ -94,7 +93,6 @@ export function IndicatorDialog({
 }: {
     instances: IndicatorInstance[];
     onAdd: (type: string) => void;
-    onAddMAPreset: (periods: readonly MAPeriod[]) => void;
     onAddMAGroup: (lines: readonly MALinePreset[]) => void;
     maHistoryStatus?: MAHistoryStatus | null;
     onRetryMAHistory?: () => void;
@@ -121,7 +119,8 @@ export function IndicatorDialog({
             seen.add(instance.params.period!);
             return true;
         }).slice(0, 12).map(instance => ({ period: instance.params.period!, color: outputStyle(instance, DEF_BY_TYPE.get('sma')!, 'line').color }));
-        setGroupEditor({ group, initialLines: current.length ? current : MA_PRESETS.filter(p => MA_PRESET_GROUP.some(period => period === p.period)).map(p => ({ ...p })) });
+        const ma = DEF_BY_TYPE.get('sma')!;
+        setGroupEditor({ group, initialLines: current.length ? current : [{ period: ma.params[0]!.def, color: ma.outputs[0]!.color }] });
     };
 
     useEffect(() => subscribeCustoms(() => setCustomVer((v) => v + 1)), []);
@@ -148,19 +147,17 @@ export function IndicatorDialog({
 
     const q = query.trim().toLowerCase();
     const maQuery = q.replace(/[\s()（）]/g, '');
-    const matchesMAPreset = MA_PRESETS.some(({ period }) =>
-        [`ma${period}`, `sma${period}`, `${period}期`, String(period)].includes(maQuery),
-    );
+    const periodQuery = /^(?:s?ma)?(\d{1,3})(?:期|根)?$/.exec(maQuery);
+    const matchesMAPeriod = !!periodQuery && Number(periodQuery[1]) >= 1 && Number(periodQuery[1]) <= 500;
     const maPeriods = new Set(instances.filter(i => i.type === 'sma').map(i => i.params.period));
-    const groupAdded = MA_PRESET_GROUP.every(period => maPeriods.has(period));
-    const showAllMAGroups = !q || matchesMAPreset || [DEF_BY_TYPE.get('sma')!.label, ...DEF_BY_TYPE.get('sma')!.aliases].some(alias => alias.toLowerCase().includes(q));
+    const showAllMAGroups = !q || matchesMAPeriod || [DEF_BY_TYPE.get('sma')!.label, ...DEF_BY_TYPE.get('sma')!.aliases].some(alias => alias.toLowerCase().includes(q));
     const matches = (d: IndicatorDef) =>
         !q ||
         d.label.toLowerCase().includes(q) ||
         d.short.toLowerCase().includes(q) ||
         d.desc.toLowerCase().includes(q) ||
         d.aliases.some((a) => a.toLowerCase().includes(q)) ||
-        (d.type === 'sma' && (matchesMAPreset || groups.some(group => group.name.toLowerCase().includes(q))));
+        (d.type === 'sma' && (matchesMAPeriod || groups.some(group => group.name.toLowerCase().includes(q))));
 
     const isCustom = (d: IndicatorDef) => d.type.startsWith(CUSTOM_PREFIX);
 
@@ -183,10 +180,7 @@ export function IndicatorDialog({
 
     const renderRow = (d: IndicatorDef) => {
         const added = counts.get(d.type) ?? 0;
-        return (
-            <Fragment key={d.type}>
-            <div className={styles.row}>
-            <Button size="compact" variant="ghost" className={styles.catalogAdd} onClick={() => onAdd(d.type)}>
+        const summary = <>
                 <span
                     className={styles.rowSwatch}
                     style={{ background: d.outputs[0]!.color }}
@@ -198,12 +192,20 @@ export function IndicatorDialog({
                             <span className={styles.customTag}>自訂</span>
                         )}
                     </span>
-                    <span className={styles.rowDesc}>{d.desc}</span>
+                    <span className={styles.rowDesc}>{d.type === 'sma' ? '自訂 K 棒根數、顏色與顯示週期' : d.desc}</span>
                 </span>
                 {added > 0 && (
-                    <span className={styles.rowAdded}>已加入 {added}</span>
+                    <span className={styles.rowAdded}>已加入 {added} {d.type === 'sma' ? '條' : '個'}</span>
                 )}
-            </Button>
+        </>;
+        return (
+            <Fragment key={d.type}>
+            <div className={d.type === 'sma' ? `${styles.row} ${styles.maCatalogRow}` : styles.row}>
+                {d.type === 'sma' ? <>
+                    <div className={styles.catalogSummary}>{summary}</div>
+                    <Button size="compact" variant="outline" className={styles.maCustomAdd} onClick={() => onAdd('sma')}
+                        title="自訂計算根數與外觀後加入圖表"><Plus size={13} />自訂均線</Button>
+                </> : <Button size="compact" variant="ghost" className={styles.catalogAdd} onClick={() => onAdd(d.type)}>{summary}</Button>}
                 {isCustom(d) && (
                     <Button size="compact-icon" variant="ghost"
                         className={styles.starBtn.normal}
@@ -235,31 +237,11 @@ export function IndicatorDialog({
                 </Button>
             </div>
             {d.type === 'sma' && (
-                <div className={styles.maPresets} role="group" aria-label="MA 預設週期">
-                    <div className={styles.maPresetHint}>預設週期，點選直接加入</div>
-                    <div className={styles.maPresetOptions}>
-                        {MA_PRESETS.map(({ period, color }) => {
-                            const exists = maPeriods.has(period);
-                            return <Button key={period} size="compact" variant="outline"
-                                className={styles.maPresetButton}
-                                disabled={exists}
-                                aria-label={exists ? `MA${period}（已加入）` : `加入 MA${period}`}
-                                title={exists ? '已加入，可從圖表圖例調整或顯示' : `加入 ${period} 期簡單移動平均線`}
-                                onClick={() => onAddMAPreset([period])}>
-                                <span className={styles.rowSwatch} style={{ background: color }} />
-                                MA{period}
-                                {exists && <Check size={12} />}
-                            </Button>;
-                        })}
-                    </div>
-                    <Button size="compact" variant="ghost" className={styles.maPresetGroup}
-                        disabled={groupAdded} onClick={() => onAddMAPreset(MA_PRESET_GROUP)}>
-                        {groupAdded ? <Check size={13} /> : <Plus size={13} />}
-                        {groupAdded ? '5／10／20／60 已齊全' : '一鍵加入 5／10／20／60'}
-                    </Button>
-                    <div className={styles.maPresetHint}>已有相同週期會略過；週期以目前 K 棒時框計算。</div>
+                <div className={styles.maPresets} role="group" aria-label="我的均線組合">
+                    {groups.length > 0 && <div className={styles.sectionTitle}>我的均線組合</div>}
                     {groups.filter(group => showAllMAGroups || group.name.toLowerCase().includes(q)).map(group => {
-                        const exists = group.lines.every(line => maPeriods.has(line.period));
+                        const missing = group.lines.filter(line => !maPeriods.has(line.period)).length;
+                        const exists = missing === 0;
                         return <div key={group.id} className={styles.maGroupRow}>
                             <Button size="compact" variant="outline" className={styles.maGroupApply} disabled={exists}
                                 aria-label={exists ? `${group.name}（已加入）` : `套用 ${group.name}`} onClick={() => onAddMAGroup(group.lines)}>
@@ -268,11 +250,15 @@ export function IndicatorDialog({
                                     <span>{group.name}</span>
                                     <span className={styles.maPresetHint}>{group.lines.map(line => line.period).join('／')}</span>
                                 </span>
+                                <span className={styles.maGroupAction}>{exists ? '已全部加入' : `套用 · 加入 ${missing} 條`}</span>
                             </Button>
-                            <Button size="compact-icon" variant="ghost" className={styles.closeBtn} aria-label={`編輯 ${group.name}`} onClick={() => editGroup(group)}><Pencil size={13} /></Button>
+                            <Button size="compact" variant="ghost" aria-label={`編輯 ${group.name}`}
+                                title="編輯儲存的組合；圖上已加入的均線維持原設定"
+                                onClick={() => editGroup(group)}><Pencil size={13} />編輯組合</Button>
                         </div>;
                     })}
                     <Button size="compact" variant="outline" onClick={() => editGroup()}><Plus size={13} />建立均線組合</Button>
+                    {groups.length > 0 && <div className={styles.maPresetHint}>套用組合只加入缺少的均線，不會覆蓋已加入均線的設定。</div>}
                     {maHistoryStatus && onRetryMAHistory && <MAHistoryNotice status={maHistoryStatus} onRetry={onRetryMAHistory} />}
                 </div>
             )}
@@ -390,7 +376,7 @@ export function IndicatorDialog({
                     </TabsContent>
                 </Tabs>
                 <div className={styles.footer}>
-                    {view === 'add' && <span className={styles.footerHint}>點選指標設定後加入；MA 預設可直接加入。</span>}
+                    {view === 'add' && <span className={styles.footerHint}>設定後按「加入圖表」；修改現有指標請到「已加入」。</span>}
                     <span>已加入 {instances.length} 個{instances.some(instance => instance.hidden) ? `，隱藏 ${instances.filter(instance => instance.hidden).length} 個` : ''}</span>
                     {onSaveDefaults && <Button size="compact" variant="ghost" type='button' onClick={onSaveDefaults}>存為新圖／回測預設</Button>}
                 </div>
@@ -406,7 +392,7 @@ export function IndicatorDialog({
     );
 }
 
-// ---- per-instance settings（輸入 / 樣式 / 時框顯示）----
+// ---- per-instance settings（計算參數 / 外觀 / 顯示週期）----
 
 // TradingView-style color panel: grid + hex + opacity + thickness,
 // expanded inline under the output row（modal 內不會被裁切）
@@ -465,6 +451,8 @@ function ColorPanel({
 export function IndicatorSettingsModal({
     inst,
     timeframes,
+    isNew = false,
+    currentTimeframe,
     onPatch,
     onRemove,
     onCommit,
@@ -472,6 +460,8 @@ export function IndicatorSettingsModal({
 }: {
     inst: IndicatorInstance;
     timeframes: { label: string; minutes: number }[];
+    isNew?: boolean;
+    currentTimeframe?: number;
     onPatch: (patch: Partial<IndicatorInstance>) => void;
     onRemove: () => void;
     onCommit: () => void;
@@ -486,7 +476,7 @@ export function IndicatorSettingsModal({
     const [plotFor, setPlotFor] = useState<string | null>(null);
     const [defaultsOpen, setDefaultsOpen] = useState(false);
     const [savedTip, setSavedTip] = useState(false);
-
+    const calculationHelpId = useId();
 
     if (!def) return null;
 
@@ -500,6 +490,13 @@ export function IndicatorSettingsModal({
     };
 
     const tfList = inst.visibleTf; // undefined = all
+    const timeframeLabel = (minutes: number) => {
+        if (minutes === 1440) return '日 K';
+        if (minutes === 10080) return '週 K';
+        if (minutes === 43200) return '月 K';
+        return `${minutes} 分 K`;
+    };
+    const maPeriod = inst.params.period ?? def.params.find(p => p.key === 'period')?.def;
     const tfChecked = (m: number) => !tfList || tfList.includes(m);
     const toggleTf = (m: number) => {
         const all = timeframes.map((t) => t.minutes);
@@ -516,31 +513,32 @@ export function IndicatorSettingsModal({
     return (
         <TerminalDialog title="指標設定" onClose={onCancel} layout="custom" className={styles.settingsDialog}>
                 <div className={styles.header}>
-                    {def.label}
-                    <Button size="compact" variant="ghost" className={styles.closeBtn} onClick={onCancel}>
+                    {isNew ? '新增' : '編輯'} {def.label}
+                    <Button size="compact" variant="ghost" className={styles.closeBtn} aria-label="取消指標設定" onClick={onCancel}>
                         <X size={16} />
                     </Button>
                 </div>
                 <Tabs value={tab} onValueChange={next => setTab(next as 'inputs' | 'style' | 'visibility')} className="flex min-h-0 flex-1 flex-col"><TabsList className={styles.tabs}>
                     {def.params.length > 0 && (
                         <TabsTrigger value="inputs">
-                            輸入
+                            計算參數
                         </TabsTrigger>
                     )}
                     <TabsTrigger value="style">
-                        樣式
+                        外觀
                     </TabsTrigger>
                     <TabsTrigger value="visibility">
-                        時框顯示
+                        顯示週期
                     </TabsTrigger>
                 </TabsList>
                 <TabsContent value={tab} className={styles.settingsBody}>
                     {tab === 'inputs' &&
                         def.params.map((p) => (
                             <Label key={p.key} className={styles.fieldRow}>
-                                <span>{p.label}</span>
+                                <span>{inst.type === 'sma' && p.key === 'period' ? '計算期間（K 棒根數）' : p.label}</span>
                                 <Input
                                     type='number'
+                                    aria-describedby={inst.type === 'sma' && p.key === 'period' ? calculationHelpId : undefined}
                                     className={styles.fieldInput}
                                     min={p.min}
                                     max={p.max}
@@ -562,6 +560,12 @@ export function IndicatorSettingsModal({
                                 />
                             </Label>
                         ))}
+                    {tab === 'inputs' && inst.type === 'sma' && (
+                        <div id={calculationHelpId} className={styles.settingsHelp}>
+                            <p>MA{maPeriod}：以最近 {maPeriod} 根 K 棒的收盤價計算平均。</p>
+                            {currentTimeframe !== undefined && <p>目前圖表是 {timeframeLabel(currentTimeframe)}，使用 {maPeriod} 根 {timeframeLabel(currentTimeframe)} 計算。切換圖表週期時，根數維持 {maPeriod} 根。</p>}
+                        </div>
+                    )}
                     {tab === 'style' && (
                         <>
                             {def.outputs.map((o) => {
@@ -785,14 +789,21 @@ export function IndicatorSettingsModal({
                     {tab === 'visibility' && (
                         <>
                             <div className={styles.sectionTitle}>
-                                在哪些時框顯示這個指標
+                                勾選要顯示指標的圖表週期
+                            </div>
+                            <p className={styles.settingsHelp}>這裡只控制顯示；計算參數不會改變。未勾選的圖表週期會隱藏此指標。</p>
+                            <div className={styles.maPresetOptions}>
+                                <Button size="compact" variant="outline" disabled={!tfList} onClick={() => onPatch({ visibleTf: undefined })}>全部勾選</Button>
+                                {currentTimeframe !== undefined && timeframes.some(t => t.minutes === currentTimeframe) && <Button size="compact" variant="outline"
+                                    disabled={tfList?.length === 1 && tfList[0] === currentTimeframe}
+                                    onClick={() => onPatch({ visibleTf: [currentTimeframe] })}>只勾選目前週期</Button>}
                             </div>
                             {timeframes.map((t) => (
                                 <Label
                                     key={t.minutes}
                                     className={styles.fieldRow}
                                 >
-                                    <span>{t.label}</span>
+                                    <span>{timeframeLabel(t.minutes)}{t.minutes === currentTimeframe && <span className={styles.currentTimeframe}>（目前圖表）</span>}</span>
                                     <Checkbox
                                         className={styles.checkbox}
                                         checked={tfChecked(t.minutes)}
@@ -800,16 +811,18 @@ export function IndicatorSettingsModal({
                                     />
                                 </Label>
                             ))}
+                            {tfList?.length === 0 && <p className={styles.settingsHelp} role="status">目前全部未勾選，儲存後這條指標會在所有圖表週期隱藏。</p>}
                         </>
                     )}
                 </TabsContent></Tabs>
+                <p className={styles.previewHint}>{isNew ? '目前僅預覽；按「加入圖表」才會保留。' : '圖表即時預覽；取消會放棄這次圖表修改。'}</p>
                 <div className={styles.settingsFooter}>
                     <div className={styles.defaultsWrap}>
                         <Button size="compact" variant="outline"
                             className={styles.cancelBtn}
                             onClick={() => setDefaultsOpen((o) => !o)}
                         >
-                            預設值 <ChevronDown size={11} />
+                            預設設定 <ChevronDown size={11} />
                         </Button>
                         {defaultsOpen && (
                             <div className={styles.defaultsMenu}>
@@ -851,12 +864,12 @@ export function IndicatorSettingsModal({
                                 已存 — 之後新增 {def.short} 會直接套用
                             </span>
                         )}
-                        <Button size="compact" variant="destructive"
+                        {!isNew && <Button size="compact" variant="destructive"
                             className={styles.dangerBtn}
                             onClick={onRemove}
                         >
-                            移除
-                        </Button>
+                            從圖表移除
+                        </Button>}
                     </div>
                     <div className={styles.footerActions}>
                         <Button size="compact" variant="outline"
@@ -866,7 +879,7 @@ export function IndicatorSettingsModal({
                             取消
                         </Button>
                         <Button size="compact" variant="default" className={styles.okBtn} onClick={onCommit}>
-                            確定
+                            {isNew ? '加入圖表' : '儲存修改'}
                         </Button>
                     </div>
                 </div>

@@ -41,8 +41,20 @@ export const tfBtn = styleVariants({
     active: [
         tfBase,
         {
-            color: vars.color.foreground,
-            background: vars.color.muted,
+            selectors: {
+                // Selected controls must outrank the shared outline/hover styles.
+                '&&': {
+                    color: vars.color.onAccent,
+                    background: vars.color.accent,
+                    borderColor: vars.color.accent,
+                    fontWeight: 700,
+                },
+                '&&:hover': {
+                    color: vars.color.onAccent,
+                    background: vars.color.accent,
+                    borderColor: vars.color.accent,
+                },
+            },
         },
     ],
 });

@@ -13,6 +13,7 @@ from fubon_bridge.broker import Broker
 from fubon_bridge.config import Config
 from fubon_bridge.mode_settings import ModeSelection, ModeSettings
 from fubon_bridge.passkeys import PasskeyStore
+from fubon_bridge.research import ResearchStore
 
 
 @pytest.fixture
@@ -35,7 +36,7 @@ def test_authenticated_settings_do_not_expose_credentials(runtime):
     client, app, settings, restart = runtime
     response = client.get('/api/v1/settings/mode')
     assert response.status_code == 200
-    assert response.json() == dict(mode='demo', live_enabled=False, instance_id=app.state.broker.instance_id,
+    assert response.json() == dict(mode='demo', live_enabled=False, session='regular', instance_id=app.state.broker.instance_id,
                                    available=True, saved=False, sandbox_configured=False)
     client.headers.clear()
     assert client.get('/api/v1/settings/mode').status_code == 401
@@ -69,7 +70,7 @@ def test_confirmed_switch_persists_and_retires_old_app(runtime, mode):
     assert response.status_code == 200, response.text
     assert response.json() == {'restarting': True}
     restart.assert_called_once()
-    assert json.loads(settings.path.read_text()) == dict(mode=mode, live_enabled=mode == 'live')
+    assert json.loads(settings.path.read_text()) == dict(mode=mode, live_enabled=mode == 'live', session='regular')
     assert settings.path.stat().st_mode & 0o777 == 0o600
     assert settings.apply(Config()).mode == mode
     assert app.state.broker.config.mode == 'demo'  # No hot swapping a broker.
@@ -157,6 +158,91 @@ def test_official_switch_requires_authoritative_empty_exposure(orders, inventory
         with pytest.raises(ValueError):
             broker.assert_mode_switch_idle()
 
+
+
+@pytest.fixture
+def sandbox_runtime(tmp_path):
+    settings = ModeSettings(tmp_path / 'mode.json')
+    restart = Mock()
+    app = create_app(Config(mode='sandbox'), mode_store=settings, on_restart=restart,
+                     passkey_store=PasskeyStore(tmp_path / 'passkeys.db'),
+                     research_store=ResearchStore(tmp_path / 'research.sqlite3'))
+    broker = app.state.broker
+    broker.accounts_raw = {('S', 'TEST', 'SHARED'): NS(name='shared sandbox')}
+    broker.sdk = NS(stock=NS(get_order_results=Mock(return_value=NS(is_success=True, data=[]))),
+                    accounting=NS(inventories=Mock(return_value=NS(is_success=False, data=None,
+                        message='遠端XPC回傳代碼錯誤==>[sntaqrt6[<REDACTED>:80]]'))), shutdown=Mock())
+    with TestClient(app) as client:
+        client.headers['Authorization'] = 'Bearer ' + app.state.session.issue()
+        yield client, app, settings, restart
+
+
+@pytest.mark.parametrize('target', ['paper', 'demo'])
+@pytest.mark.parametrize('remote_state', ['xpc_error', 'shared_exposure', 'disconnected'])
+def test_leaving_shared_sandbox_for_local_mode_needs_no_remote_account_query(sandbox_runtime, target, remote_state):
+    client, app, settings, restart = sandbox_runtime
+    broker = app.state.broker
+    orders = broker.sdk.stock.get_order_results
+    inventory = broker.sdk.accounting.inventories
+    if remote_state == 'shared_exposure':
+        orders.return_value = NS(is_success=True, data=[NS(status=10)])
+        inventory.return_value = NS(is_success=True, data=[NS(today_qty=1000)])
+    elif remote_state == 'disconnected':
+        broker.error = '富邦連線已中斷'
+    body = change(app)
+    body['mode'] = target
+    response = client.post('/api/v1/settings/mode', json=body)
+    assert response.status_code == 200, response.text
+    assert response.json() == {'restarting': True}
+    assert settings.apply(Config()).mode == target
+    assert not settings.apply(Config()).live_enabled
+    restart.assert_called_once()
+    orders.assert_not_called()
+    inventory.assert_not_called()
+    assert broker.transitioning
+    assert client.get('/api/v1/info').status_code == 503
+
+
+@pytest.mark.parametrize('kind', ['load_error', 'monitoring', 'pending', 'position', 'running', 'stopping', 'attention', 'research', 'worker'])
+def test_leaving_sandbox_still_blocks_unresolved_local_work(sandbox_runtime, monkeypatch, kind):
+    client, app, settings, restart = sandbox_runtime
+    auto, learning, broker = app.state.automation, app.state.learning, app.state.broker
+    if kind == 'load_error':
+        auto.load_error = 'unreadable strategy state'
+    elif kind == 'monitoring':
+        auto.monitoring = True
+    elif kind in {'pending', 'position'}:
+        auto.state[kind] = {'id': 'unresolved'}
+    elif kind in {'running', 'stopping', 'attention'}:
+        auto.state['status'] = kind
+    elif kind == 'research':
+        learning.current = {'status': 'running'}
+    else:
+        monkeypatch.setattr(learning, 'busy', lambda: True)
+    response = client.post('/api/v1/settings/mode', json=change(app))
+    assert response.status_code == 400, response.text
+    assert 'XPC' not in response.text
+    assert not settings.path.exists()
+    restart.assert_not_called()
+    assert not broker.transitioning and not auto.closing.is_set() and not learning.closing
+    broker.sdk.stock.get_order_results.assert_not_called()
+    broker.sdk.accounting.inventories.assert_not_called()
+
+
+@pytest.mark.parametrize('source', ['sandbox', 'live'])
+def test_live_transition_still_requires_remote_exposure_verification(sandbox_runtime, source):
+    from dataclasses import replace
+    client, app, settings, restart = sandbox_runtime
+    broker = app.state.broker
+    broker.config = replace(broker.config, mode=source, live_enabled=source == 'live')
+    body = change(app)
+    if source == 'sandbox':
+        body.update(mode='live', live_enabled=True, acknowledgement='確認啟用正式下單')
+    response = client.post('/api/v1/settings/mode', json=body)
+    assert response.status_code == 400, response.text
+    assert not settings.path.exists()
+    restart.assert_not_called()
+    broker.sdk.accounting.inventories.assert_called_once()
 
 def test_settings_are_atomic_and_corruption_never_enables_fallback(tmp_path, monkeypatch):
     store = ModeSettings(tmp_path / 'mode.json')

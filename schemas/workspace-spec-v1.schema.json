@@ -69,6 +69,15 @@
         },
         "type": {
           "enum": [
+            "fuboncredit",
+            "fubonaccount",
+            "fuboncondition",
+            "fubonownership",
+            "fuboncorporate",
+            "fubontechnical",
+            "fubonhistory",
+            "fubonindices",
+            "fubonadvanced",
             "watchlist",
             "movers",
             "dock",

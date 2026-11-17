@@ -1,3 +1,4 @@
+from datetime import date as Date
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, model_validator
 
@@ -8,6 +9,42 @@ class ContractKey(BaseModel):
     exchange: str | None = None
     region: Literal["TW"] = "TW"
     target_code: str | None = None
+
+
+class WatchlistContracts(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contracts: list[ContractKey]
+
+
+class ScannerRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    scanner_type: Literal['ChangePercentRank', 'ChangePriceRank', 'DayRangeRank', 'VolumeRank', 'AmountRank']
+    date: Date
+    count: StrictInt = Field(default=30, ge=1, le=200)
+    ascending: bool = False
+
+
+class TicksRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    contract: ContractKey
+    date: Date
+    query_type: Literal['AllDay', 'LastCount'] = 'AllDay'
+    last_cnt: StrictInt = Field(default=500, ge=1, le=500)
+
+
+class VolumesRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    contract: ContractKey
+
+
+class ProfitLossRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    account_type: Literal['S', 'F']
+    broker_id: str = Field(min_length=1)
+    account_id: str = Field(min_length=1)
+    begin_date: Date
+    end_date: Date
+    unit: Literal['Common'] = 'Common'
 
 
 class Order(BaseModel):
@@ -53,6 +90,8 @@ class PlaceOrder(BaseModel):
             raise ValueError("必須且只能提供一種委託內容")
         if self.stock_order and self.contract.security_type != "STK":
             raise ValueError("股票委託需選擇股票商品")
+        if self.stock_order and self.stock_order.price_type not in {"LMT", "MKT"}:
+            raise ValueError("股票只支援限價（LMT）或市價（MKT），不支援範圍市價（MKP）")
         if self.futures_order and self.contract.security_type not in {"FUT", "OPT"}:
             raise ValueError("期權委託需選擇期貨或選擇權商品")
         return self

@@ -11,6 +11,8 @@ import { fmtInt } from '../lib/utils/format';
 import * as dock from './bottom-dock.css';
 import * as panel from './panel.css';
 import { AsyncStatus } from './async-status';
+import { useServerInfo } from '../lib/server-info-store';
+import { FubonApiPanel } from './fubon-api-panel';
 
 
 interface ShortSource {
@@ -53,6 +55,19 @@ async function fetchChips(contract: ContractInfo): Promise<ChipsData> {
 }
 
 export function ChipsCard({ contract }: { contract: ContractInfo }) {
+    const info = useServerInfo();
+    if (info?.broker === 'fubon') {
+        const symbol = contract.security_type === 'STK' ? contract.code
+            : contract.underlying_kind === 'S' ? contract.underlying_code : undefined;
+        if (!symbol || !/^\d{4,6}[A-Z]?$/.test(symbol)) {
+            return <div className={dock.emptyState}>請選擇股票或具有股票標的的期貨，查看法人、董監與集保籌碼。也可從「法人與股權分布」自行輸入股票代號。</div>;
+        }
+        return <FubonApiPanel key={symbol} type="fubonownership" initialSymbol={symbol} />;
+    }
+    return <LegacyChipsCard contract={contract} />;
+}
+
+function LegacyChipsCard({ contract }: { contract: ContractInfo }) {
     const { data, error, loading, refresh } = useQuery<ChipsData>(
         useCallback(() => fetchChips(contract), [contract]),
         `chips:${contract.code}`, contract.security_type === 'STK',

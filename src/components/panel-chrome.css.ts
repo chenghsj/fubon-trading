@@ -182,15 +182,17 @@ export const pinBtn = styleVariants({
 });
 
 export const pinInput = style({
-    width: '4.2rem',
+    width: '8rem',
+    height: '1.9rem',
     '@container': {
-        [NARROW]: { width: '3.4rem', marginLeft: '-4px' },
+        [bar(330)]: { width: '6.5rem' },
+        [NARROW]: { width: '5rem', marginLeft: '-4px' },
+        [TINY]: { width: '4.2rem' },
     },
     fontFamily: vars.font.mono,
-    fontSize: '0.66rem',
+    fontSize: '0.75rem',
     fontWeight: 600,
-    padding: '1px 6px',
-    textTransform: 'uppercase',
+    padding: '2px 24px 2px 8px',
 });
 
 export const closeBtn = style({

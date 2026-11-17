@@ -39,13 +39,13 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
             setBusy(false);
         }
     };
-    const title = !local ? '請使用本機登入網址' : loading ? '正在確認登入狀態'
+    const title = !local ? '請使用本機解鎖網址' : loading ? '正在確認解鎖狀態'
         : !connected ? '尚未連上本機服務' : enrolled ? '使用 Passkey 解鎖' : '建立你的 Passkey';
     const description = !local ? 'Passkey 綁定 localhost，請從啟動視窗進入。'
         : loading ? '正在連線至本機交易服務。'
         : !connected ? '請執行 pnpm start，然後重新整理此頁面。'
         : enrolled ? '使用 Touch ID、裝置解鎖或安全金鑰驗證身分，進入交易介面。'
-        : '首次設定後，即可使用 Passkey 解鎖，不必每次輸入登入資料。';
+        : '先為本機介面建立 Passkey，之後可用 Touch ID 或安全金鑰解鎖。';
     const problem = error || (connected && !supported ? '此瀏覽器不支援 Passkey，請使用新版 Chrome、Safari 或 Edge 開啟啟動視窗。'
         : connected && !enrolled && !canEnrollPasskey() ? '首次設定需要啟動授權。請重新執行 pnpm start，使用自動開啟的視窗。' : '');
     return <main className={styles.page}>
@@ -64,7 +64,7 @@ function PasskeyGate({ onUnlocked }: { onUnlocked: () => Promise<void> }) {
                 {problem && <Alert variant="destructive"><AlertDescription>{problem}</AlertDescription></Alert>}
                 <Separator />
             </CardContent>
-            <CardFooter className={styles.footer}><p className={styles.note}>Passkey 用來解鎖本機介面。富邦登入資料保存在 Keychain，解鎖後由後端使用；不會傳入瀏覽器。</p></CardFooter>
+            <CardFooter className={styles.footer}><p className={styles.note}>Passkey 用來解鎖本機介面。已儲存的富邦連線資料會由後端從 Keychain 自動讀取，不需每次重新輸入 API Key 或憑證密碼。</p></CardFooter>
         </Card>
     </main>;
 }

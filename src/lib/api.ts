@@ -441,7 +441,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
 export async function apiDelete<T>(path: string, body?: unknown): Promise<T> {
     const res = await doFetch(base() + path, {
         method: 'DELETE',
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        headers: { 'Content-Type': 'application/json' },
         body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) await throwApiError(res);

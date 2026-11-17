@@ -64,6 +64,7 @@ export function ReplayPanel({ contract }: { contract: ContractInfo }) {
     const idxRef = useRef(0);
     const [loaded, setLoaded] = useState(false);
     const [empty, setEmpty] = useState(false);
+    const [dataNotice, setDataNotice] = useState('');
     const [playing, setPlaying] = useState(false);
     const [speedIdx, setSpeedIdx] = useState(1);
     const [cursor, setCursor] = useState(0);
@@ -119,6 +120,7 @@ export function ReplayPanel({ contract }: { contract: ContractInfo }) {
         let cancelled = false;
         setLoaded(false);
         setEmpty(false);
+        setDataNotice('');
         setPlaying(false);
         idxRef.current = 0;
         setCursor(0);
@@ -140,6 +142,7 @@ export function ReplayPanel({ contract }: { contract: ContractInfo }) {
             for (const d of dates) {
                 try {
                     const h = await fetchHistoryTicks(contract, d);
+                    if (!cancelled) setDataNotice(h.message ?? '');
                     if (h.datetime.length > 0) {
                         const ticks: ReplayTick[] = [];
                         for (let i = 0; i < h.datetime.length; i++) {
@@ -181,7 +184,8 @@ export function ReplayPanel({ contract }: { contract: ContractInfo }) {
                         }
                         return;
                     }
-                } catch {
+                } catch (error) {
+                    if (!cancelled) setDataNotice(error instanceof Error ? error.message : '此日期資料無法取得');
                     // try next date
                 }
             }
@@ -272,6 +276,7 @@ export function ReplayPanel({ contract }: { contract: ContractInfo }) {
     return (
         <ReplayPanelView
             hostRef={hostRef}
+            dataNotice={dataNotice}
             selectedDate={selectedDate}
             today={today}
             onDateChange={(v) => setSelectedDate(!v || v === today ? '' : v)}
@@ -304,6 +309,7 @@ export function ReplayPanel({ contract }: { contract: ContractInfo }) {
 }
 
 export interface ReplayPanelViewProps {
+    dataNotice?: string;
     hostRef: RefObject<HTMLDivElement | null>;
     // '' 代表預設「今天（期權含夜盤）」
     selectedDate: string;
@@ -412,6 +418,7 @@ export function ReplayPanelView(p: ReplayPanelViewProps) {
                             )}
                 </span>
             </div>
+            {p.dataNotice && <div role='status'>{p.dataNotice}</div>}
             <div className={styles.chartArea}>
                 <div ref={p.hostRef} className={styles.chartHost} />
                 {p.empty && (

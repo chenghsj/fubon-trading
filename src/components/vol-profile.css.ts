@@ -77,6 +77,8 @@ export const barSell = style({
     opacity: 0.55,
 });
 
+export const barUnknown = style({ background: vars.color.mutedForeground, opacity: 0.55 });
+
 export const vol = style({
     textAlign: 'right',
     color: vars.color.mutedForeground,

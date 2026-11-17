@@ -38,6 +38,9 @@ import { createElement } from 'react';
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { PanelChrome } from './panel-chrome';
+vi.mock('../lib/contracts-cache', () => ({
+    ensureContract: vi.fn(async (code: string) => ({ code })), primeContract: vi.fn(),
+}));
 
 const text = (n: ReactTestInstance): string => n.children.map(c => (typeof c === 'string' ? c : text(c))).join('');
 const groups = [
@@ -69,20 +72,20 @@ it('the link button opens a menu of 連動, the three groups (code and member co
     const { r, onMode } = render('main');
     expect(text(modeBtn(r))).toContain('連動');
     act(() => { modeBtn(r).props.onClick(); });
-    expect(items(r).map(text)).toEqual(['連動自選清單', '群組 A2330 · 3 個', '群組 B2317 · 1 個', '群組 C未使用', '鎖定目前商品']);
+    expect(items(r).map(text)).toEqual(['連動目前商品', '群組 A2330 · 3 個', '群組 B2317 · 1 個', '群組 C未使用', '鎖定目前商品']);
     expect(items(r)[0]!.props['aria-checked']).toBe(true);
     act(() => { items(r)[1]!.props.onClick(); });
     expect(onMode).toHaveBeenCalledWith('A');
     expect(r.root.findAll(n => n.props.role === 'menu')).toHaveLength(0);
 });
 
-it('a group member shows the group code box; Enter changes the whole group', () => {
+it('a group member shows the group code box; Enter changes the whole group', async () => {
     const { r, onGroupCode } = render('A');
     expect(text(modeBtn(r))).toContain('A');
     const input = r.root.findAllByType('input')[0]!;
     expect(input.props.value).toBe('2330');
     act(() => { input.props.onChange({ target: { value: '2317' } }); });
-    act(() => { r.root.findAllByType('input')[0]!.props.onKeyDown({ key: 'Enter' }); });
+    await act(async () => { r.root.findAllByType('input')[0]!.props.onKeyDown({ key: 'Enter', preventDefault: vi.fn() }); });
     expect(onGroupCode).toHaveBeenCalledWith('A', '2317');
     // the group colour marks the panel (top bar) and the title
     expect(r.root.findAll(n => n.props['data-link-group'] === 'A').length).toBeGreaterThan(0);

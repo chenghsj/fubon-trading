@@ -52,6 +52,10 @@ import { OrderTicket } from './components/order-ticket';
 import { PanelChrome } from './components/panel-chrome';
 import { PanelErrorBoundary } from './components/panel-error-boundary';
 import { PanelLibrary } from './components/panel-library';
+import { panelUnavailable } from './lib/fubon-support';
+import { useServerInfo } from './lib/server-info-store';
+import { isFubonApiPanel } from './lib/fubon-api-panels';
+import { FubonApiPanel } from './components/fubon-api-panel';
 import * as libraryStyles from './components/panel-library.css';
 import * as panel from './components/panel.css';
 import { PnlPanel } from './components/pnl-panel';
@@ -282,6 +286,17 @@ function BlockBody({
     /** bumps whenever a whole workspace is applied (layout / preset / reset / agent) */
     workspaceGen: number;
 }) {
+    const serverInfo = useServerInfo();
+    if (!serverInfo) return <div className={styles.blockPlaceholder}>讀取服務功能…</div>;
+    if (isFubonApiPanel(block.type)) return <FubonApiPanel key={block.type} type={block.type} />;
+    const unavailable = panelUnavailable(block.type, serverInfo)
+        ?? (serverInfo.broker === 'fubon' && contract?.security_type === 'OPT' && ['ticket', 'flash', 'grid'].includes(block.type)
+            ? '富邦選擇權交易級距尚未完成；此商品目前僅供唯讀行情' : undefined);
+    if (unavailable) {
+        return <div className={styles.blockPlaceholder} data-panel-unavailable={block.type} role='status'>
+            未支援：{unavailable}
+        </div>;
+    }
     if (contract?.security_type === 'IND' && indexBlockMessage(block.type)) {
         return <IndexBlockUnavailable type={block.type} />;
     }
@@ -813,8 +828,15 @@ function PopoutView({
     const meta = BLOCK_META[type];
     const quickOrderMessage = quickOrderBlockMessage(contract?.security_type, type);
 
+    const serverInfo = useServerInfo();
+    const unavailable = panelUnavailable(type, serverInfo)
+        ?? (serverInfo?.broker === 'fubon' && contract?.security_type === 'OPT' && ['ticket', 'flash', 'grid'].includes(type)
+            ? '富邦選擇權交易級距尚未完成；此商品目前僅供唯讀行情' : undefined);
     let body: React.ReactNode = <BlockPlaceholder />;
-    if (type === 'pnl') body = <PnlPanel />;
+    if (!serverInfo) body = <div className={styles.blockPlaceholder}>讀取服務功能…</div>;
+    else if (isFubonApiPanel(type)) body = <FubonApiPanel key={type} type={type} />;
+    else if (unavailable) body = <div className={styles.blockPlaceholder} data-panel-unavailable={type} role='status'>未支援：{unavailable}</div>;
+    else if (type === 'pnl') body = <PnlPanel />;
     else if (type === 'holdingmap')
         // popout 點持股 → 切換主視窗的選取商品；呈現／分組從面板帶入，之後只在這個視窗內切換
         body = (
@@ -1255,6 +1277,7 @@ function MainApp() {
 
     const addBlock = useCallback(
         (type: BlockType) => {
+            if (panelUnavailable(type)) return;
             const meta = BLOCK_META[type];
             if (
                 meta.singleton &&
@@ -1736,6 +1759,7 @@ function MainApp() {
             <IndicatorInstanceContext.Provider value={indicatorService}>
             <FubonStatus />
             <HudHeader
+                onOpenSearch={openPalette}
                 accBalance={balanceState.data?.acc_balance}
                 onOpenPanelLibrary={() => setPanelLibraryOpen(true)}
                 profiles={profiles}

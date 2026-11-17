@@ -177,9 +177,14 @@ class ReadonlyFixtures:
         count('sdkReadFixtures'); return SimpleNamespace(is_success=True,data=data)
     def get_order_results(self,*args): return self.result([])
     def query_single_position(self,*args): return self.result([])
-    def inventories(self,*args): return self.result([])
+    def inventories(self,*args):
+        if getattr(self,'inventory_failure',False):
+            count('sdkReadFixtures')
+            return SimpleNamespace(is_success=False,data=None,message='遠端XPC回傳代碼錯誤==>[sntaqrt6[<REDACTED>:80]]')
+        return self.result([])
     def unrealized_gains_and_loses(self,*args): return self.result([])
     def query_margin_equity(self,*args): return self.result([dict(currency='NTD')])
+    def bank_remain(self,*args): return self.result(dict(balance=1000000))
     def __getattr__(self,key):
         count('sdkTransactions'); raise AssertionError('QA forbids SDK transaction '+key)
 class Sentinel:
@@ -232,6 +237,10 @@ def create_app(config,**kwargs):
     broker.demo_events=events
     @app.post('/api/v1/qa/mode')
     def qa(body:dict):
+        if 'sandboxXpc' in body:
+            broker.sdk.accounting.inventory_failure=body['sandboxXpc']
+            if body['sandboxXpc']:
+                broker.accounts_raw[('S','QA','MODE-S')]=SimpleNamespace(name='QA 共用測試帳戶')
         if 'research' in body: learning.current=dict(status='running') if body['research'] else None
         if 'monitoring' in body: trader.monitoring=body['monitoring']
         if body.get('seed') or body.get('position') or body.get('flatten') or body.get('order'):
@@ -334,6 +343,12 @@ entry.main()
     expect(restored.evidence).toBe('preserve research');
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('fubon.contract-fees.v1')).TMF.feePerSide)).toBe(12);
     scenarios.push('real CLI restarts paper/demo/paper; instance changes, old session 401, re-unlock required; paper book/research/fee preserved');
+    await switchMode('富邦 Sandbox', 'sandbox'); await qa({ sandboxXpc: true });
+    await open(); await select('Paper 模擬交易');
+    await expect(dialog()).toContainText('離開共用 Sandbox 不會取消遠端測試委託或平倉');
+    await shot('sandbox-to-paper-xpc'); await page.keyboard.press('Escape');
+    await switchMode('Paper 模擬交易', 'paper');
+    scenarios.push('shared Sandbox stock inventory XPC failure does not block Paper; dialog explains retained remote test exposure; CLI restarts and old session expires');
     await switchMode('富邦 Sandbox', 'sandbox'); await switchMode('正式交易', 'live', true);
     await page.getByRole('button', { name: '設定', exact: true }).click();
     const riskDialog = page.getByRole('dialog', { name: '設定', exact: true });

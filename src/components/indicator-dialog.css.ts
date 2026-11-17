@@ -80,11 +80,15 @@ export const searchWrap = style({
     border: `1px solid ${vars.color.border}`,
     borderRadius: vars.radius.md,
     color: vars.color.mutedForeground,
-    ':focus-within': { borderColor: vars.color.accent },
+    ':focus-within': { borderColor: vars.color.mutedForeground },
+    '@media': {
+        '(forced-colors: active)': { ':focus-within': { borderColor: 'Highlight' } },
+    },
 });
 
 export const searchInput = style({
     flex: 1,
+    minWidth: 0,
     fontFamily: vars.font.body,
     fontSize: '0.82rem',
     color: vars.color.foreground,
@@ -92,6 +96,12 @@ export const searchInput = style({
     border: 'none',
     padding: '8px 0',
     outline: 'none',
+    // The wrapper owns focus for the icon, input and clear button together.
+    // Outrank the shared Input's focus-visible ring, regardless of CSS order.
+    selectors: {
+        '&&': { border: 'none', borderRadius: 0, boxShadow: 'none' },
+        '&&:focus-visible': { outline: 'none', boxShadow: 'none' },
+    },
     '::placeholder': { color: vars.color.mutedForeground },
 });
 
@@ -195,6 +205,24 @@ export const row = style({
 
 export const catalogAdd = style({ selectors: { '&&': { flex: 1, minWidth: 0, height: 'auto', minHeight: 44, justifyContent: 'flex-start', textAlign: 'left', gap: 10, padding: '5px 0' } } });
 
+export const maCatalogRow = style({
+    '@media': { [NARROW]: { flexWrap: 'wrap' } },
+});
+
+export const maCustomAdd = style({
+    '@media': { [NARROW]: { marginLeft: 'auto' } },
+});
+
+export const catalogSummary = style({
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+    padding: '5px 0',
+    '@media': { [NARROW]: { flexBasis: '100%' } },
+});
+
 export const maPresets = style({
     display: 'flex',
     flexDirection: 'column',
@@ -207,31 +235,6 @@ export const maPresetOptions = style({
     display: 'flex',
     flexWrap: 'wrap',
     gap: vars.space.xs,
-});
-
-export const maPresetButton = style({
-    selectors: {
-        '&&': {
-            minHeight: '1.75rem',
-            padding: `${vars.space.xs} ${vars.space.sm}`,
-            gap: vars.space.xs,
-            fontSize: '0.7rem',
-        },
-    },
-});
-
-export const maPresetGroup = style({
-    color: vars.color.accent,
-    maxWidth: '100%',
-    selectors: {
-        '&&': {
-            minHeight: '1.75rem',
-            whiteSpace: 'normal',
-            textAlign: 'left',
-            justifyContent: 'flex-start',
-            padding: `${vars.space.xs} ${vars.space.sm}`,
-        },
-    },
 });
 
 export const maPresetHint = style({
@@ -250,6 +253,11 @@ export const maGroupRow = style({
 
 export const maGroupApply = style({
     selectors: { '&&': { flex: 1, minWidth: 0, justifyContent: 'flex-start', textAlign: 'left', whiteSpace: 'normal', overflowWrap: 'anywhere', padding: vars.space.sm } },
+});
+
+export const maGroupAction = style({
+    fontSize: '0.7rem',
+    flexShrink: 0,
 });
 
 export const maGroupLine = style({
@@ -467,6 +475,23 @@ export const settingsBody = style({
     gap: '10px',
     padding: vars.space.lg,
 });
+
+export const settingsHelp = style({
+    margin: 0,
+    fontFamily: vars.font.body,
+    fontSize: '0.74rem',
+    lineHeight: 1.7,
+    color: vars.color.mutedForeground,
+});
+
+export const currentTimeframe = style({
+    color: vars.color.mutedForeground,
+    fontSize: '0.7rem',
+});
+
+export const previewHint = style([settingsHelp, {
+    padding: `0 ${vars.space.lg} ${vars.space.md}`,
+}]);
 
 export const fieldRow = style({
     display: 'flex',
@@ -741,6 +766,7 @@ export const widthLine = style({
 
 export const settingsFooter = style({
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '8px',
@@ -765,6 +791,7 @@ export const dangerBtn = style({
 export const footerActions = style({
     display: 'flex',
     gap: '8px',
+    marginLeft: 'auto',
 });
 
 const actionBase = style({

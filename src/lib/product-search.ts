@@ -259,10 +259,14 @@ export function orderResults(anchor: ProductAnchor, parts: ResultParts, limit: n
     } else {
         // Same-prefix stocks (南亞科 for 南亞) follow the related futures, not
         // every warrant of the exact stock.
+        // Broad name fragments can match more stocks than the entire popup.
+        // Reserve up to four slots for related futures without changing a
+        // prefix already published while their source is still loading.
+        const stockLead = anchor.futuresFirst ? 0 : Math.max(1, limit - Math.min(4, Math.floor(limit / 2)));
         segments = [
-            parts.priority, anchor.futuresFirst ? [] : stocks,
+            parts.priority, stocks.slice(0, stockLead),
             parts.futures && orderedFutures(parts.futures).map(futureSuggestion),
-            anchor.futuresFirst ? stocks : [], parts.warrants, parts.indices,
+            stocks.slice(stockLead), parts.warrants, parts.indices,
         ];
     }
     const seen = new Set<string>();

@@ -66,6 +66,12 @@ export const versionWarn = style({
 
 export const spacer = style({ flex: 1 });
 
+export const searchShortcut = style({
+    marginLeft: 6, color: vars.color.mutedForeground, fontFamily: vars.font.mono,
+    fontSize: '0.65rem',
+    '@media': { '(max-width: 1050px)': { display: 'none' } },
+});
+
 // 頂欄所有 chip/按鈕的統一高度 — 字級與 padding 各異會造成 23/25px
 // 混排，邊框線上下參差（使用者回報的「水平不齊」）
 const HEADER_ITEM_H = 'max(25px, 1.5rem)';

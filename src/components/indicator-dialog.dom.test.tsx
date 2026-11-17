@@ -4,54 +4,90 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { IndicatorDialog } from './indicator-dialog';
 import { addMAPresets, MA_PRESET_GROUP } from '../lib/ma-presets';
-import { listMAGroups } from '../lib/ma-groups';
+import { listMAGroups, saveMAGroup } from '../lib/ma-groups';
 import { COLOR_GRID } from './indicator-color-picker';
 import { newInstance } from '../lib/indicator-defs';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => cleanup());
 
-it('offers single MA presets and the group without opening the ordinary indicator editor', async () => {
+it('only offers explicit custom MA creation and omits all built-in preset and bulk-add controls', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
-    const onAddMAPreset = vi.fn();
-    render(<IndicatorDialog instances={[]} onAdd={onAdd} onAddMAPreset={onAddMAPreset} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
-    const presets = screen.getByRole('group', { name: 'MA 預設週期' });
-    await user.click(within(presets).getByRole('button', { name: '加入 MA120' }));
-    expect(onAddMAPreset).toHaveBeenLastCalledWith([120]);
-    await user.click(within(presets).getByRole('button', { name: '一鍵加入 5／10／20／60' }));
-    expect(onAddMAPreset).toHaveBeenLastCalledWith([5, 10, 20, 60]);
+    render(<IndicatorDialog instances={[]} onAdd={onAdd} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.queryByRole('group', { name: 'MA 預設週期' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /加入 MA(?:5|10|20|60|120|240)$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /一鍵加入|5／10／20／60 已齊全/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^MA 移動平均/ })).toBeNull();
+    await user.click(screen.getByText('MA 移動平均'));
     expect(onAdd).not.toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: /^MA 移動平均/ }));
-    expect(onAdd).toHaveBeenCalledWith('sma');
+    await user.click(screen.getByRole('button', { name: '自訂均線' }));
+    expect(onAdd).toHaveBeenCalledExactlyOnceWith('sma');
 });
 
-it('shows existing periods and disables the completed group after the chart updates', () => {
-    const callbacks = { onAdd: vi.fn(), onAddMAPreset: vi.fn(), onAddMAGroup: vi.fn(), onClose: vi.fn() };
-    const view = render(<IndicatorDialog instances={addMAPresets([], [5])} {...callbacks} />);
-    expect(screen.getByRole('button', { name: 'MA5（已加入）' }).hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('button', { name: '一鍵加入 5／10／20／60' }).hasAttribute('disabled')).toBe(false);
-    view.rerender(<IndicatorDialog instances={addMAPresets([], MA_PRESET_GROUP)} {...callbacks} />);
-    expect(screen.getByRole('button', { name: '5／10／20／60 已齊全' }).hasAttribute('disabled')).toBe(true);
-});
-
-it('finds presets by period searches while respecting the selected category', async () => {
+it('edits a hidden existing MA through the management tab without adding or unhiding a duplicate', async () => {
     const user = userEvent.setup();
-    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAPreset={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    const [ma] = addMAPresets([], [20]);
+    ma!.hidden = true;
+    ma!.visibleTf = [60];
+    const management = { timeframe: 3, onSettings: vi.fn(), onToggle: vi.fn(), onReorder: vi.fn(), onRemove: vi.fn(), onDuplicate: vi.fn() };
+    const onAdd = vi.fn();
+    render(<IndicatorDialog instances={[ma!]} management={management} onAdd={onAdd} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: 'MA(20) 設定' }));
+    expect(management.onSettings).toHaveBeenCalledExactlyOnceWith(ma!.id);
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(management.onToggle).not.toHaveBeenCalled();
+    expect(ma).toMatchObject({ hidden: true, visibleTf: [60], params: { period: 20 } });
+});
+
+it('starts an empty named-group editor with one editable line instead of a preset pack', async () => {
+    const user = userEvent.setup();
+    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    await user.click(screen.getByRole('button', { name: '建立均線組合' }));
+    const editor = screen.getByRole('dialog', { name: '建立均線組合' });
+    expect(within(editor).getAllByRole('spinbutton')).toHaveLength(1);
+    expect((within(editor).getByLabelText('第 1 條週期') as HTMLInputElement).value).toBe('20');
+});
+
+it('separates applying missing group lines from editing the saved combination', async () => {
+    const user = userEvent.setup();
+    const group = saveMAGroup({ name: 'QA 清楚組合', lines: [{ period: 5, color: '#123456' }, { period: 10, color: '#234567' }, { period: 20, color: '#345678' }] });
+    const onAddMAGroup = vi.fn();
+    const props = { onAdd: vi.fn(), onAddMAGroup, onClose: vi.fn() };
+    const view = render(<IndicatorDialog instances={addMAPresets([], [5])} {...props} />);
+    const apply = screen.getByRole('button', { name: '套用 QA 清楚組合' });
+    expect(apply.textContent).toMatch(/套用.*加入 2 條/);
+    await user.click(apply);
+    expect(onAddMAGroup).toHaveBeenCalledExactlyOnceWith(group.lines);
+    view.rerender(<IndicatorDialog instances={addMAPresets([], [5, 10, 20])} {...props} />);
+    const complete = screen.getByRole('button', { name: 'QA 清楚組合（已加入）' });
+    expect(complete.hasAttribute('disabled')).toBe(true);
+    expect(complete.textContent).toContain('已全部加入');
+    const edit = screen.getByRole('button', { name: '編輯 QA 清楚組合' });
+    expect(edit.textContent).toContain('編輯組合');
+    await user.click(edit);
+    expect(screen.getByRole('dialog', { name: '編輯均線組合' })).toBeDefined();
+    expect(onAddMAGroup).toHaveBeenCalledTimes(1);
+});
+
+it('finds custom MA by arbitrary root-count searches without offering presets, while respecting category', async () => {
+    const user = userEvent.setup();
+    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
     const search = screen.getByPlaceholderText('搜尋指標（名稱、縮寫、中英文都可以）');
-    for (const query of ['MA5', 'MA (10)', '60期']) {
+    for (const query of ['MA5', 'MA (10)', '60期', '137根']) {
         await user.clear(search);
         await user.type(search, query);
-        expect(screen.getByRole('group', { name: 'MA 預設週期' })).toBeDefined();
+        expect(screen.getByRole('button', { name: '自訂均線' })).toBeDefined();
+        expect(screen.queryByRole('group', { name: 'MA 預設週期' })).toBeNull();
     }
     await user.click(screen.getByRole('button', { name: '副圖指標' }));
-    expect(screen.queryByRole('group', { name: 'MA 預設週期' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '自訂均線' })).toBeNull();
 });
 
 it('creates, edits, applies and deletes a named combination without changing the chart until Apply', async () => {
     const user = userEvent.setup();
     const apply = vi.fn();
-    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAPreset={vi.fn()} onAddMAGroup={apply} onClose={vi.fn()} />);
+    render(<IndicatorDialog instances={addMAPresets([], MA_PRESET_GROUP)} onAdd={vi.fn()} onAddMAGroup={apply} onClose={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: '建立均線組合' }));
     let editor = screen.getByRole('dialog', { name: '建立均線組合' });
     await user.type(within(editor).getByLabelText('組合名稱'), '盤中組合');
@@ -80,7 +116,7 @@ it('creates, edits, applies and deletes a named combination without changing the
 
 it('shows invalid duplicate periods and keeps cancellation from saving the group', async () => {
     const user = userEvent.setup();
-    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAPreset={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    render(<IndicatorDialog instances={addMAPresets([], MA_PRESET_GROUP)} onAdd={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: '建立均線組合' }));
     const editor = screen.getByRole('dialog', { name: '建立均線組合' });
     await user.type(within(editor).getByLabelText('組合名稱'), 'Invalid');
@@ -95,7 +131,7 @@ it('shows invalid duplicate periods and keeps cancellation from saving the group
 
 it('selects a swatch, rejects incomplete hex and saves a custom color', async () => {
     const user = userEvent.setup();
-    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAPreset={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: '建立均線組合' }));
     const editor = screen.getByRole('dialog', { name: '建立均線組合' });
     await user.type(within(editor).getByLabelText('組合名稱'), '色票組合');
@@ -116,7 +152,7 @@ it('selects a swatch, rejects incomplete hex and saves a custom color', async ()
 
 it('supports color arrow keys and closes only the palette on Escape, returning focus to its trigger', async () => {
     const user = userEvent.setup();
-    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAPreset={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    render(<IndicatorDialog instances={[]} onAdd={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
     await user.click(screen.getByRole('button', { name: '建立均線組合' }));
     const editor = screen.getByRole('dialog', { name: '建立均線組合' });
     const trigger = within(editor).getByRole('button', { name: '第 1 條顏色' });
@@ -140,7 +176,7 @@ it('opens an actionable current list, including hidden and timeframe-disabled in
     volume.hidden = true;
     macd.visibleTf = [5];
     const management = { timeframe: 1, onSettings: vi.fn(), onToggle: vi.fn(), onReorder: vi.fn(), onRemove: vi.fn(), onDuplicate: vi.fn() };
-    const callbacks = { onAdd: vi.fn(), onAddMAPreset: vi.fn(), onAddMAGroup: vi.fn(), onClose: vi.fn() };
+    const callbacks = { onAdd: vi.fn(), onAddMAGroup: vi.fn(), onClose: vi.fn() };
     const view = render(<IndicatorDialog instances={[ma, volume, macd]} management={management} {...callbacks} />);
     expect(screen.getByRole('tab', { name: '已加入（3）' }).getAttribute('aria-selected')).toBe('true');
     expect(screen.getByText('已隱藏')).toBeDefined();
@@ -176,7 +212,7 @@ it('opens an actionable current list, including hidden and timeframe-disabled in
 it('lets the keyboard favorite a catalog item without accidentally adding it', async () => {
     const user = userEvent.setup();
     const onAdd = vi.fn();
-    render(<IndicatorDialog instances={[]} onAdd={onAdd} onAddMAPreset={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    render(<IndicatorDialog instances={[]} onAdd={onAdd} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
     const favorite = screen.getByRole('button', { name: '收藏 RSI 相對強弱' });
     favorite.focus();
     await user.keyboard(' ');

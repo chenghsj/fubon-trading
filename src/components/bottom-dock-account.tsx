@@ -9,6 +9,7 @@ import { canTrade } from '../lib/account-tradable';
 import { accountMatches } from '../lib/flash-account';
 import { maskAccountId, usePrivacyMode } from '../lib/privacy';
 import { useAccounts } from '../lib/account-store';
+import { useServerInfo } from '../lib/server-info-store';
 import { ChevronDown, ChevronRight, RotateCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQuery } from '../hooks/use-query';
@@ -256,6 +257,13 @@ function SettleSection({
     settlements: Settlement[] | undefined;
     privMoney: boolean;
 }) {
+    const info = useServerInfo();
+    if (info?.broker === 'fubon' && (info.mode === 'paper' || info.mode === 'demo')) {
+        return <section className={styles.acctSection}>
+            <div className={styles.acctTitle}>交割資訊</div>
+            <div>本機模擬不產生銀行交割；請參考模擬帳簿與已實現損益。</div>
+        </section>;
+    }
     const byT = new Map((settlements ?? []).map((s) => [s.T, s]));
     // 全 0 也顯示三列（手機版預收頁日曆概念）
     const rows = [0, 1, 2].map((t) => {
@@ -668,6 +676,9 @@ export function AccountPane(props: AccountPaneProps) {
 }
 
 function AccountPaneContent({ positions, balance, margin, funds, market, scopeAccount, onRefreshControls }: AccountPaneProps) {
+    const serverInfo = useServerInfo();
+    const fubon = serverInfo?.broker === 'fubon';
+    const pnlAvailable = !fubon || serverInfo.mode === 'paper' || serverInfo.mode === 'demo';
     const privMoney = usePrivacyMoney();
     const { ref, width } = useMeasuredWidth();
     const wide = sizeClassOf(width) === 'wide';
@@ -749,7 +760,7 @@ function AccountPaneContent({ positions, balance, margin, funds, market, scopeAc
             [showStock, selKey],
         ),
         `settlements:${selKey}:${showStock}`,
-        true, stockAccounts,
+        !fubon, stockAccounts,
     );
 
     // 今日已實現損益：profit_loss 給列表/筆數；profitloss_sum 給權威總額。
@@ -782,8 +793,8 @@ function AccountPaneContent({ positions, balance, margin, funds, market, scopeAc
     }, [showStock, showFut, selKey]);
     const { data: pnl, refresh: refreshPnl, loading: loadingPnl, error: errorPnl } = useQuery<PnlData>(
         pnlFetcher,
-        `realized-pnl:${selKey}:${showStock}:${showFut}`,
-        true, queryAccounts,
+        `realized-pnl:${selKey}:${showStock}:${showFut}:${serverInfo?.mode ?? ''}`,
+        pnlAvailable, queryAccounts,
     );
 
     // 交易額度（證券）
@@ -800,7 +811,7 @@ function AccountPaneContent({ positions, balance, margin, funds, market, scopeAc
             [showStock, selKey],
         ),
         `trading-limits:${selKey}:${showStock}`,
-        true, stockAccounts,
+        !fubon, stockAccounts,
     );
 
     // 預收券款/圈存（證券、查詢類）— 個別 catch，任一失敗不拖垮整區
@@ -825,7 +836,7 @@ function AccountPaneContent({ positions, balance, margin, funds, market, scopeAc
             // eslint-disable-next-line react-hooks/exhaustive-deps
         }, [showStock, selKey]),
         `reserves:${selKey}:${showStock}`,
-        true, stockAccounts,
+        !fubon, stockAccounts,
     );
 
     const refreshReports = useCallback(async () => {
@@ -856,13 +867,13 @@ function AccountPaneContent({ positions, balance, margin, funds, market, scopeAc
                 privMoney={privMoney}
             />
             {showStock && (
-                <SettleSection
+                fubon ? <div aria-disabled='true'>銀行交割行事曆未支援{serverInfo.mode === 'paper' || serverInfo.mode === 'demo' ? '；本機模擬不產生銀行交割' : '；請至券商查詢'}</div> : <SettleSection
                     settlements={settlements}
                     privMoney={privMoney}
                 />
             )}
             {showStock && (
-                <LimitsSection
+                fubon ? <div aria-disabled='true'>交易額度查詢未支援</div> : <LimitsSection
                     limits={limits}
                     error={errorLimits}
                     sim={sim}
@@ -874,9 +885,9 @@ function AccountPaneContent({ positions, balance, margin, funds, market, scopeAc
     );
     const right = (
         <div className={styles.acctCol}>
-            <PnlSection pnl={pnl} privMoney={privMoney} />
+            {pnlAvailable ? <PnlSection pnl={pnl} privMoney={privMoney} /> : <div aria-disabled='true'>完整券商歷史損益未支援；請至券商查詢</div>}
             {showStock && (
-                <ReserveSection
+                fubon ? <div aria-disabled='true'>預收券款與圈存查詢未支援</div> : <ReserveSection
                     reserve={reserve}
                     sim={sim}
                     privMoney={privMoney}

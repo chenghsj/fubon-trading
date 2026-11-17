@@ -42,6 +42,7 @@ describe('search contract reads forward transport cancellation without changing 
         await api.fetchWarrants('2330', { expiryFrom: '2026-10-17' }, opts);
         expect(m.get.mock.calls).toEqual([
             ['/api/v1/data/contracts?security_type=STK&region=TW', opts],
+            ['/api/v1/info', opts],
             ['/api/v1/data/contracts/warrants/underlyings?region=TW&include_name=true', opts],
             ['/api/v1/data/contracts/futures/roots?region=TW', opts],
             ['/api/v1/data/contracts/futures?underlying_code=2330&region=TW', opts],
@@ -49,5 +50,23 @@ describe('search contract reads forward transport cancellation without changing 
             ['/api/v1/data/contracts/options?root=CDA&region=TW', opts],
             ['/api/v1/data/contracts/warrants?underlying_code=2330&expiry_from=2026-10-17&region=TW', opts],
         ]);
+    });
+
+    it('discovers Fubon before any optional warrant route and reuses that identity', async () => {
+        m.get.mockResolvedValueOnce({ broker: 'fubon', mode: 'paper', simulation: true });
+        const api = await import('./shioaji');
+        const opts = { signal: new AbortController().signal };
+        expect(await api.fetchWarrantUnderlyings(opts)).toEqual([]);
+        expect(await api.fetchWarrants('2330', {}, opts)).toEqual([]);
+        expect(await api.fetchWarrantUnderlyings(opts)).toEqual([]);
+        expect(m.get.mock.calls).toEqual([['/api/v1/info', opts]]);
+    });
+
+    it('does not begin optional source discovery for an already cancelled reader', async () => {
+        const api = await import('./shioaji');
+        const controller = new AbortController();
+        controller.abort();
+        await expect(api.fetchWarrantUnderlyings({ signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' });
+        expect(m.get).not.toHaveBeenCalled();
     });
 });

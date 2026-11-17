@@ -15,6 +15,7 @@ import { AsyncStatus } from './async-status';
 import { ProductSearchDetails } from './product-search-details';
 import { optionId, ProductSuggestionRow, productIdentity, SearchOption } from './product-suggestion-row';
 import { useProductSearch } from '../hooks/use-product-search';
+import { searchNavigationDirection } from '../lib/search-navigation';
 
 const PANEL_TYPES = Object.keys(BLOCK_META) as BlockType[];
 const PANEL_MATCH_LIMIT = 4;
@@ -142,7 +143,7 @@ export function CommandPalette({
     };
 
     return (
-        <TerminalDialog title="搜尋商品與面板" onClose={closePalette} canClose={() => !search.isComposing()} className={styles.box}
+        <TerminalDialog layout='custom' title="搜尋商品與面板" onClose={closePalette} canClose={() => !search.isComposing()} className={styles.box}
             onMouseMove={(event) => { pointerPosition.current = { x: event.clientX, y: event.clientY }; }}>
             <div tabIndex={-1} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => {
                 if (e.key !== 'Escape' || search.isComposing() || e.nativeEvent?.isComposing || e.keyCode === 229) return;
@@ -154,7 +155,8 @@ export function CommandPalette({
                 <Input
                     ref={inputRef}
                     className={styles.input}
-                    placeholder='輸入代碼跳轉商品（2330、TXFR1…）'
+                    placeholder='搜尋代碼或名稱（2330、台積電、微台…）'
+                    aria-label='搜尋商品或面板'
                     role='combobox'
                     aria-autocomplete='list'
                     aria-expanded={rowCount > 0}
@@ -176,17 +178,15 @@ export function CommandPalette({
                     }}
                     onKeyDown={(e) => {
                         if (search.isComposing() || e.nativeEvent?.isComposing || e.keyCode === 229) return;
-                        if (e.key === 'ArrowDown' && rowCount > 0) {
+                        const direction = searchNavigationDirection(e);
+                        if (direction && rowCount > 0) {
                             e.preventDefault();
-                            setActiveIdentity(rowIdentities[(activeIndex + 1) % rowCount]!);
-                        }
-                        if (e.key === 'ArrowUp' && rowCount > 0) {
-                            e.preventDefault();
-                            setActiveIdentity(rowIdentities[(activeIndex - 1 + rowCount) % rowCount]!);
+                            setActiveIdentity(rowIdentities[(activeIndex + direction + rowCount) % rowCount]!);
                         }
                         if (e.key === 'Enter') void submit();
                     }}
                 />
+                <div className={styles.hint}>股票、期貨與相關商品；選取後直接切換，不加入自選清單</div>
                 {rowCount > 0 && (
                     <div className={styles.results}>
                         <div id={listId} role='listbox' aria-label='搜尋結果'>
@@ -237,7 +237,7 @@ export function CommandPalette({
                 <ProductSearchDetails item={suggestions[activeIndex]} onToggle={() => revealActiveRow()} />
                 <div className={styles.hint}>
                     <AsyncStatus phase={busy ? 'loading' : error || searchError ? 'error' : searching ? 'loading' : 'idle'}
-                        text={busy ? '查詢商品中…' : error ? '找不到此商品代碼' : searchError ? '搜尋失敗，可重試' : searching ? suggestions.length ? '正在補齊關聯商品…' : '搜尋中…' : 'Enter 跳轉 · Esc 關閉'}
+                        text={busy ? '查詢商品中…' : error ? '找不到此商品代碼' : searchError ? '搜尋失敗，可重試' : searching ? suggestions.length ? '正在補齊關聯商品…' : '搜尋中…' : '↑↓ / Ctrl+N、P 選擇 · Enter 切換 · Esc 關閉'}
                         action={error || searchError ? <Button size="compact" variant="ghost" type='button' onMouseDown={(e) => e.preventDefault()} onClick={() => {
                             setError(false);
                             search.retry();

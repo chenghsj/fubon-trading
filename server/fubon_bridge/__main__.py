@@ -7,6 +7,7 @@ import uvicorn
 from .app import create_app
 from .config import Config, ROOT
 from .mode_settings import ModeSettings
+from .watchlist_store import WatchlistStore
 from .keychain import KeychainError
 from .origins import localhost_ui_origin
 
@@ -45,7 +46,8 @@ def main():
 
         app = create_app(config, launch_token=launch_token,
                          on_ready=open_terminal if first and not args.no_browser else None,
-                         public_origin=target.rstrip('/'), mode_store=settings, on_restart=restart)
+                         public_origin=target.rstrip('/'), mode_store=settings, on_restart=restart,
+                         watchlist_store=WatchlistStore(ROOT / 'server' / '.watchlists.json'))
         server = uvicorn.Server(uvicorn.Config(app, host='127.0.0.1', port=config.port, access_log=False))
         server.run()
         # A process signal always wins over a requested mode restart.

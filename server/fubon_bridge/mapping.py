@@ -53,7 +53,7 @@ def contract_from_ticker(row, security_type):
     prefix = re.match(r"[A-Z]+", code)
     root = prefix.group() if prefix else code
     # Concrete futures end in a month letter and year digit.
-    if security_type == "FUT" and re.fullmatch(r"[A-Z]+[A-L]\d", code):
+    if security_type == "FUT" and re.fullmatch(r"[A-Z0-9]+[A-L]\d", code):
         root = code[:-2]
     return dict(
         code=code, name=row.get("name", code), security_type=security_type,
@@ -91,6 +91,13 @@ def snapshot(quote, code):
     )
 
 
+def market_trades(data):
+    """Stocks send one flat trade; futures send a trades array."""
+    if isinstance(data.get("trades"), list):
+        return data["trades"]
+    return [data] if "price" in data else []
+
+
 def market_events(channel, data, requested_code, previous=None):
     """Yield terminal SSE frames. Trial matching is marked, never treated as a fill."""
     at = stamp(data.get("time", int(now().timestamp()*1e6)))
@@ -105,7 +112,7 @@ def market_events(channel, data, requested_code, previous=None):
             ask_volume=[int(x["size"]) for x in data.get("asks", [])])
     elif channel == "trades":
         previous = previous or {}
-        for trade in data.get("trades", []):
+        for trade in market_trades(data):
             price = trade.get("price", 0)
             if number(price) <= 0:
                 continue
@@ -113,7 +120,7 @@ def market_events(channel, data, requested_code, previous=None):
                 open=str(previous.get("open", price)), high=str(max(number(previous.get("high", price)), number(price))),
                 low=str(min(number(previous.get("low", price), number(price)) or number(price), number(price))),
                 avg_price=str(price), volume=int(trade.get("size", 0)),
-                total_volume=int(data.get("total", {}).get("tradeVolume", 0)), tick_type=0,
+                total_volume=int(number(data.get("total", {}).get("tradeVolume", data.get("volume", 0)))), tick_type=0,
                 price_chg=str(number(price)-number(previous.get("reference", price))), pct_chg="0")
 
 

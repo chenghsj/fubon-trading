@@ -4,12 +4,14 @@ import json
 import math
 import re
 import threading
+import time
 import uuid
 
 from .config import Config, SANDBOX_URL
-from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_events,
+from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_events, market_trades,
                       normalize_trade, now, number, snapshot, stamp, symbol_alias, unwrap)
 from .paper import ACTIVE, PaperBook
+from .option_catalog import OptionCatalog
 
 
 class Broker:
@@ -23,6 +25,7 @@ class Broker:
         self.catalog = {}
         self.catalog_loaded = set()
         self.catalog_full = set()
+        self.future_product_catalog = None
         self.quotes = {}
         self.raw_orders = {}
         self.trades = {}
@@ -35,6 +38,9 @@ class Broker:
         self.transitioning = False
         self.paper = PaperBook(emit,paper_store,costs=config.mode=='paper')
         self.instance_id = uuid.uuid4().hex
+        self.options = OptionCatalog(self)
+        self.tick_history_cache = {}
+        self.tick_history_lock = threading.RLock()
         if config.mode == "demo":
             self._demo_catalog()
 
@@ -45,7 +51,7 @@ class Broker:
             cfg = self.config.with_credentials()
             self.config = cfg
             if cfg.mode != "sandbox" and not all((cfg.personal_id, cfg.api_key, cfg.cert_path, cfg.cert_password)):
-                self.error = "尚未設定富邦登入資料；請開啟「API Key 設定」儲存至 Keychain 並重新連線"
+                self.error = "尚未設定富邦連線資料；請開啟「富邦連線設定」儲存至 Keychain 並重新連線"
                 return
             factory = self.sdk_factory
             if factory is None:
@@ -106,7 +112,7 @@ class Broker:
     def market_connected(self):
         if self.config.mode == "demo":
             return True
-        needed = {sub["kind"] for sub in list(self.subscriptions.values())}
+        needed = {sub["kind"] for sub in list(self.subscriptions.values())} | getattr(self,'extra_socket_requirements',set())
         return bool(needed) and needed.issubset(self.connected_sockets)
 
     def account_rows(self):
@@ -166,8 +172,12 @@ class Broker:
         if kind not in {"STK", "FUT", "OPT"}:
             return []
         if self.config.mode == "demo":
-            return [deepcopy(x) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
+            if kind == 'FUT':
+                self._future_products()
+            return [self._future_info(deepcopy(x)) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
         with self.lock:
+            if kind == 'FUT':
+                self._future_products()
             if kind not in self.catalog_loaded:
                 client = self._client(kind)
                 if kind == "STK":
@@ -182,7 +192,62 @@ class Broker:
                         if not row.get("isSpread"):
                             self.catalog[row["symbol"]] = contract_from_ticker(row, kind)
                 self.catalog_loaded.add(kind)
-            return [deepcopy(x) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
+            return [self._future_info(deepcopy(x)) for x in self.catalog.values() if x["security_type"] == kind and not x.get("target_code")]
+
+    def _future_products(self):
+        if self.future_product_catalog is None:
+            if self.config.mode == 'demo':
+                rows = [dict(symbol=row['root'], name=row['name'], contractSize=row.get('multiplier'),
+                             underlyingSymbol=row.get('underlying_code', ''), tradingCurrency=row['currency'])
+                        for row in self.catalog.values() if row['security_type'] == 'FUT' and not row.get('target_code')]
+            else:
+                rows = self._client('FUT').intraday.products(type='FUTURE', exchange='TAIFEX',
+                                                          **self._session_args('FUT', True)).get('data', [])
+            self.future_product_catalog = {row['symbol']: row for row in rows}
+        return self.future_product_catalog
+
+    def _future_info(self, row):
+        if row['security_type'] != 'FUT':
+            return row
+        # Cached order reconciliation must not add a market REST dependency.
+        product = (self.future_product_catalog or {}).get(row['root'])
+        if product:
+            # Products owns the stock relationship and contract specification;
+            # Tickers owns the listed month. Never infer a stock from its name.
+            underlying = product.get('underlyingSymbol') or ('IX0001' if row['root'] in {'TXF', 'MXF', 'TMF'} else None)
+            row['underlying_code'] = underlying
+            if product.get('contractType') in {'I', 'R', 'B', 'C', 'S', 'E'}:
+                row['underlying_kind'] = product['contractType']
+            if number(product.get('contractSize')) > 0:
+                row['multiplier'] = number(product['contractSize'])
+            if product.get('tradingCurrency'):
+                row['currency'] = product['tradingCurrency']
+        return row
+
+    def future_roots(self):
+        with self.lock:
+            return [dict(root=root, name=product.get('name') or root)
+                    for root, product in self._future_products().items()]
+
+    def futures(self, root='', underlying_code='', delivery_month=''):
+        with self.lock:
+            self._future_products()
+            return [row for row in self.contracts('FUT') if (not root or row['root'] == root)
+                    and (not underlying_code or row.get('underlying_code') == underlying_code)
+                    and (not delivery_month or row.get('delivery_month') == delivery_month)]
+
+    def contract_info(self, key):
+        """Public market lookup includes specifications even on a cold direct code."""
+        with self.lock:
+            row = self.contract(key)
+            if row['security_type'] == 'FUT':
+                self._future_products()
+            if row['security_type'] == 'OPT':
+                self.options._products()
+                row = self.options.enrich(row)
+                self.catalog[row['code']] = deepcopy(row)
+                return row
+            return self._future_info(row)
 
     def contract(self, key, *, refresh=False):
         code = key["code"].strip().upper()
@@ -190,7 +255,8 @@ class Broker:
         if not re.fullmatch(r"[A-Z0-9!]{2,24}", code):
             raise ValueError("無效商品代碼")
         if kind is None:
-            kind = "STK" if code.isdigit() else "FUT"
+            kind = self.catalog.get(code, {}).get('security_type') or (
+                'STK' if code.isdigit() else 'OPT' if re.fullmatch(r'[A-Z0-9]{3}\d+[A-X]\d', code) else 'FUT')
         if kind not in {"STK", "FUT", "OPT"}:
             raise ValueError("此富邦轉接器支援股票、期貨與選擇權行情")
         with self.lock:
@@ -198,22 +264,24 @@ class Broker:
             if cached and not refresh and not cached.get("target_code") and (self.config.mode == "demo" or code in self.catalog_full):
                 if cached["security_type"] != kind:
                     raise ValueError("商品類型不符")
-                return deepcopy(cached)
+                return self._future_info(deepcopy(cached))
             if self.config.mode == "demo":
                 if cached:
-                    return deepcopy(cached)
+                    return self._future_info(deepcopy(cached))
                 raise ValueError("展示模式僅提供自選清單中的展示商品")
             # Resolve aliases from Fubon, never trust a client-supplied target.
             row = self._client(kind).intraday.ticker(symbol=symbol_alias(code), **self._session_args(kind))
             info = contract_from_ticker(row, kind)
             if row.get("settleDate"):
                 info["delivery_month"] = row["settleDate"].replace("-", "")
+            if kind == 'OPT':
+                info = self.options.enrich(info)
             self.catalog[info["code"]] = info
             self.catalog_full.add(info["code"])
             if info["code"] != code:
                 info = dict(info, code=code, target_code=info["code"])
             self.catalog[code] = info
-            return deepcopy(info)
+            return self._future_info(deepcopy(info))
 
     def quote(self, contract):
         with self.lock:
@@ -351,22 +419,77 @@ class Broker:
                     return []
                 raise ValueError('跨月歷史下載失敗，請檢查行情權限、日期或稍後重試；已保存批次可續傳') from None
 
-    def ticks(self, key, requested_date, count=500):
+    def ticks(self, key, requested_date, count=500, *, all_day=False):
         contract = self.contract(key)
         result = dict(datetime=[], close=[], volume=[], bid_price=[], bid_volume=[], ask_price=[], ask_volume=[], tick_type=[])
-        if requested_date != now().date().isoformat():
+        requested = date.fromisoformat(requested_date)
+        if abs((requested - now().date()).days) > 4:
             raise ValueError("富邦此介接的逐筆查詢僅支援當日；歷史分析請使用分 K")
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 500:
+            raise ValueError('最近逐筆筆數須為 1–500')
+        cache_key = (contract['security_type'], contract['code'], requested_date, self.config.session)
         if self.config.mode == "demo":
+            if requested != now().date():
+                raise ValueError('展示逐筆僅提供當日合成資料')
             q = self.quote(contract)
             rows = [dict(price=q["close"], size=1, bid=q["buy_price"], ask=q["sell_price"], time=int(now().timestamp()*1e6))]
+            source_date, limited = now().date().isoformat(), False
         else:
-            rows = self._client(contract["security_type"]).intraday.trades(symbol=contract.get("target_code") or contract["code"], limit=min(count, 500), **self._session_args(contract["security_type"])).get("data", [])
-        for row in reversed(rows):
+            with self.tick_history_lock:
+                cached = self.tick_history_cache.get(cache_key)
+                if all_day and cached and time.monotonic() - cached[0] < 15:
+                    return deepcopy(cached[1])
+                params = dict(symbol=contract.get('target_code') or contract['code'], limit=500 if all_day else count,
+                              sort='asc' if all_day else 'desc', **self._session_args(contract['security_type']))
+                client = self._client(contract['security_type']).intraday
+                rows, previous_end, source_date, limited = [], None, None, False
+                while True:
+                    payload = client.trades(**params, **({'offset': len(rows)} if all_day else {}))
+                    current_date = date.fromisoformat(payload['date']).isoformat()
+                    if current_date != requested_date:
+                        raise ValueError(f'富邦逐筆目前僅提供 {current_date} 交易日，無法查詢指定歷史日')
+                    if source_date is not None and source_date != current_date:
+                        raise ValueError('逐筆來源已換日，請重新載入')
+                    source_date = current_date
+                    page = payload['data']
+                    if not isinstance(page, list):
+                        raise ValueError('富邦逐筆回傳格式不完整')
+                    if page:
+                        end = (page[-1].get('time'), page[-1].get('serial'))
+                        if all_day and end == previous_end:
+                            raise ValueError('逐筆分頁沒有前進，已停止以避免重複資料')
+                        previous_end = end
+                    rows.extend(page)
+                    if not all_day or len(page) < 500:
+                        break
+                    if len(rows) >= 50_000:
+                        limited = True
+                        break
+        seen = {}
+        for row in sorted(rows, key=lambda item: (item['time'], str(item.get('serial', '')))):
+            if row.get('isTrial'):
+                continue
+            if isinstance(row.get('price'), bool) or isinstance(row.get('size'), bool) or not isinstance(row.get('price'), (int, float)) or not math.isfinite(row['price']) or row['price'] <= 0 or not isinstance(row.get('size'), (int, float)) or not math.isfinite(row['size']) or row['size'] < 0:
+                raise ValueError('富邦逐筆回傳缺少有效成交價量')
+            if row.get('serial') is not None:
+                identity = (row['time'], row['serial'])
+                if identity in seen:
+                    if seen[identity] != row:
+                        raise ValueError('富邦逐筆分頁內容衝突，請重新載入')
+                    continue
+                seen[identity] = row
             result["datetime"].append(stamp(row["time"]).isoformat())
-            for key_, value in [("close", row.get("price", 0)), ("volume", row.get("size", 0)),
+            for key_, value in [("close", row['price']), ("volume", row['size']),
                     ("bid_price", row.get("bid", 0)), ("ask_price", row.get("ask", 0)),
                     ("bid_volume", 0), ("ask_volume", 0), ("tick_type", 0)]:
                 result[key_].append(value)
+        result.update(source_date=source_date, limited=limited, complete=bool(all_day and not limited),
+                      message=f'{source_date} 交易日逐筆；'+('已達 50,000 筆上限，未確認完整性' if limited else '僅提供目前交易日，非歷史逐筆服務'))
+        if all_day:
+            with self.tick_history_lock:
+                if len(self.tick_history_cache) >= 12:
+                    self.tick_history_cache.pop(next(iter(self.tick_history_cache)))
+                self.tick_history_cache[cache_key] = (time.monotonic(), deepcopy(result))
         return result
 
     def _on_sdk_event(self, code, *args):
@@ -432,13 +555,7 @@ class Broker:
                 return
             self.ready()
             if kind not in self.sockets:
-                socket = getattr(self.sdk.marketdata.websocket_client, kind)
-                self.sockets[kind] = socket
-                socket.on("message", lambda raw, k=kind: self._on_market(k, raw))
-                socket.on("disconnect", lambda *_, k=kind: self.connected_sockets.discard(k))
-                socket.on("error", lambda *_, k=kind: self.connected_sockets.discard(k))
-                socket.connect()
-                self.connected_sockets.add(kind)
+                self.market_socket(kind, replay=False)
             args = dict(channel=channel, symbol=contract.get("target_code") or contract["code"])
             if kind == "futopt":
                 args["afterHours"] = self.config.session == "afterhours"
@@ -447,6 +564,28 @@ class Broker:
             except Exception:
                 self.subscriptions.pop(registry_key, None)
                 raise
+
+    def market_socket(self, kind, *, replay=True):
+        """Shared native socket; panel leases add channels without resetting SDK."""
+        self.ready()
+        with self.lock:
+            socket = self.sockets.get(kind)
+            if socket is None:
+                socket = getattr(self.sdk.marketdata.websocket_client,kind)
+                self.sockets[kind] = socket
+                socket.on('message',lambda raw,k=kind:self._on_market(k,raw))
+                socket.on('disconnect',lambda *_,k=kind:self.connected_sockets.discard(k))
+                socket.on('error',lambda *_,k=kind:self.connected_sockets.discard(k))
+            if kind not in self.connected_sockets:
+                socket.connect()
+                self.connected_sockets.add(kind)
+                for sub in self.subscriptions.values() if replay else []:
+                    if sub['kind']==kind:
+                        args = dict(channel=sub['channel'],symbol=sub['contract'].get('target_code') or sub['contract']['code'])
+                        if kind=='futopt':
+                            args['afterHours'] = self.config.session=='afterhours'
+                        socket.subscribe(args)
+            return socket
 
     def unsubscribe(self, key, quote_type):
         # Upstream panels share process-level subscriptions. Retain until the
@@ -467,12 +606,13 @@ class Broker:
                     enriched = dict(data, type="EQUITY" if kind == "stock" else "FUTURE")
                     for event, payload in market_events(channel, enriched, contract["code"], self.quotes.get(contract["code"], contract)):
                         self.emit(event, payload)
-                    if channel == "trades" and not data.get("isTrial") and data.get("trades"):
-                        price = number(data["trades"][-1].get("price"))
+                    trades = market_trades(data) if channel == "trades" else []
+                    if trades and not data.get("isTrial"):
+                        price = number(trades[-1].get("price"))
                         if price > 0:
                             self.quotes[contract["code"]] = dict(self.quotes.get(contract["code"], {}), close=price,
                                 datetime=stamp(data["time"]).isoformat(), is_trial=False,
-                                buy_price=number(data["trades"][-1].get("bid")), sell_price=number(data["trades"][-1].get("ask")))
+                                buy_price=number(trades[-1].get("bid")), sell_price=number(trades[-1].get("ask")))
                             if self.config.mode == "paper":
                                 self.paper.tick(contract["code"], self.quotes[contract["code"]])
                                 if contract.get("target_code"):
@@ -539,6 +679,15 @@ class Broker:
             self.ready()
             contract = self.contract(contract_key)
             kind = contract["security_type"]
+            if kind == 'OPT':
+                raise ValueError('富邦選擇權交易級距尚未完成；目前僅提供唯讀行情')
+            if kind == 'FUT' and not contract.get('multiplier'):
+                self._future_products()
+                contract = self._future_info(contract)
+                if not contract.get('multiplier'):
+                    raise ValueError('合約乘數尚未確認，拒絕建立委託')
+            if kind == "STK" and order.get("price_type") not in {"LMT", "MKT"}:
+                raise ValueError("股票只支援限價（LMT）或市價（MKT），不支援範圍市價（MKP）")
             if account["account_type"] != ("S" if kind == "STK" else "F"):
                 raise ValueError("商品與帳戶類型不符")
             # Never let an alias or browser-provided target choose a real order.
