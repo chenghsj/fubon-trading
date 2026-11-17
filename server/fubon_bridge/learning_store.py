@@ -81,7 +81,7 @@ class LearningStore:
             runs = []
             for i,t,d,p in db.execute('SELECT id,created_at,dataset_id,report FROM research_learning_runs ORDER BY created_at DESC LIMIT 12'):
                 report=json.loads(p)
-                runs.append(dict(id=i,createdAt=t,datasetId=d,status=report['status'],metricsPassed=report['metricsPassed'],strategySession=report.get('strategySession','cash'),researchMethod=report.get('researchMethod','fixed'),modelBytes=(report.get('model') or {}).get('bytes',0)))
+                runs.append(dict(id=i,createdAt=t,datasetId=d,status=report['status'],metricsPassed=report['metricsPassed'],strategySession=report.get('strategySession','cash'),featureSet=report.get('featureSet','base'),researchMethod=report.get('researchMethod','fixed'),modelBytes=(report.get('model') or {}).get('bytes',0)))
             jobs = [json.loads(r[0]) for r in db.execute('SELECT payload FROM research_learning_jobs ORDER BY updated_at DESC LIMIT 6')]
         files=[self.research.path,self.research.path.with_name(self.research.path.name+'-wal'),self.research.path.with_name(self.research.path.name+'-shm')]
         size=0

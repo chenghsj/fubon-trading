@@ -4,6 +4,7 @@ import math
 
 from .learning_features import FEATURES, POLICY, features_for, policy_for, signal_features
 from .learning_train import PARAMETERS, implementation_hashes
+from .learning_multiframe import decision_minutes
 
 
 class ModelInferenceError(ValueError):
@@ -15,6 +16,7 @@ class ModelInferenceError(ValueError):
 def model_settings(report):
     config = report['config']
     return dict(strategy_version='orb_atr_v2', use_basket=False,strategy_session=report.get('strategySession','cash'),
+        decision_minutes=1 if report.get('featureSet') == 'mtf_1_3_15' else 5,
         stop_points=config['stopPoints'], target_points=math.ceil(config['stopPoints']*config['targetR']),
         slippage_points=config['slippagePoints'], fee_per_side=config['feePerSide'],
         fee_source=config['feeSource'], tax_rate=config['taxRate'],
@@ -23,22 +25,23 @@ def model_settings(report):
 
 def validate_report(report, config=None):
     session = report.get('strategySession', 'cash')
+    feature_set = report.get('featureSet', 'base')
     if not report.get('model'):
         raise ValueError('此研究版本沒有已訓練模型')
     if report.get('source') not in {'fubon-paper', 'fubon-sandbox', 'fubon-live'}:
         raise ValueError('合成資料模型僅供離線驗證，不可接入自動交易')
-    expected_policy, expected_parameters = policy_for(session), PARAMETERS
+    expected_policy, expected_parameters = policy_for(session,feature_set), PARAMETERS
     if report.get('researchMethod') == 'walkforward':
         from .learning_walkforward import model_policy, parameters
-        expected_policy = model_policy(session,report['modelKind'],report['entryThreshold'])
+        expected_policy = model_policy(session,report['modelKind'],report['entryThreshold'],feature_set)
         expected_parameters = parameters(report['modelKind'],PARAMETERS)
-    if (report.get('features') != features_for(session) or report.get('policy') != expected_policy
+    if (report.get('features') != features_for(session,feature_set) or report.get('policy') != expected_policy
         or report.get('parameters') != expected_parameters or report.get('implementation') != implementation_hashes()):
         raise ValueError('模型特徵或程式版本已變更，請用原資料重新訓練')
     if config is not None:
         if config['trade_date'] <= report['diagnostics']['end']:
             raise ValueError('交易日期必須晚於模型全部訓練與評估資料日期')
-        if any(config.get(key, 'cash' if key == 'strategy_session' else None) != value for key, value in model_settings(report).items()):
+        if any(config.get(key, {'strategy_session':'cash','decision_minutes':5}.get(key)) != value for key, value in model_settings(report).items()):
             raise ValueError('模型成本與風控設定不符，請套用所選模型設定')
 
 
@@ -57,6 +60,7 @@ def model_choices(store):
             metricsPassed=report['metricsPassed'], reasons=report['reasons'],
             targetR=report['config']['targetR'],
             modelKind=report.get('modelKind','binary'),threshold=report.get('entryThreshold',.5),
+            featureSet=report.get('featureSet','base'),decisionMinutes=model_settings(report)['decision_minutes'],
             splitCount=report['model'].get('splitCount'),
             dataEnd=report['diagnostics']['end'],strategySession=report.get('strategySession','cash'), settings=model_settings(report), blocked=blocked))
     return result
@@ -68,6 +72,8 @@ class EntryFilter:
         validate_report(report, config)
         self.target_r = report['config']['targetR']
         self.session = report.get('strategySession', 'cash')
+        self.feature_set = report.get('featureSet', 'base')
+        self.decision_minutes = decision_minutes(self.feature_set)
         self.kind, self.threshold = report.get('modelKind','binary'),report.get('entryThreshold',.5)
         text = store.model(ident)
         self.ident, self.hash = ident, hashlib.sha256(text.encode()).hexdigest()
@@ -78,7 +84,7 @@ class EntryFilter:
             if lgb.__version__ != report['packages']['lightgbm']:
                 raise ValueError('LightGBM 套件版本已變更，請重新訓練')
             self.model = lgb.Booster(model_str=text)
-            if self.model.num_feature() != len(features_for(self.session)) or self.model.feature_name() != features_for(self.session):
+            if self.model.num_feature() != len(features_for(self.session,self.feature_set)) or self.model.feature_name() != features_for(self.session,self.feature_set):
                 raise ValueError('模型特徵順序不符，禁止進場')
         except (ImportError, OSError):
             raise ValueError('推論套件尚未就緒，請安裝 learning extra 與 libomp') from None
@@ -89,7 +95,7 @@ class EntryFilter:
         result = dict(runId=self.ident, hash=self.hash, threshold=self.threshold, modelKind=self.kind,
             score=None, accepted=False, features=None)
         try:
-            _, values = signal_features(bars, decision, stocks, self.session)
+            _, values = signal_features(bars, decision, stocks, self.session, self.feature_set)
         except ValueError as error:
             return dict(result, reason=str(error))
         result['features'] = values

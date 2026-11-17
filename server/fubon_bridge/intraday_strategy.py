@@ -54,23 +54,25 @@ def entry_plan(cfg, signal, action, limit, price, realized):
         strategyVersion=cfg.get('strategy_version','orb_v1'),signalTime=signal['time'],signalClose=close,atr=signal.get('atr')),None
 
 
-def opening_signal(bars, decision, basket=None, stocks=None, session='cash'):
+def opening_signal(bars, decision, basket=None, stocks=None, session='cash', decision_minutes=5):
     """Same 09:00 cash-aligned range/cross as the historical harness; exact completed bars."""
     start = int(schedule(session).window(opening_date(decision, session))[0].timestamp())
     index = {b["time"]:b for b in bars if start < b["time"] <= decision}
-    required = {start+i*60 for i in range(1,16)} | {decision-i*60 for i in range(10)}
+    if decision_minutes not in {1,5}:
+        raise ValueError('不支援的訊號判斷頻率')
+    required = {start+i*60 for i in range(1,16)} | {decision-i*60 for i in range(max(10,decision_minutes+1))}
     result = dict(time=decision, side=None, high=None, low=None, score=None, reason="等待完整已收盤分 K")
     if not required.issubset(index):
         return result
     high = max(index[start+i*60]["high"] for i in range(1,16))
     low = min(index[start+i*60]["low"] for i in range(1,16))
-    previous, current = index[decision-300]["close"], index[decision]["close"]
+    previous, current = index[decision-decision_minutes*60]["close"], index[decision]["close"]
     side = None
     if current>high and previous<=high:
         side = "Buy"
     elif current<low and previous>=low:
         side = "Sell"
-    result.update(high=high,low=low,side=side,close=current,atr=cash_atr(bars,decision,session),reason="沒有新的開盤區間穿越" if side is None else "5 分收盤突破開盤區間")
+    result.update(high=high,low=low,side=side,close=current,atr=cash_atr(bars,decision,session),reason="沒有新的開盤區間穿越" if side is None else f"{decision_minutes} 分收盤突破開盤區間")
     if side and basket:
         score = 0
         for member in basket:

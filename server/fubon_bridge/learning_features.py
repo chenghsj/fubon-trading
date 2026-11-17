@@ -6,32 +6,40 @@ from .intraday_strategy import opening_signal, entry_plan, futures_tax
 from .learning_data import STOCKS, quality
 from .mapping import TAIPEI
 from .strategy_session import schedule, opening_date
+from .learning_multiframe import MTF_FEATURES, decision_minutes, multiframe_features
 
 FEATURES = ['return5','return15','atrRatio','rangeRatio','breakoutAtr','bodyRatio','volumeRatio','sessionTime',*[f'stock{c}Return5' for c in STOCKS]]
 POLICY = dict(version='orb-lightgbm-v1',horizonMinutes=20,threshold=.5,lossLimit=1000,atrPeriod=14,atrMultiplier=1.5)
 
 
-def features_for(session='cash'):
-    return FEATURES if session == 'cash' else FEATURES[:8]
+def features_for(session='cash', feature_set='base'):
+    decision_minutes(feature_set)
+    base = FEATURES if session == 'cash' else FEATURES[:8]
+    return base + MTF_FEATURES if feature_set == 'mtf_1_3_15' else base
 
 
-def policy_for(session='cash'):
-    if session == 'cash':
-        return POLICY
+def policy_for(session='cash', feature_set='base'):
+    interval = decision_minutes(feature_set)
     spec = schedule(session)
-    return dict(POLICY, version='futures-orb-lightgbm-v1', strategySession=session,
+    policy = POLICY if session == 'cash' else dict(POLICY, version='futures-orb-lightgbm-v1', strategySession=session,
         startMinute=spec.start_minute, duration=spec.duration, exitMinute=spec.exit_minute, lastEntry=spec.last_entry)
+    if feature_set == 'base':
+        return policy
+    return dict(policy, version='orb-lightgbm-mtf-v1', featureSet=feature_set,
+        timeframes=[1,3,15], decisionMinutes=interval, alignment='session-open',
+        completedOnly=True, trendCandles=3, volumeCandles=5, minPeriods=1)
 
 
-def signal_features(bars, decision, stocks, session='cash'):
+def signal_features(bars, decision, stocks, session='cash', feature_set='base'):
     """Identical closed-bar input for historical training and online inference."""
     spec = schedule(session)
     start = int(spec.window(opening_date(decision, session))[0].timestamp())
     closed = [b for b in bars if start < b['time'] <= decision]
     index = {b['time']: b for b in closed}
     count = (decision-start)//60
-    if decision % 300 or count < 20 or count > spec.last_entry or len(index) != len(closed):
-        raise ValueError('模型需要所選盤別進場時段的唯一已收盤5分訊號')
+    interval = decision_minutes(feature_set)
+    if decision % (interval*60) or count < 20 or count > spec.last_entry or len(index) != len(closed):
+        raise ValueError(f'模型需要所選盤別進場時段的唯一已收盤{interval}分訊號')
     if set(index) != {start+i*60 for i in range(1, count+1)}:
         raise ValueError('模型所需期貨分鐘資料缺漏')
     ordered = [index[start+i*60] for i in range(1, count+1)]
@@ -40,7 +48,7 @@ def signal_features(bars, decision, stocks, session='cash'):
             or min(b[k] for k in ('open','high','low','close')) <= 0 or b['volume'] < 0
             or b['high'] < max(b['open'],b['close']) or b['low'] > min(b['open'],b['close'])):
             raise ValueError('模型期貨分鐘資料無效')
-    signal = opening_signal(ordered, decision, session=session)
+    signal = opening_signal(ordered, decision, session=session, decision_minutes=interval)
     atr = signal.get('atr')
     if not signal['side'] or atr is None or not math.isfinite(atr) or atr <= 0:
         raise ValueError('沒有有效突破或ATR尚未暖身')
@@ -60,14 +68,17 @@ def signal_features(bars, decision, stocks, session='cash'):
         atr/b['close'], (signal['high']-signal['low'])/b['close'], side*(b['close']-boundary)/atr,
         side*(b['close']-b['open'])/max(1,b['high']-b['low']), b['volume']/max(1,average_volume), count/spec.duration]
     x += [side*(stock_index[c][decision]['close']/stock_index[c][decision-300]['close']-1) for c in STOCKS if session == 'cash']
-    if len(x) != len(features_for(session)) or not all(math.isfinite(value) for value in x):
+    if feature_set == 'mtf_1_3_15':
+        x += multiframe_features(ordered, start, decision, side)
+    if len(x) != len(features_for(session,feature_set)) or not all(math.isfinite(value) for value in x):
         raise ValueError('模型特徵包含無效數值')
     return signal, x
 
 
-def build_events(data):
+def build_events(data, feature_set='base'):
     session = data.get('strategySession', 'cash')
     spec = schedule(session)
+    interval = decision_minutes(feature_set)
     q = quality(data)
     eligible = set(q['completeDates'])
     grouped = defaultdict(list)
@@ -82,16 +93,16 @@ def build_events(data):
         for i,b in enumerate(bars):
             start = spec.window(day)[0].timestamp()
             minute = (b['time']-start)//60
-            if not 20 <= minute <= spec.last_entry or b['time']%300:
+            if not 20 <= minute <= spec.last_entry or b['time']%(interval*60):
                 continue
-            signal = opening_signal(bars[:i+1],b['time'],session=session)
+            signal = opening_signal(bars[:i+1],b['time'],session=session,decision_minutes=interval)
             if not signal['side']:
                 continue
             if session == 'cash' and any(b['time'] not in stocks[c] or b['time']-300 not in stocks[c] for c in STOCKS):
                 missing += 1; continue
             try:
                 signal, x = signal_features(bars[:i+1], b['time'],
-                    {c:[stocks[c][t] for t in (b['time']-300,b['time'])] for c in STOCKS} if session == 'cash' else {}, session)
+                    {c:[stocks[c][t] for t in (b['time']-300,b['time'])] for c in STOCKS} if session == 'cash' else {}, session, feature_set)
             except ValueError:
                 continue
             events.append(dict(day=day,time=b['time'],side=signal['side'],signal=signal,x=x,

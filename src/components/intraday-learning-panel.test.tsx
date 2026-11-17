@@ -59,6 +59,7 @@ describe('learning panel dataset identity follows the research session', () => {
         await open();
         expect(sessionInput().value).toBe('regular');
         expect(methodInput().value).toBe('walkforward');
+        expect((screen.getByLabelText('特徵與判斷頻率') as HTMLSelectElement).value).toBe('mtf_1_3_15');
         expect(datasetValues()).toEqual(['', IDS.regular]);
         expect(trainButton().disabled).toBe(false);
         expect(fixture.post).not.toHaveBeenCalled();
@@ -93,7 +94,7 @@ describe('learning panel dataset identity follows the research session', () => {
         await waitFor(() => expect(datasetInput().value).toBe(IDS[session]));
         fireEvent.click(trainButton());
         await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/research/learning/train', {
-            dataset_id: IDS[session], config: CONFIG, method: 'walkforward',
+            dataset_id: IDS[session], config: CONFIG, method: 'walkforward', feature_set: 'mtf_1_3_15',
         }));
         expect(fixture.post).toHaveBeenCalledTimes(1);
     });
@@ -105,7 +106,16 @@ describe('learning panel dataset identity follows the research session', () => {
         fireEvent.change(methodInput(), { target: { value: 'fixed' } });
         fireEvent.click(trainButton());
         await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/research/learning/train', {
-            dataset_id: IDS.afterhours, config: CONFIG, method: 'fixed',
+            dataset_id: IDS.afterhours, config: CONFIG, method: 'fixed', feature_set: 'mtf_1_3_15',
+        }));
+    });
+
+    it('can explicitly train the original five-minute comparison version', async () => {
+        await open();
+        fireEvent.change(screen.getByLabelText('特徵與判斷頻率'), { target: { value: 'base' } });
+        fireEvent.click(trainButton());
+        await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/research/learning/train', {
+            dataset_id: IDS.regular, config: CONFIG, method: 'walkforward', feature_set: 'base',
         }));
     });
 });

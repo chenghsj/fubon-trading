@@ -14,10 +14,10 @@ def parameters(kind, base):
     return dict(base, objective='regression_l2' if kind == 'net_return' else 'binary')
 
 
-def model_policy(session, kind, threshold):
+def model_policy(session, kind, threshold, feature_set='base'):
     if (kind, threshold) not in CANDIDATES:
         raise ValueError('研究候選或進場門檻不在固定比較規格內')
-    return dict(policy_for(session), threshold=threshold, modelKind=kind, selectionProtocol=PROTOCOL)
+    return dict(policy_for(session,feature_set), threshold=threshold, modelKind=kind, selectionProtocol=PROTOCOL)
 
 
 def train_walkforward(store, request, progress=lambda *_: None):
@@ -27,25 +27,26 @@ def train_walkforward(store, request, progress=lambda *_: None):
 
     data = store.dataset(request.dataset_id)
     session = data.get('strategySession', 'cash')
-    features = features_for(session)
+    feature_set = request.feature_set
+    features = features_for(session,feature_set)
     config = request.config.model_dump(mode='json') | dict(taxRounding='per-contract-yuan')
     implementation = implementation_hashes()
     fingerprint = dict(dataset=request.dataset_id, implementation=implementation, config=config,
-        features=features, protocol=PROTOCOL, candidates=CANDIDATES, parameters=PARAMETERS,
+        features=features, featureSet=feature_set, policy=policy_for(session,feature_set), protocol=PROTOCOL, candidates=CANDIDATES, parameters=PARAMETERS,
         rounds=50, lightgbm=lgb.__version__, numpy=np.__version__)
     try:
         return store.run(digest(fingerprint))
     except ValueError:
         pass
     progress('建立整盤事件、成本後收益及日期切分', .05)
-    raw, diagnostics = build_events(data)
+    raw, diagnostics = build_events(data,feature_set)
     events = []
     for event in raw:
         result = outcome(event, config)
         if result is not None:
             events.append(event | dict(y=result['label'], net=result['net'], labelEnd=result['exitTime']))
     parts, split = chronological_split(events, diagnostics['completeDates'], session)
-    base_report = dict(strategySession=session, researchMethod='walkforward', implementation=implementation,
+    base_report = dict(strategySession=session, featureSet=feature_set, researchMethod='walkforward', implementation=implementation,
         features=features, config=config, source=data['source'], diagnostics=dict(diagnostics,
             labeledEvents=len(events), riskRejectedEvents=len(raw)-len(events)), split=split,
         counts={name: len(p) for name,p in zip(['train','validation','test'], parts)},
@@ -55,7 +56,7 @@ def train_walkforward(store, request, progress=lambda *_: None):
     dates = diagnostics['completeDates']
     cuts = [int(len(dates)*fraction) for fraction in (.4, .5333333333, .6666666667, .8)]
     if len(parts[0]) < 20 or len({e['y'] for e in parts[0]}) < 2 or len(set(cuts)) < 4:
-        base_report.update(policy=policy_for(session), parameters=PARAMETERS, reasons=['滾動研究的訓練事件或完整盤不足'])
+        base_report.update(policy=policy_for(session,feature_set), parameters=PARAMETERS, reasons=['滾動研究的訓練事件或完整盤不足'])
         return store.save_run(request.dataset_id, fingerprint, base_report)
 
     def fit(rows, kind):
@@ -111,7 +112,7 @@ def train_walkforward(store, request, progress=lambda *_: None):
     progress('固定候選並僅用前60%資料建立最終模型', .8)
     model = fit(parts[0],kind)
     text = model.model_to_string()
-    report = base_report | dict(policy=model_policy(session,kind,threshold),parameters=parameters(kind,PARAMETERS),
+    report = base_report | dict(policy=model_policy(session,kind,threshold,feature_set),parameters=parameters(kind,PARAMETERS),
         modelKind=kind,entryThreshold=threshold,status='diagnostic',
         selection=dict(protocol=PROTOCOL, folds=folds, candidates=comparisons,
             selected=dict(kind=kind,threshold=threshold),passed=bool(eligible),

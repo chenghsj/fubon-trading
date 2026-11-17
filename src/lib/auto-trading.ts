@@ -7,6 +7,7 @@ export interface AutoConfig {
     max_entries: number; loss_limit: number; fee_per_side: number; tax_rate: number;
     strategy_version?: 'orb_v1' | 'orb_atr_v2'; fee_source?: 'assumed' | 'statement';
     model_run_id?: string | null;
+    decision_minutes?: 1 | 5;
     strategy_session?: StrategySession;
     use_basket: boolean; basket: { code: string; weight: number }[];
 }

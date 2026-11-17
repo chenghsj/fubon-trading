@@ -43,10 +43,13 @@ class AutoConfig(BaseModel):
     strategy_version: Literal['orb_v1','orb_atr_v2'] = 'orb_v1'
     model_run_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
     strategy_session: StrategySession = 'cash'
+    decision_minutes: Literal[1,5] = 5
     basket: list[BasketMember] = Field(default_factory=lambda:[BasketMember(code="2330",weight=.4),BasketMember(code="2454",weight=.04),BasketMember(code="2317",weight=.02),BasketMember(code="2881",weight=.01)], min_length=1, max_length=12)
 
     @model_validator(mode="after")
     def valid_basket(self):
+        if self.decision_minutes != 5 and not self.model_run_id:
+            raise ValueError('1分鐘判斷須使用相符的多週期模型')
         if self.strategy_session != 'cash' and self.use_basket:
             raise ValueError('完整期貨日盤與夜盤不使用同步現貨籃子')
         if self.model_run_id and (self.strategy_version != 'orb_atr_v2' or self.use_basket):
@@ -156,7 +159,7 @@ class SandboxAutoTrader:
                 contract = self.gateway.prepare(cfg)
                 self.state = previous or empty_state()
                 self.state.update(id=self.state["id"] or uuid.uuid4().hex,config=cfg,contract=contract,
-                    status="running",reason="等待啟動後新完成的 5 分訊號",lastDecision=int(at.timestamp())//300*300)
+                    status="running",reason=f"等待啟動後新完成的 {cfg['decision_minutes']} 分訊號",lastDecision=int(at.timestamp())//(cfg['decision_minutes']*60)*(cfg['decision_minutes']*60))
                 self.owner, self.lease_until = header,self.monotonic()+15
                 self.last_heartbeat_received = self.monotonic()
                 self.entries_blocked.clear()
@@ -431,7 +434,7 @@ class SandboxAutoTrader:
                 model = (self.state['lastSignal'] or {}).get('model') or {}
                 if (self.entry_filter is None or model.get('runId') != cfg['model_run_id']
                     or model.get('hash') != self.entry_filter.hash or model.get('accepted') is not True
-                    or self.state['lastSignal']['time'] != int(at.timestamp())//300*300):
+                    or self.state['lastSignal']['time'] != int(at.timestamp())//(cfg['decision_minutes']*60)*(cfg['decision_minutes']*60)):
                     raise ValueError('缺少本次已確認模型訊號，禁止進場')
             # Keep the trained R before rounding the ATR-adjusted target. The UI's
             # integer target_points only describes the nominal minimum distance.
@@ -560,7 +563,8 @@ class SandboxAutoTrader:
         if self.state["entryCount"]>=cfg["max_entries"]:
             self.state.update(status="paused",reason="已達本日進場委託上限；重新啟動不會重設額度")
             return
-        decision = int(at.timestamp())//300*300
+        interval = cfg.get('decision_minutes',5)*60
+        decision = int(at.timestamp())//interval*interval
         if not entry_window(cfg,at) or decision<=self.state["lastDecision"] or at.timestamp()-decision>90:
             return
         self.state["lastDecision"] = decision
@@ -577,7 +581,7 @@ class SandboxAutoTrader:
                 values = self.gateway.bars(code,cfg["trade_date"],"STK")
                 stocks[code] = [b for b in values if b["time"]<=decision]
                 self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"STK",code,"","regular"),stocks[code])
-        signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks, cfg['strategy_session'])
+        signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks, cfg['strategy_session'],cfg.get('decision_minutes',5))
         if signal['side'] and cfg.get('model_run_id'):
             if self.entry_filter is None or self.entry_filter.ident != cfg['model_run_id']:
                 raise ValueError('所選模型尚未載入，禁止進場')
