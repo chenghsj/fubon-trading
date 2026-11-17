@@ -59,13 +59,13 @@ export function MaLegend({ items, maxWidth, onSettings, onToggle, onRemove, onDu
                 const dimmed = item.hidden || item.offTf;
                 const showValue = !dimmed && item.showValues;
                 const label = `MA(${item.period})${item.hidden ? ' 已隱藏' : item.offTf ? ' 此時框停用' : showValue ? ` ${item.text} ${directionLabel(item.direction)}` : ''}`;
-                return <button key={item.id} type="button" className={styles.item} style={{ color: item.color }}
+                return <Button key={item.id} size="compact" variant="ghost" className={styles.item} style={{ color: item.color }}
                     data-ma-period={item.period} data-dimmed={!!dimmed} aria-label={label} title={`${label}；點擊設定`}
                     onClick={() => onSettings(item.id)}>
                     <span>({item.period})</span>
                     {showValue && <><span>{item.text}</span>{item.direction !== null && <span className={styles.direction} data-direction={item.direction}
                         data-ma-direction={item.direction} aria-hidden="true">{item.direction === 1 ? '▲' : item.direction === -1 ? '▼' : '→'}</span>}</>}
-                </button>;
+                </Button>;
             })}
         </div>
     </div>;

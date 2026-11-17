@@ -7,6 +7,7 @@ import { gridDensity } from '../lib/workspace-grid';
 import { gridColumnStep, gridRowStep, rulerHandleGroups, rulerPixel, rulerSteps, RULER_PRECISIONS, RULER_PRECISION_LABELS, type RulerAxis, type RulerPrecision } from '../lib/workspace-ruler';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { RadioGroup } from './ui/radio-group';
+import { Button } from './ui/button';
 import * as styles from './workspace-rulers.css';
 
 interface WorkspaceRulersProps {
@@ -161,8 +162,8 @@ export function WorkspaceRulers(props: WorkspaceRulersProps) {
     return <div ref={surface} className={styles.surface} data-ruler-dragging={props.active?.axis}>
         <Popover>
             <PopoverTrigger asChild>
-                <button type="button" className={styles.corner} aria-label="尺標精細度" title={`尺標精細度：${RULER_PRECISION_LABELS[props.precision]}`}
-                    disabled={!props.enabled || !!props.active}><SlidersHorizontal size={14} aria-hidden="true" /></button>
+                <Button size="compact-icon" variant="ghost" className={styles.corner} aria-label="尺標精細度" title={`尺標精細度：${RULER_PRECISION_LABELS[props.precision]}`}
+                    disabled={!props.enabled || !!props.active}><SlidersHorizontal size={14} aria-hidden="true" /></Button>
             </PopoverTrigger>
             <PopoverContent align="start" side="bottom" aria-label="尺標精細度設定" className={styles.precisionPanel}>
                 <p className={styles.precisionTitle}>拖曳精細度</p>
