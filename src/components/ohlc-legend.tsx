@@ -1,7 +1,7 @@
 // src/components/ohlc-legend.tsx — K 棒讀值列（開高低收，issue #240）
 //
-// 圖表左上角一列，TradingView 式：游標所在 K 棒的開高低收、漲跌（幅）、
-// 量；游標離開讀最新一根。自己訂閱 OhlcStore — 讀值變動不必重繪整張
+// 圖區上方的獨立資訊列：游標所在 K 棒的開高低收、漲跌（幅）。
+// 游標離開讀最新一根。成交量由獨立副圖指標顯示。自己訂閱 OhlcStore — 讀值變動不必重繪整張
 // 圖表元件。整列 pointer-events: none，不擋畫圖工具、點價與拖曳。
 
 import { useSyncExternalStore } from 'react';
@@ -10,8 +10,8 @@ import { useTickBandsVersion } from '../lib/tick-bands';
 import type { Candle } from '../lib/types/market';
 import * as styles from './candle-chart.css';
 
-// 讀值列右側讓開價格軸的寬度（px）
-const OHLC_PRICE_AXIS_GUTTER = 80;
+// The readout is above the canvas; leave only its horizontal padding.
+const OHLC_HEADER_GUTTER = 16;
 
 export function OhlcLegend({
     store,
@@ -47,7 +47,7 @@ export function OhlcLegend({
             data-ohlc='row'
             data-hovering={r.hovering}
             className={styles.ohlcRow}
-            style={width > OHLC_PRICE_AXIS_GUTTER ? { maxWidth: width - OHLC_PRICE_AXIS_GUTTER } : undefined}
+            style={width > OHLC_HEADER_GUTTER ? { maxWidth: width - OHLC_HEADER_GUTTER } : undefined}
         >
             {layout.open && item('open', '開')}
             {item('high', '高')}
@@ -62,12 +62,6 @@ export function OhlcLegend({
                     {layout.pct && r.changePct !== null
                         ? `${r.change} (${r.changePct})`
                         : r.change}
-                </span>
-            )}
-            {layout.volume && (
-                <span data-ohlc='volume' className={styles.ohlcItem}>
-                    <span className={styles.ohlcLabel}>量</span>
-                    <span>{r.volume}</span>
                 </span>
             )}
         </div>

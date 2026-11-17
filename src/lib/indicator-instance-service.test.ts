@@ -4,7 +4,9 @@ import { customType, deleteCustom, saveCustom } from './custom-indicators';
 import { IndicatorInstanceService, initializeIndicatorPanels } from './indicator-instance-service';
 import { loadWorkspace, saveWorkspace, type Workspace } from './workspace';
 
-function setup() {
+function setup(useGlobalDefaults = false) {
+    // Service mutation tests use an explicitly empty current-version default.
+    if (!useGlobalDefaults) localStorage.setItem('sj-pro-indicators-v3', '[]');
     let workspace = initializeIndicatorPanels({ blocks: [
         { id: 'a', type: 'chart', pin: null }, { id: 'b', type: 'chart', pin: null },
         { id: 'watch', type: 'watchlist', pin: null },
@@ -42,9 +44,10 @@ describe('IndicatorInstanceService', () => {
     it('migrates global defaults once into independent persistent panel state', () => {
         const defaults = [{ id: 'legacy', type: 'sma', params: { period: 5 }, colors: {}, hidden: true }];
         localStorage.setItem('sj-pro-indicators-v2', JSON.stringify(defaults));
-        const { service, getWorkspace } = setup();
-        expect(service.snapshot('a').instances).toEqual(defaults);
-        expect(service.snapshot('b').instances).toEqual(defaults);
+        const { service, getWorkspace } = setup(true);
+        expect(service.snapshot('a').instances[0]).toEqual(defaults[0]);
+        expect(service.snapshot('a').instances.map(instance => instance.type)).toEqual(['sma', 'volume']);
+        expect(service.snapshot('b').instances).toEqual(service.snapshot('a').instances);
         expect(getWorkspace().blocks[2]!.indicatorState).toBeUndefined();
         service.update('a', 'legacy', { params: { period: 7 }, hidden: false });
         expect(service.snapshot('b').instances[0]).toEqual(defaults[0]);
@@ -57,13 +60,13 @@ describe('IndicatorInstanceService', () => {
 
     it('preserves already initialized empty panels during migration', () => {
         localStorage.setItem('sj-pro-indicators-v2', JSON.stringify([{ id: 'legacy', type: 'sma', params: { period: 5 }, colors: {} }]));
-        const state = { revision: 'existing', instances: [] };
+        const state = { schemaVersion: 2 as const, revision: 'existing', instances: [] };
         const ws = initializeIndicatorPanels({ blocks: [
             { id: 'empty', type: 'chart', pin: null, indicatorState: state },
             { id: 'legacy', type: 'chart', pin: null },
         ], layout: [] });
         expect(ws.blocks[0]!.indicatorState).toBe(state);
-        expect(ws.blocks[1]!.indicatorState!.instances).toHaveLength(1);
+        expect(ws.blocks[1]!.indicatorState!.instances.map(instance => instance.type)).toEqual(['sma', 'volume']);
     });
 
     it('updates, reorders, hides and removes one instance, with revisions and notifications', () => {

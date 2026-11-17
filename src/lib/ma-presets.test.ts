@@ -43,12 +43,14 @@ it('persists a group atomically on one chart and preserves other charts and glob
     let workspace = initializeIndicatorPanels({ blocks: [
         { id: 'a', type: 'chart', pin: null }, { id: 'b', type: 'chart', pin: null },
     ], layout: [] });
+    const globalDefaults = localStorage.getItem('sj-pro-indicators-v3');
     const service = new IndicatorInstanceService({ getWorkspace: () => workspace, updateWorkspace: next => { workspace = next; } });
     const state = service.snapshot('a');
     service.replace('a', addMAPresets(state.instances, MA_PRESET_GROUP), state.revision);
-    expect(service.snapshot('a').instances.map(i => i.params.period)).toEqual([5, 10, 20, 60]);
-    expect(service.snapshot('b').instances).toEqual([]);
+    expect(service.snapshot('a').instances.filter(instance => instance.type === 'sma').map(i => i.params.period)).toEqual([5, 10, 20, 60]);
+    expect(service.snapshot('b').instances).toMatchObject([{ type: 'volume' }]);
     expect(localStorage.getItem('sj-pro-indicators-v2')).toBeNull();
+    expect(localStorage.getItem('sj-pro-indicators-v3')).toBe(globalDefaults);
     const full = Array.from({ length: 99 }, (_, index) => ({ id: `ma-${index}`, type: 'sma', params: { period: 1 }, colors: {} }));
     service.replace('b', full, service.snapshot('b').revision);
     const before = structuredClone(service.snapshot('b'));

@@ -53,6 +53,7 @@ import type { MAHistoryStatus } from '../lib/ma-history';
 import { MAGroupEditor } from './ma-group-editor';
 import { MAHistoryNotice } from './ma-history-notice';
 import { IndicatorColorPalette } from './indicator-color-picker';
+import { IndicatorManager, type IndicatorManagement } from './indicator-manager';
 export { COLOR_GRID } from './indicator-color-picker';
 import * as styles from './indicator-dialog.css';
 
@@ -89,6 +90,7 @@ export function IndicatorDialog({
     onRetryMAHistory,
     onClose,
     onSaveDefaults,
+    management,
 }: {
     instances: IndicatorInstance[];
     onAdd: (type: string) => void;
@@ -98,7 +100,9 @@ export function IndicatorDialog({
     onRetryMAHistory?: () => void;
     onClose: () => void;
     onSaveDefaults?: () => void;
+    management?: IndicatorManagement;
 }) {
+    const [view, setView] = useState(management && instances.length ? 'current' : 'add');
     const [query, setQuery] = useState('');
     const [category, setCategory] = useState<Category>('all');
     const [favs, setFavs] = useState<Set<string>>(loadFavorites);
@@ -123,8 +127,8 @@ export function IndicatorDialog({
     useEffect(() => subscribeCustoms(() => setCustomVer((v) => v + 1)), []);
 
     useEffect(() => {
-        inputRef.current?.focus();
-    }, []);
+        if (view === 'add') inputRef.current?.focus();
+    }, [view]);
 
     const toggleFav = (type: string) => {
         setFavs((prev) => {
@@ -181,10 +185,8 @@ export function IndicatorDialog({
         const added = counts.get(d.type) ?? 0;
         return (
             <Fragment key={d.type}>
-            <Button size="compact" variant="ghost"
-                className={styles.row}
-                onClick={() => onAdd(d.type)}
-            >
+            <div className={styles.row}>
+            <Button size="compact" variant="ghost" className={styles.catalogAdd} onClick={() => onAdd(d.type)}>
                 <span
                     className={styles.rowSwatch}
                     style={{ background: d.outputs[0]!.color }}
@@ -201,56 +203,37 @@ export function IndicatorDialog({
                 {added > 0 && (
                     <span className={styles.rowAdded}>已加入 {added}</span>
                 )}
+            </Button>
                 {isCustom(d) && (
-                    <span
-                        role='button'
-                        tabIndex={0}
+                    <Button size="compact-icon" variant="ghost"
                         className={styles.starBtn.normal}
                         title='編輯自訂指標'
-                        onClick={(e) => {
-                            e.stopPropagation();
+                        aria-label={`編輯 ${d.label}`}
+                        onClick={() => {
                             const c = getCustom(
                                 d.type.slice(CUSTOM_PREFIX.length),
                             );
                             if (c) setEditorFor({ existing: c });
                         }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                e.stopPropagation();
-                                const c = getCustom(
-                                    d.type.slice(CUSTOM_PREFIX.length),
-                                );
-                                if (c) setEditorFor({ existing: c });
-                            }
-                        }}
                     >
                         <Pencil size={13} />
-                    </span>
+                    </Button>
                 )}
-                <span
-                    role='button'
-                    tabIndex={0}
+                <Button size="compact-icon" variant="ghost"
                     className={
                         styles.starBtn[favs.has(d.type) ? 'active' : 'normal']
                     }
-                    title='加入我的最愛'
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFav(d.type);
-                    }}
-                    onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.stopPropagation();
-                            toggleFav(d.type);
-                        }
-                    }}
+                    aria-label={`${favs.has(d.type) ? '取消收藏' : '收藏'} ${d.label}`}
+                    aria-pressed={favs.has(d.type)}
+                    title={favs.has(d.type) ? '取消收藏' : '加入我的最愛'}
+                    onClick={() => toggleFav(d.type)}
                 >
                     <Star
                         size={13}
                         fill={favs.has(d.type) ? 'currentColor' : 'none'}
                     />
-                </span>
-            </Button>
+                </Button>
+            </div>
             {d.type === 'sma' && (
                 <div className={styles.maPresets} role="group" aria-label="MA 預設週期">
                     <div className={styles.maPresetHint}>預設週期，點選直接加入</div>
@@ -308,10 +291,20 @@ export function IndicatorDialog({
                         <X size={16} />
                     </Button>
                 </div>
+                <Tabs value={view} onValueChange={setView} className={styles.pickerTabs}>
+                    <TabsList className={styles.pickerTabList} aria-label="指標操作">
+                        {management && <TabsTrigger value="current">已加入（{instances.length}）</TabsTrigger>}
+                        <TabsTrigger value="add">新增指標</TabsTrigger>
+                    </TabsList>
+                    {management && <TabsContent value="current" className={styles.pickerContent}>
+                        <IndicatorManager instances={instances} management={management} onAdd={() => setView('add')} />
+                    </TabsContent>}
+                    <TabsContent value="add" className={styles.pickerContent}>
                 <div className={styles.searchWrap}>
                     <Search size={14} />
                     <Input
                         ref={inputRef}
+                        aria-label="搜尋指標"
                         className={styles.searchInput}
                         placeholder='搜尋指標（名稱、縮寫、中英文都可以）'
                         value={query}
@@ -320,6 +313,7 @@ export function IndicatorDialog({
                     {query && (
                         <Button size="compact" variant="ghost"
                             className={styles.closeBtn}
+                            aria-label="清除搜尋"
                             onClick={() => setQuery('')}
                         >
                             <X size={13} />
@@ -393,9 +387,11 @@ export function IndicatorDialog({
                         )}
                     </div>
                 </div>
+                    </TabsContent>
+                </Tabs>
                 <div className={styles.footer}>
-                    <span className={styles.footerHint}>一般指標開啟設定後加入；MA 預設可直接加入。</span>
-                    <span>已啟用 {instances.length} 個</span>
+                    {view === 'add' && <span className={styles.footerHint}>點選指標設定後加入；MA 預設可直接加入。</span>}
+                    <span>已加入 {instances.length} 個{instances.some(instance => instance.hidden) ? `，隱藏 ${instances.filter(instance => instance.hidden).length} 個` : ''}</span>
                     {onSaveDefaults && <Button size="compact" variant="ghost" type='button' onClick={onSaveDefaults}>存為新圖／回測預設</Button>}
                 </div>
 
@@ -869,7 +865,7 @@ export function IndicatorSettingsModal({
                         >
                             取消
                         </Button>
-                        <Button size="compact" variant="outline" className={styles.okBtn} onClick={onCommit}>
+                        <Button size="compact" variant="default" className={styles.okBtn} onClick={onCommit}>
                             確定
                         </Button>
                     </div>

@@ -6,6 +6,7 @@ import { IndicatorDialog } from './indicator-dialog';
 import { addMAPresets, MA_PRESET_GROUP } from '../lib/ma-presets';
 import { listMAGroups } from '../lib/ma-groups';
 import { COLOR_GRID } from './indicator-color-picker';
+import { newInstance } from '../lib/indicator-defs';
 
 beforeEach(() => localStorage.clear());
 afterEach(() => cleanup());
@@ -131,4 +132,57 @@ it('supports color arrow keys and closes only the palette on Escape, returning f
     await waitFor(() => expect(document.activeElement).toBe(trigger));
     await user.keyboard('{Escape}');
     expect(screen.getByRole('dialog', { name: '技術指標' })).toBeDefined();
+});
+
+it('opens an actionable current list, including hidden and timeframe-disabled indicators', async () => {
+    const user = userEvent.setup();
+    const ma = newInstance('sma'), volume = newInstance('volume'), macd = newInstance('macd');
+    volume.hidden = true;
+    macd.visibleTf = [5];
+    const management = { timeframe: 1, onSettings: vi.fn(), onToggle: vi.fn(), onReorder: vi.fn(), onRemove: vi.fn(), onDuplicate: vi.fn() };
+    const callbacks = { onAdd: vi.fn(), onAddMAPreset: vi.fn(), onAddMAGroup: vi.fn(), onClose: vi.fn() };
+    const view = render(<IndicatorDialog instances={[ma, volume, macd]} management={management} {...callbacks} />);
+    expect(screen.getByRole('tab', { name: '已加入（3）' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByText('已隱藏')).toBeDefined();
+    expect(screen.getByText('此時框停用')).toBeDefined();
+    expect(screen.queryByRole('button', { name: /上移|下移/ })).toBeNull();
+    await user.click(screen.getByRole('button', { name: '成交量 顯示' }));
+    expect(management.onToggle).toHaveBeenCalledWith(volume.id);
+    screen.getByRole('button', { name: '成交量 拖曳排序' }).focus();
+    fireEvent.keyDown(document.activeElement!, { key: ' ', repeat: true });
+    expect(screen.getByRole('button', { name: '成交量 拖曳排序' }).getAttribute('aria-pressed')).toBe('false');
+    await user.keyboard(' {ArrowDown}{Enter}');
+    expect(management.onReorder).toHaveBeenCalledWith(volume.id, [macd.id, volume.id]);
+    await user.keyboard(' {ArrowDown}{Escape}');
+    expect(management.onReorder).toHaveBeenCalledTimes(1);
+    expect(callbacks.onClose).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: '成交量 設定' }));
+    expect(management.onSettings).toHaveBeenCalledWith(volume.id);
+    await user.click(screen.getByRole('button', { name: '成交量 更多操作' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(callbacks.onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: '技術指標' })).toBeDefined();
+    await user.click(screen.getByRole('button', { name: '成交量 更多操作' }));
+    await user.click(screen.getByRole('menuitem', { name: '移除' }));
+    expect(management.onRemove).toHaveBeenCalledWith(volume.id);
+    view.rerender(<IndicatorDialog instances={[]} management={management} {...callbacks} />);
+    expect(screen.getByText('這張圖還沒有指標')).toBeDefined();
+    await user.click(screen.getByRole('button', { name: '新增指標' }));
+    expect(screen.getByRole('tab', { name: '新增指標' }).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('textbox', { name: '搜尋指標' })).toBeDefined();
+});
+
+it('lets the keyboard favorite a catalog item without accidentally adding it', async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    render(<IndicatorDialog instances={[]} onAdd={onAdd} onAddMAPreset={vi.fn()} onAddMAGroup={vi.fn()} onClose={vi.fn()} />);
+    const favorite = screen.getByRole('button', { name: '收藏 RSI 相對強弱' });
+    favorite.focus();
+    await user.keyboard(' ');
+    expect(onAdd).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: '取消收藏 RSI 相對強弱' }).getAttribute('aria-pressed')).toBe('true');
+    screen.getByRole('button', { name: /^RSI 相對強弱/ }).focus();
+    await user.keyboard('{Enter}');
+    expect(onAdd).toHaveBeenCalledWith('rsi');
 });

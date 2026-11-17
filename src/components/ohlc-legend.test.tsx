@@ -32,14 +32,14 @@ const text = (n: ReactTestInstance | undefined): string =>
     n ? n.children.map((c) => (typeof c === 'string' ? c : text(c))).join('') : '';
 
 describe('OhlcLegend', () => {
-    it('預設（游標不在圖上）顯示最新一根的開高低收、漲跌、量', () => {
+    it('預設顯示最新一根的開高低收與漲跌，成交量由副圖顯示', () => {
         const { r } = setup();
         expect(text(field(r, 'open'))).toBe('開49,180');
         expect(text(field(r, 'high'))).toBe('高49,190');
         expect(text(field(r, 'low'))).toBe('低49,020');
         expect(text(field(r, 'close'))).toBe('收49,030');
         expect(text(field(r, 'change'))).toBe('-150 (-0.31%)');
-        expect(text(field(r, 'volume'))).toBe('量900');
+        expect(field(r, 'volume')).toBeUndefined();
         // 收 < 開 → 跌色；漲跌依前一根收盤 → 跌色
         expect(field(r, 'close')!.findByProps({ 'data-ohlc-value': true }).props.style.color).toBe(colors.down);
         expect(field(r, 'change')!.props.style.color).toBe(colors.down);

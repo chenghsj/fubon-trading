@@ -36,8 +36,10 @@ export function upscaleLegacyWorkspace(w: Workspace): Workspace {
 export function toRenderGeom(
     l: { x: number; w: number },
     density: number,
+    exact = false,
 ): { x: number; w: number } {
     const f = density / GRID_LEGACY_SCALE;
+    if (exact) return { x: l.x * f, w: l.w * f };
     const x = Math.round(l.x * f);
     const right = Math.round((l.x + l.w) * f);
     return { x, w: Math.max(1, right - x) };
@@ -176,6 +178,8 @@ export function isChartInterval(v: unknown): v is ChartInterval {
 }
 
 export interface Workspace {
+    /** Preserve canonical column units and quarter-row ruler edits on every viewport. */
+    preciseGrid?: boolean;
     blocks: Block[];
     layout: LayoutItem[];
     // 連動群組各自的代碼（跟版面一起存）

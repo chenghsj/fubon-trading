@@ -54,6 +54,17 @@ globalStyle(`${gridWrap} .react-grid-item.react-draggable-dragging, ${gridWrap} 
     boxShadow: '0 12px 32px rgba(0, 0, 0, 0.55)',
 });
 
+// RGL's raw pointer preview bypasses its corrected layout dimensions.
+globalStyle(`${gridWrap} .react-grid-item.resizing[data-workspace-resizing="true"]`, {
+    width: 'var(--workspace-resize-width) !important',
+    height: 'var(--workspace-resize-height) !important',
+});
+
+// Match the precise collision/drop position instead of RGL's raw pixel preview.
+globalStyle(`${gridWrap} .react-grid-item.react-draggable-dragging[data-workspace-dragging="true"]`, {
+    transform: 'translate(var(--workspace-drag-left), var(--workspace-drag-top)) !important',
+});
+
 // Show resize affordances when the panel is hovered.
 globalStyle('.react-grid-item > .react-resizable-handle', {
     opacity: 0,

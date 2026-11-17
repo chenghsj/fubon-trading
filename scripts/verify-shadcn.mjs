@@ -8,6 +8,13 @@ import path from 'node:path';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
+import { workspaceRulerChecks } from './verify-workspace-rulers.mjs';
+import { indicatorSettingsChecks } from './verify-indicator-settings.mjs';
+import { maLegendChecks } from './verify-ma-legend.mjs';
+import { workspaceResizeChecks } from './verify-workspace-resize.mjs';
+import { workspaceScrollChecks } from './verify-workspace-scroll.mjs';
+import { workspaceDragAlignmentChecks } from './verify-workspace-drag-alignment.mjs';
+import { chartPaneChecks } from './verify-chart-panes.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const uiPort = Number(process.env.SHADCN_UI_PORT || 5186);
@@ -665,12 +672,22 @@ try {
     await cdp.send('WebAuthn.enable');
     await cdp.send('WebAuthn.addVirtualAuthenticator', { options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
     await page.goto(`${origin}/#fubon-launch=${token}`);
-    await expect(page.getByRole('button', { name: '建立 Passkey 並解鎖' })).toBeVisible();
+    // A cold Vite transform can outlast the default assertion timeout.
+    await expect(page.getByRole('button', { name: '建立 Passkey 並解鎖' })).toBeVisible({ timeout: 30000 });
     expect(await page.locator('[data-slot="card-header"][data-layout="default"]').evaluate(el => getComputedStyle(el).flexDirection)).toBe('column');
     await page.screenshot({ animations: 'disabled', path: path.join(artifacts, 'passkey.png') });
     await page.getByRole('button', { name: '建立 Passkey 並解鎖' }).click();
     await expect(page.getByRole('status').filter({ hasText: '展示模式' })).toBeVisible({ timeout: 30000 });
     await expect(page.getByText('LIVE', { exact: true })).toBeVisible();
+    await workspaceRulerChecks(page, artifacts);
+    await workspaceResizeChecks(browser, page, origin, artifacts);
+    await workspaceScrollChecks(browser, page, origin, artifacts);
+    await workspaceDragAlignmentChecks(browser, page, origin, artifacts);
+    await chartPaneChecks(browser, page, origin, artifacts);
+    const indicatorContext = await browser.newContext({ viewport: { width: 1100, height: 850 } });
+    try { await indicatorSettingsChecks(await indicatorContext.newPage(), origin, artifacts); }
+    finally { await indicatorContext.close(); }
+    await maLegendChecks(browser, page, origin, artifacts);
     await selectPrimitiveChecks(context);
     const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
     await selectPrimitiveChecks(touch, true); await touch.close();
@@ -823,8 +840,8 @@ try {
     await library.getByPlaceholder('搜尋面板（名稱或用途）').fill('閃電下單');
     await library.getByRole('button', { name: /閃電下單/ }).first().click();
     await expect(library).toBeHidden();
-    await page.locator('button[aria-haspopup="menu"]').first().click();
-    const linkMenu = page.getByRole('menu');
+    await page.getByTitle('跟隨自選清單選擇', { exact: true }).first().click();
+    const linkMenu = page.getByRole('menu').filter({ has: page.getByRole('menuitemradio', { name: /群組 A/ }) });
     await expect(linkMenu).toBeVisible();
     await linkMenu.getByRole('menuitemradio', { name: /群組 A/ }).click();
     await expect(linkMenu).toBeHidden();

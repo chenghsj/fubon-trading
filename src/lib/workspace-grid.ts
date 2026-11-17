@@ -8,7 +8,7 @@ export function gridDensity(width: number): number {
     return width < 1800 ? 1 : width < 2800 ? 2 : width < 3900 ? 3 : 4;
 }
 
-export function desktopGridLayout(workspace: Workspace, width: number, density: number): Layout {
+export function desktopGridLayout(workspace: Workspace, width: number, density: number, exact = workspace.preciseGrid === true): Layout {
     const cols = GRID_LEGACY_COLS * density;
     const colW = width > 0 ? width / cols : 53;
     const typeOf = new Map(workspace.blocks.map(block => [block.id, block.type]));
@@ -16,7 +16,7 @@ export function desktopGridLayout(workspace: Workspace, width: number, density: 
         const type = typeOf.get(item.i);
         const meta = type && BLOCK_META[type];
         const minPx = (meta?.defaultSize.minW ?? 3) * (1280 / GRID_LEGACY_COLS);
-        return { ...item, ...toRenderGeom(item, density), minW: Math.min(Math.max(1, Math.ceil(minPx / colW)), cols) };
+        return { ...item, ...toRenderGeom(item, density, exact), minW: Math.min(Math.max(1, Math.ceil(minPx / colW)), cols) };
     });
 }
 
@@ -56,14 +56,14 @@ export function sameGridGeometry(left: Layout, right: Layout): boolean {
 }
 
 /** Preserve stored precision when RGL only acknowledges a rounded render. */
-export function storeGridLayout(current: Layout, next: Layout, density: number): LayoutItem[] | undefined {
+export function storeGridLayout(current: Layout, next: Layout, density: number, exact = false): LayoutItem[] | undefined {
     const fromRender = GRID_LEGACY_SCALE / density;
     const previous = new Map(current.map(item => [item.i, item]));
     let changed = false;
     const stored = next.map(item => {
         const prior = previous.get(item.i);
         if (prior) {
-            const rendered = toRenderGeom(prior, density);
+            const rendered = toRenderGeom(prior, density, exact);
             if (rendered.x === item.x && rendered.w === item.w && prior.y === item.y && prior.h === item.h) return prior;
         }
         changed = true;

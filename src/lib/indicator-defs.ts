@@ -48,6 +48,8 @@ export interface OutputDef {
     width?: 1 | 2;
     // histogram only: color positive/negative halves with up/down colors
     signed?: boolean;
+    // Volume follows each candle's direction unless a custom color is set.
+    colorByCandle?: boolean;
     // band only: 上下緣線型（預設 solid）。band 輸出的下緣序列放在
     // compute 回傳的 `<key>_lo`，不另立 OutputDef。
     border?: 'solid' | 'dashed';
@@ -71,6 +73,17 @@ export interface IndicatorDef {
 }
 
 export const INDICATOR_DEFS: IndicatorDef[] = [
+    {
+        type: 'volume',
+        label: '成交量',
+        short: '成交量',
+        desc: '每根 K 棒的成交量，獨立副圖顯示',
+        aliases: ['volume', 'vol', '成交量', '量能'],
+        category: 'pane',
+        params: [],
+        outputs: [{ key: 'volume', label: '成交量', kind: 'histogram', color: '#8b94a7', colorByCandle: true }],
+        compute: bars => ({ volume: bars.map(bar => ({ time: bar.time, value: bar.volume })) }),
+    },
     // ---- 主圖疊加 ----
     {
         type: 'sma',
@@ -569,8 +582,18 @@ export function factoryInstance(inst: IndicatorInstance): IndicatorInstance {
 
 // ---- persistence（全域，跨圖表共用；v1 Set 格式自動遷移）----
 
-const STORE_KEY = 'sj-pro-indicators-v2';
+const STORE_KEY = 'sj-pro-indicators-v3';
+const PREVIOUS_KEY = 'sj-pro-indicators-v2';
 const LEGACY_KEY = 'sj-pro-indicators';
+
+/** Old charts always showed volume; migrate it once into the managed list. */
+export function withDefaultVolume(list: IndicatorInstance[]): IndicatorInstance[] {
+    if (list.some(instance => instance.type === 'volume')) return list;
+    const index = list.findIndex(instance => DEF_BY_TYPE.get(instance.type)?.category === 'pane');
+    const result = [...list];
+    result.splice(index < 0 ? result.length : index, 0, newInstance('volume'));
+    return result;
+}
 
 function migrateLegacy(): IndicatorInstance[] {
     try {
@@ -603,13 +626,19 @@ export function loadInstances(): IndicatorInstance[] {
         const raw = localStorage.getItem(STORE_KEY);
         if (raw) {
             const list = JSON.parse(raw) as IndicatorInstance[];
-            return list.filter((i) => DEF_BY_TYPE.has(i.type));
+            if (Array.isArray(list)) return list.filter((i) => DEF_BY_TYPE.has(i.type));
         }
     } catch {
         // fresh start below
     }
-    const migrated = migrateLegacy();
-    if (migrated.length > 0) saveInstances(migrated);
+    let previous: IndicatorInstance[] | undefined;
+    try {
+        const raw = localStorage.getItem(PREVIOUS_KEY);
+        const parsed = raw ? JSON.parse(raw) : undefined;
+        if (Array.isArray(parsed)) previous = parsed.filter(instance => DEF_BY_TYPE.has(instance.type));
+    } catch { /* Try the older global defaults below. */ }
+    const migrated = withDefaultVolume(previous ?? migrateLegacy());
+    saveInstances(migrated);
     return migrated;
 }
 
