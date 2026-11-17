@@ -1,0 +1,924 @@
+{
+  "date": "2026-11-17T12:40:44.083636+08:00",
+  "mode": "paper",
+  "live_enabled": false,
+  "temporary_ledger": true,
+  "real_broker_trading_calls": 0,
+  "forbidden_sdk_access": [],
+  "market_shapes": {
+    "futopt:trades": {
+      "keys": [
+        "exchange",
+        "serial",
+        "symbol",
+        "time",
+        "total",
+        "trades",
+        "type"
+      ],
+      "trades_array": true,
+      "flat_price": false,
+      "symbol": "TMFK6"
+    },
+    "futopt:books": {
+      "keys": [
+        "asks",
+        "bids",
+        "derivedAsk",
+        "derivedBid",
+        "exchange",
+        "symbol",
+        "time",
+        "type"
+      ],
+      "trades_array": false,
+      "flat_price": false,
+      "symbol": "TMFK6"
+    },
+    "stock:books": {
+      "keys": [
+        "asks",
+        "bids",
+        "exchange",
+        "isContinuous",
+        "market",
+        "symbol",
+        "time",
+        "type"
+      ],
+      "trades_array": false,
+      "flat_price": false,
+      "symbol": "2330"
+    },
+    "stock:trades": {
+      "keys": [
+        "ask",
+        "bid",
+        "exchange",
+        "isContinuous",
+        "market",
+        "price",
+        "serial",
+        "size",
+        "symbol",
+        "time",
+        "type",
+        "volume"
+      ],
+      "trades_array": false,
+      "flat_price": true,
+      "symbol": "2330"
+    }
+  },
+  "checks": [
+    {
+      "name": "official Paper login",
+      "method": "SDK",
+      "path": "apikey_login",
+      "status": 200,
+      "passed": true,
+      "account_count": 3
+    },
+    {
+      "name": "existing user service mode",
+      "method": "GET",
+      "path": "running:22584/api/v1/passkeys/status",
+      "status": 200,
+      "passed": true,
+      "mode": "paper"
+    },
+    {
+      "name": "unauthenticated access denied",
+      "method": "GET",
+      "path": "/api/v1/info",
+      "status": 401,
+      "passed": true
+    },
+    {
+      "name": "foreign Origin denied",
+      "method": "GET",
+      "path": "/api/v1/info",
+      "status": 403,
+      "passed": true
+    },
+    {
+      "name": "bridge health",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "Paper execution environment",
+      "method": "GET",
+      "path": "/api/v1/info",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local Paper account mapping",
+      "method": "GET",
+      "path": "/api/v1/auth/accounts",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001,
+      "rows": 3
+    },
+    {
+      "name": "stored connection metadata",
+      "method": "GET",
+      "path": "/api/v1/settings/credentials",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.004
+    },
+    {
+      "name": "live trading disabled",
+      "method": "GET",
+      "path": "/api/v1/settings/mode",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "futures catalog",
+      "method": "GET",
+      "path": "/api/v1/data/contracts?security_type=FUT&page=1&page_size=5",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.249
+    },
+    {
+      "name": "stock catalog",
+      "method": "GET",
+      "path": "/api/v1/data/contracts?security_type=STK&page=1&page_size=5",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.379
+    },
+    {
+      "name": "option catalog",
+      "method": "GET",
+      "path": "/api/v1/data/contracts?security_type=OPT&page=1&page_size=1",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 1.111
+    },
+    {
+      "name": "futures roots",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/futures/roots",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.01,
+      "rows": 378
+    },
+    {
+      "name": "futures filter",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/futures?root=TMF",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.009,
+      "rows": 6
+    },
+    {
+      "name": "option roots mapping",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/options/roots",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001,
+      "rows": 1
+    },
+    {
+      "name": "index futures tick bands",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/tick-bands/index?security_type=FUT",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "micro index contract",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/TMFR1/info?security_type=FUT",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.153
+    },
+    {
+      "name": "stock contract",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/2330?security_type=STK",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.067
+    },
+    {
+      "name": "market snapshots",
+      "method": "POST",
+      "path": "/api/v1/data/snapshots",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.743,
+      "rows": 3
+    },
+    {
+      "name": "futures K bars 2026-11-17",
+      "method": "POST",
+      "path": "/api/v1/data/kbars",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.179
+    },
+    {
+      "name": "futures K bars 2026-11-16",
+      "method": "POST",
+      "path": "/api/v1/data/kbars",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.284
+    },
+    {
+      "name": "futures recent trades",
+      "method": "POST",
+      "path": "/api/v1/data/ticks",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.192
+    },
+    {
+      "name": "stock K bars 2026-11-17",
+      "method": "POST",
+      "path": "/api/v1/data/kbars",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.156
+    },
+    {
+      "name": "stock K bars 2026-11-16",
+      "method": "POST",
+      "path": "/api/v1/data/kbars",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.373
+    },
+    {
+      "name": "stock recent trades",
+      "method": "POST",
+      "path": "/api/v1/data/ticks",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.185
+    },
+    {
+      "name": "watchlist read",
+      "method": "GET",
+      "path": "/api/v1/watchlist",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.534,
+      "rows": 1
+    },
+    {
+      "name": "temporary watchlist create",
+      "method": "POST",
+      "path": "/api/v1/watchlist",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "temporary watchlist update",
+      "method": "PUT",
+      "path": "/api/v1/watchlist/bcb4af7e89d0443ea2faae4977969644",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002
+    },
+    {
+      "name": "temporary watchlist delete (frontend bodyless request)",
+      "method": "DELETE",
+      "path": "/api/v1/watchlist/bcb4af7e89d0443ea2faae4977969644",
+      "status": 415,
+      "passed": false,
+      "expected": 200,
+      "seconds": 0.001,
+      "validation_error": null,
+      "detail": "application/json required"
+    },
+    {
+      "name": "temporary watchlist delete with JSON",
+      "method": "DELETE",
+      "path": "/api/v1/watchlist/bcb4af7e89d0443ea2faae4977969644",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "temporary paper ledger read",
+      "method": "GET",
+      "path": "/api/v1/paper/state",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002
+    },
+    {
+      "name": "local state state",
+      "method": "GET",
+      "path": "/api/v1/automation/state",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local state database",
+      "method": "GET",
+      "path": "/api/v1/research/database",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.003
+    },
+    {
+      "name": "local state runs",
+      "method": "GET",
+      "path": "/api/v1/research/runs",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local state learning",
+      "method": "GET",
+      "path": "/api/v1/research/learning",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.003
+    },
+    {
+      "name": "local state models",
+      "method": "GET",
+      "path": "/api/v1/automation/models",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "latest research on empty temporary DB",
+      "method": "POST",
+      "path": "/api/v1/research/latest",
+      "status": 400,
+      "passed": true,
+      "expected": 400,
+      "seconds": 0.002
+    },
+    {
+      "name": "historical research fetch/cache",
+      "method": "POST",
+      "path": "/api/v1/research/history",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.321
+    },
+    {
+      "name": "latest research after valid dataset download",
+      "method": "POST",
+      "path": "/api/v1/research/latest",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002
+    },
+    {
+      "name": "local trade subscription PAPER-F",
+      "method": "POST",
+      "path": "/api/v1/auth/subscribe_trade",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local order list PAPER-F",
+      "method": "POST",
+      "path": "/api/v1/order/trades",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local cache health PAPER-F",
+      "method": "POST",
+      "path": "/api/v1/order/trade_cache_health",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002
+    },
+    {
+      "name": "local positions PAPER-F",
+      "method": "POST",
+      "path": "/api/v1/portfolio/position_unit",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local futures equity PAPER-F",
+      "method": "POST",
+      "path": "/api/v1/portfolio/margin",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.003
+    },
+    {
+      "name": "local trade subscription PAPER-S",
+      "method": "POST",
+      "path": "/api/v1/auth/subscribe_trade",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local order list PAPER-S",
+      "method": "POST",
+      "path": "/api/v1/order/trades",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local cache health PAPER-S",
+      "method": "POST",
+      "path": "/api/v1/order/trade_cache_health",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local positions PAPER-S",
+      "method": "POST",
+      "path": "/api/v1/portfolio/position_unit",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local stock cash balance",
+      "method": "POST",
+      "path": "/api/v1/portfolio/account_balance",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002
+    },
+    {
+      "name": "local trade subscription PAPER-AUTO-F",
+      "method": "POST",
+      "path": "/api/v1/auth/subscribe_trade",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local order list PAPER-AUTO-F",
+      "method": "POST",
+      "path": "/api/v1/order/trades",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local cache health PAPER-AUTO-F",
+      "method": "POST",
+      "path": "/api/v1/order/trade_cache_health",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "local positions PAPER-AUTO-F",
+      "method": "POST",
+      "path": "/api/v1/portfolio/position_unit",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002,
+      "rows": 0
+    },
+    {
+      "name": "local futures equity PAPER-AUTO-F",
+      "method": "POST",
+      "path": "/api/v1/portfolio/margin",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.003
+    },
+    {
+      "name": "temporary Paper limit order",
+      "method": "POST",
+      "path": "/api/v1/order/place_order",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.078
+    },
+    {
+      "name": "temporary Paper modify price",
+      "method": "POST",
+      "path": "/api/v1/order/update_price",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.063
+    },
+    {
+      "name": "temporary Paper reduce quantity",
+      "method": "POST",
+      "path": "/api/v1/order/update_qty",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.218
+    },
+    {
+      "name": "temporary Paper cancel",
+      "method": "POST",
+      "path": "/api/v1/order/cancel_order",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.003
+    },
+    {
+      "name": "temporary Paper futures Buy",
+      "method": "POST",
+      "path": "/api/v1/order/place_order",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.144
+    },
+    {
+      "name": "temporary Paper futures Sell",
+      "method": "POST",
+      "path": "/api/v1/order/place_order",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.146
+    },
+    {
+      "name": "temporary Paper stock Buy",
+      "method": "POST",
+      "path": "/api/v1/order/place_order",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.129
+    },
+    {
+      "name": "temporary Paper stock Sell",
+      "method": "POST",
+      "path": "/api/v1/order/place_order",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.158
+    },
+    {
+      "name": "temporary Paper exposure flat after round trips",
+      "method": "GET",
+      "path": "/api/v1/paper/state",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.003
+    },
+    {
+      "name": "market subscribe TMFR1 Tick",
+      "method": "POST",
+      "path": "/api/v1/stream/subscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.357
+    },
+    {
+      "name": "market subscribe TMFR1 BidAsk",
+      "method": "POST",
+      "path": "/api/v1/stream/subscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.09
+    },
+    {
+      "name": "market subscribe 2330 Tick",
+      "method": "POST",
+      "path": "/api/v1/stream/subscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.165
+    },
+    {
+      "name": "market subscribe 2330 BidAsk",
+      "method": "POST",
+      "path": "/api/v1/stream/subscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "both stock and futures market feeds connected",
+      "method": "GET",
+      "path": "/api/v1/info",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "actual market SSE",
+      "method": "GET",
+      "path": "/api/v1/stream/data",
+      "status": 200,
+      "passed": true,
+      "event_types": [
+        "bidask_fop",
+        "bidask_stk",
+        "tick_fop"
+      ]
+    },
+    {
+      "name": "per-market SSE bidask_fop",
+      "method": "GET",
+      "path": "/api/v1/stream/data",
+      "status": 200,
+      "passed": true,
+      "observed": true
+    },
+    {
+      "name": "per-market SSE bidask_stk",
+      "method": "GET",
+      "path": "/api/v1/stream/data",
+      "status": 200,
+      "passed": true,
+      "observed": true
+    },
+    {
+      "name": "per-market SSE tick_fop",
+      "method": "GET",
+      "path": "/api/v1/stream/data",
+      "status": 200,
+      "passed": true,
+      "observed": true
+    },
+    {
+      "name": "per-market SSE tick_stk",
+      "method": "GET",
+      "path": "/api/v1/stream/data",
+      "status": 200,
+      "passed": false,
+      "observed": false
+    },
+    {
+      "name": "raw market payload shape futopt:books",
+      "method": "SDK",
+      "path": "websocket:futopt:books",
+      "status": 200,
+      "passed": true,
+      "shape": {
+        "keys": [
+          "asks",
+          "bids",
+          "derivedAsk",
+          "derivedBid",
+          "exchange",
+          "symbol",
+          "time",
+          "type"
+        ],
+        "trades_array": false,
+        "flat_price": false,
+        "symbol": "TMFK6"
+      }
+    },
+    {
+      "name": "raw market payload shape futopt:trades",
+      "method": "SDK",
+      "path": "websocket:futopt:trades",
+      "status": 200,
+      "passed": true,
+      "shape": {
+        "keys": [
+          "exchange",
+          "serial",
+          "symbol",
+          "time",
+          "total",
+          "trades",
+          "type"
+        ],
+        "trades_array": true,
+        "flat_price": false,
+        "symbol": "TMFK6"
+      }
+    },
+    {
+      "name": "raw market payload shape stock:books",
+      "method": "SDK",
+      "path": "websocket:stock:books",
+      "status": 200,
+      "passed": true,
+      "shape": {
+        "keys": [
+          "asks",
+          "bids",
+          "exchange",
+          "isContinuous",
+          "market",
+          "symbol",
+          "time",
+          "type"
+        ],
+        "trades_array": false,
+        "flat_price": false,
+        "symbol": "2330"
+      }
+    },
+    {
+      "name": "raw market payload shape stock:trades",
+      "method": "SDK",
+      "path": "websocket:stock:trades",
+      "status": 200,
+      "passed": true,
+      "shape": {
+        "keys": [
+          "ask",
+          "bid",
+          "exchange",
+          "isContinuous",
+          "market",
+          "price",
+          "serial",
+          "size",
+          "symbol",
+          "time",
+          "type",
+          "volume"
+        ],
+        "trades_array": false,
+        "flat_price": true,
+        "symbol": "2330"
+      }
+    },
+    {
+      "name": "market unsubscribe TMFR1 Tick",
+      "method": "POST",
+      "path": "/api/v1/stream/unsubscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.002
+    },
+    {
+      "name": "market unsubscribe TMFR1 BidAsk",
+      "method": "POST",
+      "path": "/api/v1/stream/unsubscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "market unsubscribe 2330 Tick",
+      "method": "POST",
+      "path": "/api/v1/stream/unsubscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "market unsubscribe 2330 BidAsk",
+      "method": "POST",
+      "path": "/api/v1/stream/unsubscribe",
+      "status": 200,
+      "passed": true,
+      "expected": 200,
+      "seconds": 0.001
+    },
+    {
+      "name": "explicit adapter limitation",
+      "method": "GET",
+      "path": "/api/v1/auth/ca_expiretime",
+      "status": 501,
+      "passed": true,
+      "expected": 501,
+      "seconds": 0.001,
+      "classification": "explicitly_unsupported"
+    },
+    {
+      "name": "explicit adapter limitation",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/options",
+      "status": 501,
+      "passed": true,
+      "expected": 501,
+      "seconds": 0.001,
+      "classification": "explicitly_unsupported"
+    },
+    {
+      "name": "explicit adapter limitation",
+      "method": "GET",
+      "path": "/api/v1/data/contracts/tick-bands/stock?security_type=STK",
+      "status": 501,
+      "passed": true,
+      "expected": 501,
+      "seconds": 0.001,
+      "classification": "explicitly_unsupported"
+    },
+    {
+      "name": "no broker trading/accounting SDK access",
+      "method": "GUARD",
+      "path": "MarketOnlySDK",
+      "status": 200,
+      "passed": true,
+      "attempted_clients": []
+    }
+  ],
+  "passed": 83,
+  "failed": 2,
+  "note": "Actual SDK login/market reads; HTTP app and Paper transactions isolated in a temporary SQLite database. Production user ledger untouched.",
+  "stock_frame_replay": {
+    "source": "captured official stock trades frame",
+    "flat_price": true,
+    "nested_trades": false,
+    "terminal_events": [],
+    "paper_tick_calls": 0,
+    "expected_tick_event": "tick_stk",
+    "confirmed_failure": true
+  },
+  "offline_stock_mkp_validation": {
+    "scope": "offline fake SDK only; no login or network",
+    "stock_MKP_http_status": 502,
+    "order_dispatch_attempts": 0,
+    "validation_gap_confirmed": true
+  }
+}

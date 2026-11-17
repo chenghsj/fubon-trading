@@ -91,6 +91,13 @@ def snapshot(quote, code):
     )
 
 
+def market_trades(data):
+    """Stocks send one flat trade; futures send a trades array."""
+    if isinstance(data.get("trades"), list):
+        return data["trades"]
+    return [data] if "price" in data else []
+
+
 def market_events(channel, data, requested_code, previous=None):
     """Yield terminal SSE frames. Trial matching is marked, never treated as a fill."""
     at = stamp(data.get("time", int(now().timestamp()*1e6)))
@@ -105,7 +112,7 @@ def market_events(channel, data, requested_code, previous=None):
             ask_volume=[int(x["size"]) for x in data.get("asks", [])])
     elif channel == "trades":
         previous = previous or {}
-        for trade in data.get("trades", []):
+        for trade in market_trades(data):
             price = trade.get("price", 0)
             if number(price) <= 0:
                 continue
@@ -113,7 +120,7 @@ def market_events(channel, data, requested_code, previous=None):
                 open=str(previous.get("open", price)), high=str(max(number(previous.get("high", price)), number(price))),
                 low=str(min(number(previous.get("low", price), number(price)) or number(price), number(price))),
                 avg_price=str(price), volume=int(trade.get("size", 0)),
-                total_volume=int(data.get("total", {}).get("tradeVolume", 0)), tick_type=0,
+                total_volume=int(number(data.get("total", {}).get("tradeVolume", data.get("volume", 0)))), tick_type=0,
                 price_chg=str(number(price)-number(previous.get("reference", price))), pct_chg="0")
 
 

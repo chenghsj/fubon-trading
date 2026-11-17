@@ -10,6 +10,11 @@ class ContractKey(BaseModel):
     target_code: str | None = None
 
 
+class WatchlistContracts(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contracts: list[ContractKey]
+
+
 class Order(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     action: Literal["Buy", "Sell"]
@@ -53,6 +58,8 @@ class PlaceOrder(BaseModel):
             raise ValueError("必須且只能提供一種委託內容")
         if self.stock_order and self.contract.security_type != "STK":
             raise ValueError("股票委託需選擇股票商品")
+        if self.stock_order and self.stock_order.price_type not in {"LMT", "MKT"}:
+            raise ValueError("股票只支援限價（LMT）或市價（MKT），不支援範圍市價（MKP）")
         if self.futures_order and self.contract.security_type not in {"FUT", "OPT"}:
             raise ValueError("期權委託需選擇期貨或選擇權商品")
         return self

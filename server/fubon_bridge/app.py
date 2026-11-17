@@ -1,7 +1,9 @@
 import asyncio
 from contextlib import asynccontextmanager
+from copy import deepcopy
 import json
 import hashlib
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 import uuid
@@ -14,7 +16,7 @@ from starlette.background import BackgroundTask
 from .broker import Broker
 from .config import Config, ROOT
 from .mapping import now
-from .models import ContractKey, Mutation, PlaceOrder
+from .models import ContractKey, Mutation, PlaceOrder, WatchlistContracts
 from .session import Session
 from .passkeys import Passkeys, PasskeyStore
 from .origins import localhost_ui_origin
@@ -577,33 +579,69 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
         return broker.balance(account)
 
     watchlists = {}
+    watchlist_lock = threading.RLock()
+
+    def watchlist_key(contract):
+        code = contract['code'].strip().upper()
+        return (contract.get('security_type') or ('STK' if code.isdigit() else 'FUT'), code)
 
     @app.get("/api/v1/watchlist")
     def watchlist():
-        if not watchlists:
-            # Server-side defaults keep the fork independent of Shioaji aliases.
-            watchlists["default"] = dict(id="default", name="台指期與股票", contracts=[
-                broker.contract(dict(code=code, security_type=kind)) for code, kind in
-                [("TMFR1", "FUT"), ("TXFR1", "FUT"), ("MXFR1", "FUT"), ("2330", "STK")]])
-        return list(watchlists.values())
+        with watchlist_lock:
+            if not watchlists:
+                # Server-side defaults keep the fork independent of Shioaji aliases.
+                watchlists["default"] = dict(id="default", name="台指期與股票", contracts=[
+                    broker.contract(dict(code=code, security_type=kind)) for code, kind in
+                    [("TMFR1", "FUT"), ("TXFR1", "FUT"), ("MXFR1", "FUT"), ("2330", "STK")]])
+            return deepcopy(list(watchlists.values()))
 
     @app.post("/api/v1/watchlist")
     def create_watchlist(body: dict = Body(...)):
-        ident = uuid.uuid4().hex
-        watchlists[ident] = dict(id=ident, name=str(body["name"])[:100], contracts=body.get("contracts", []))
-        return watchlists[ident]
+        with watchlist_lock:
+            ident = uuid.uuid4().hex
+            watchlists[ident] = dict(id=ident, name=str(body["name"])[:100], contracts=body.get("contracts", []))
+            return deepcopy(watchlists[ident])
 
     @app.put("/api/v1/watchlist/{ident}")
     def sync_watchlist(ident: str, body: dict = Body(...)):
-        if ident not in watchlists:
-            raise HTTPException(404, "自選清單不存在")
-        watchlists[ident]["contracts"] = body.get("contracts", [])
-        return watchlists[ident]
+        with watchlist_lock:
+            if ident not in watchlists:
+                raise HTTPException(404, "自選清單不存在")
+            watchlists[ident]["contracts"] = body.get("contracts", [])
+            return deepcopy(watchlists[ident])
+
+    @app.post("/api/v1/watchlist/{ident}/contracts")
+    def add_watchlist_contracts(ident: str, body: WatchlistContracts):
+        with watchlist_lock:
+            if ident not in watchlists:
+                raise HTTPException(404, "自選清單不存在")
+            # Resolve the entire batch before changing membership; a failed
+            # lookup must not leave a partially added list.
+            additions = [broker.contract(key.model_dump(exclude_none=True)) for key in body.contracts]
+            contracts = watchlists[ident]['contracts']
+            seen = {watchlist_key(contract) for contract in contracts}
+            for contract in additions:
+                key = watchlist_key(contract)
+                if key not in seen:
+                    contracts.append({field: contract[field] for field in ('code', 'security_type', 'exchange')})
+                    seen.add(key)
+            return deepcopy(watchlists[ident])
+
+    @app.delete("/api/v1/watchlist/{ident}/contracts")
+    def remove_watchlist_contracts(ident: str, body: WatchlistContracts):
+        with watchlist_lock:
+            if ident not in watchlists:
+                raise HTTPException(404, "自選清單不存在")
+            removed = {watchlist_key(key.model_dump()) for key in body.contracts}
+            watchlists[ident]['contracts'] = [contract for contract in watchlists[ident]['contracts']
+                                            if watchlist_key(contract) not in removed]
+            return deepcopy(watchlists[ident])
 
     @app.delete("/api/v1/watchlist/{ident}")
     def delete_watchlist(ident: str):
-        watchlists.pop(ident, None)
-        return {"success": True}
+        with watchlist_lock:
+            watchlists.pop(ident, None)
+            return {"success": True}
 
     @app.api_route("/api/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
     def unsupported(path: str):

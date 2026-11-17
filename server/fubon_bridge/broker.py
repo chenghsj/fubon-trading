@@ -7,7 +7,7 @@ import threading
 import uuid
 
 from .config import Config, SANDBOX_URL
-from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_events,
+from .mapping import (TAIPEI, contract_from_ticker, enum_name, field, market_events, market_trades,
                       normalize_trade, now, number, snapshot, stamp, symbol_alias, unwrap)
 from .paper import ACTIVE, PaperBook
 
@@ -467,12 +467,13 @@ class Broker:
                     enriched = dict(data, type="EQUITY" if kind == "stock" else "FUTURE")
                     for event, payload in market_events(channel, enriched, contract["code"], self.quotes.get(contract["code"], contract)):
                         self.emit(event, payload)
-                    if channel == "trades" and not data.get("isTrial") and data.get("trades"):
-                        price = number(data["trades"][-1].get("price"))
+                    trades = market_trades(data) if channel == "trades" else []
+                    if trades and not data.get("isTrial"):
+                        price = number(trades[-1].get("price"))
                         if price > 0:
                             self.quotes[contract["code"]] = dict(self.quotes.get(contract["code"], {}), close=price,
                                 datetime=stamp(data["time"]).isoformat(), is_trial=False,
-                                buy_price=number(data["trades"][-1].get("bid")), sell_price=number(data["trades"][-1].get("ask")))
+                                buy_price=number(trades[-1].get("bid")), sell_price=number(trades[-1].get("ask")))
                             if self.config.mode == "paper":
                                 self.paper.tick(contract["code"], self.quotes[contract["code"]])
                                 if contract.get("target_code"):
@@ -539,6 +540,8 @@ class Broker:
             self.ready()
             contract = self.contract(contract_key)
             kind = contract["security_type"]
+            if kind == "STK" and order.get("price_type") not in {"LMT", "MKT"}:
+                raise ValueError("股票只支援限價（LMT）或市價（MKT），不支援範圍市價（MKP）")
             if account["account_type"] != ("S" if kind == "STK" else "F"):
                 raise ValueError("商品與帳戶類型不符")
             # Never let an alias or browser-provided target choose a real order.
