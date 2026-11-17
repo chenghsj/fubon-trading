@@ -11,7 +11,7 @@ export const PRODUCT_BADGES = {
 } as const;
 
 export const PRODUCT_BADGE_ALPHA = { fill: 12, edge: 45 } as const;
-export const PRODUCT_SEARCH_ACTIVE = { background: 'accentDim', color: 'foreground', indicator: 'accent' } as const;
+export const PRODUCT_SEARCH_ACTIVE = { background: 'accentDim', color: 'foreground' } as const;
 
 export function productBadgeType(securityType: Exclude<SecurityType, null>, kind?: 'ETF'): keyof typeof PRODUCT_BADGES {
     return securityType === 'STK' && kind === 'ETF' ? 'ETF' : securityType;

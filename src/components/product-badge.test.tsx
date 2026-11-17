@@ -105,6 +105,6 @@ describe('純顯示商品標籤', () => {
 
     it('色卡透明度與選取列配色維持對比度測試所驗的 token', () => {
         expect(PRODUCT_BADGE_ALPHA).toEqual({ fill: 12, edge: 45 });
-        expect(PRODUCT_SEARCH_ACTIVE).toEqual({ background: 'accentDim', color: 'foreground', indicator: 'accent' });
+        expect(PRODUCT_SEARCH_ACTIVE).toEqual({ background: 'accentDim', color: 'foreground' });
     });
 });

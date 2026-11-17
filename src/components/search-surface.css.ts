@@ -73,7 +73,6 @@ export const resultRow = style({
 export const resultActive = style({
     background: vars.color[PRODUCT_SEARCH_ACTIVE.background],
     color: vars.color[PRODUCT_SEARCH_ACTIVE.color],
-    boxShadow: `inset 2px 0 0 ${vars.color[PRODUCT_SEARCH_ACTIVE.indicator]}`,
     '@media': {
         '(forced-colors: active)': { outline: '1px solid Highlight', outlineOffset: -1 },
     },
