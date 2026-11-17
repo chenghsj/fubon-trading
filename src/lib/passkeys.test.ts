@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { creationOptions, requestOptions, decodeBase64url, encodeBase64url } from './passkeys';
 
-afterEach(() => { vi.unstubAllGlobals(); vi.resetModules(); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.resetModules(); });
 
 function environment() {
     vi.stubGlobal('location', { hostname: 'localhost', hash: '', origin: 'http://localhost:5179', pathname: '/', search: '' });
@@ -29,7 +29,9 @@ it('cancelling device verification never submits credentials or grants a session
     vi.stubGlobal('fetch', native);
     vi.stubGlobal('navigator', { credentials: { get: vi.fn().mockRejectedValue(new DOMException('Cancelled', 'NotAllowedError')) } });
     const { unlockWithPasskey } = await import('./passkeys');
-    await expect(unlockWithPasskey(false)).rejects.toThrow('驗證已取消');
+    const verified = vi.fn();
+    await expect(unlockWithPasskey(false, verified)).rejects.toThrow('驗證已取消');
+    expect(verified).not.toHaveBeenCalled();
     expect(native).toHaveBeenCalledTimes(1);
     expect(native.mock.calls[0]?.[0]).toBe('/api/v1/passkeys/authenticate/options');
 });
@@ -47,7 +49,10 @@ it('serializes a verified assertion and activates only the returned server sessi
             signature: new Uint8Array([3]).buffer, userHandle: null } });
     vi.stubGlobal('navigator', { credentials: { get } });
     const { unlockWithPasskey } = await import('./passkeys');
-    await unlockWithPasskey(false);
+    const verified = vi.fn();
+    await unlockWithPasskey(false, verified);
+    expect(verified).toHaveBeenCalledTimes(1);
+    expect(verified.mock.invocationCallOrder[0]).toBeLessThan(native.mock.invocationCallOrder[1]!);
     expect(get.mock.calls[0]?.[0].publicKey.userVerification).toBe('required');
     const body = JSON.parse(native.mock.calls[1]?.[1].body);
     expect(body.request_id).toBe('fixture');
@@ -65,4 +70,35 @@ it('IP origins and missing enrollment authority cannot create a Passkey', async 
     vi.stubGlobal('location', { hostname: '127.0.0.1' });
     await expect(unlockWithPasskey(false)).rejects.toThrow('localhost');
     expect(native).not.toHaveBeenCalled();
+});
+
+
+it('keeps the verified assertion alive while the brokerage connection takes 75 seconds', async () => {
+    environment();
+    vi.useFakeTimers();
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation(milliseconds => {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), milliseconds);
+        return controller.signal;
+    });
+    const token = 'T'.repeat(43);
+    const native = vi.fn(async (path: string, init?: RequestInit) => {
+        if (path.endsWith('/options')) return Response.json({ request_id: 'fixture', public_key: { challenge: 'AAECAw', rpId: 'localhost', userVerification: 'required' } });
+        if (path.endsWith('/verify')) return new Promise<Response>((resolve, reject) => {
+            const timer = setTimeout(() => resolve(Response.json({ access_token: token })), 75_000);
+            init!.signal!.addEventListener('abort', () => { clearTimeout(timer); reject(init!.signal!.reason); }, { once: true });
+        });
+        return Response.json({});
+    });
+    vi.stubGlobal('fetch', native);
+    const get = vi.fn().mockResolvedValue({ id: 'AAECAw', type: 'public-key', rawId: new Uint8Array([0, 1, 2, 3]).buffer,
+        getClientExtensionResults: () => ({}), response: { clientDataJSON: new Uint8Array([1]).buffer, authenticatorData: new Uint8Array([2]).buffer,
+            signature: new Uint8Array([3]).buffer, userHandle: null } });
+    vi.stubGlobal('navigator', { credentials: { get } });
+    const { unlockWithPasskey } = await import('./passkeys');
+    const result = unlockWithPasskey(false).then(() => 'unlocked', () => 'timed out');
+    await vi.advanceTimersByTimeAsync(75_000);
+    expect(await result).toBe('unlocked');
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.setItem).toHaveBeenCalledWith('fubon-trading-session', token);
 });
