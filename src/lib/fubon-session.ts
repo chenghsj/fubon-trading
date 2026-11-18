@@ -4,6 +4,7 @@
 const STORAGE_KEY = 'fubon-trading-session';
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 let accessToken = '';
+let serverInstance = '';
 let installed = false;
 
 export function isLocalApi(input: RequestInfo | URL, origin: string): boolean {
@@ -40,7 +41,11 @@ export async function activateSession(value: unknown): Promise<boolean> {
     const response = await transport()('/api/v1/info', {
         headers: { Authorization: `Bearer ${accessToken}` }, credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) { accessToken = ''; return false; }
+    if (!response.ok) { accessToken = ''; serverInstance = ''; return false; }
+    try {
+        const info = await response.clone().json() as { instance_id?: unknown };
+        serverInstance = typeof info.instance_id === 'string' && /^[a-f0-9]{32}$/.test(info.instance_id) ? info.instance_id : '';
+    } catch { serverInstance = ''; }
     try { sessionStorage.setItem(STORAGE_KEY, value); } catch { /* Memory-only session. */ }
     if (!installed) {
         globalThis.fetch = (input, init) => {
@@ -55,6 +60,8 @@ export async function activateSession(value: unknown): Promise<boolean> {
 }
 
 export function canEnrollPasskey() { return !!enrollmentToken; }
+/** Public server identity only. Never put session authority in shared lock names. */
+export function fubonStreamScope() { return serverInstance; }
 
 export async function prepareFubonSession(): Promise<boolean> {
     transport();

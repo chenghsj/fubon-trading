@@ -10,6 +10,7 @@ import { Input } from './ui/input';
 import { SelectControl, SelectOption } from './ui/select-control';
 import { IntradayLearningResults } from './intraday-learning-results';
 import { RegimeResearchPanel } from './regime-research-panel';
+import { MarketCapturePanel } from './market-capture-panel';
 import * as s from './intraday-research.css';
 
 const day = (offset: number) => new Date(Date.now() + 8 * 3600000 - offset * 86400000).toISOString().slice(0, 10);
@@ -101,5 +102,6 @@ export function IntradayLearningPanel({ config }: { config: ResearchConfig }) {
         {report?.model && <Button size="compact" variant="outline" onClick={() => void exportModel()}>匯出本機模型</Button>}
         {overview && <p className={s.muted}>整個研究資料庫 {(overview.databaseBytes / 1048576).toFixed(1)} MiB；下載與訓練均保存在本機。</p>}
         <RegimeResearchPanel config={config} datasets={overview?.datasets ?? []} jobs={overview?.jobs ?? []} />
+        <MarketCapturePanel />
     </section>;
 }

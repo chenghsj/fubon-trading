@@ -45,6 +45,8 @@ class Broker:
         self.pending_session_changes = set()
         self.tick_history_cache = {}
         self.tick_history_lock = threading.RLock()
+        self.raw_market_sink = None
+        self.capture_hook_errors = 0
         if config.mode == "demo":
             self._demo_catalog()
 
@@ -592,8 +594,11 @@ class Broker:
                     if not socket:
                         self.subscriptions.pop(registry_key, None)
                     else:
+                        self._market_disconnected(kind,'reconnecting')
                         socket.disconnect()
+                        self._capture_market(kind,dict(event='capture_connection',data=dict(state='connecting')))
                         socket.connect()
+                        self._capture_market(kind,dict(event='capture_connection',data=dict(state='connected')))
                         replayed = set()
                         for sub in self.subscriptions.values():
                             if sub["kind"] != kind:
@@ -632,11 +637,13 @@ class Broker:
                 socket = getattr(self.sdk.marketdata.websocket_client,kind)
                 self.sockets[kind] = socket
                 socket.on('message',lambda raw,k=kind:self._on_market(k,raw))
-                socket.on('disconnect',lambda *_,k=kind:self.connected_sockets.discard(k))
-                socket.on('error',lambda *_,k=kind:self.connected_sockets.discard(k))
+                socket.on('disconnect',lambda *_,k=kind:self._market_disconnected(k,'disconnect'))
+                socket.on('error',lambda *_,k=kind:self._market_disconnected(k,'error'))
             if kind not in self.connected_sockets:
+                self._capture_market(kind,dict(event='capture_connection',data=dict(state='connecting')))
                 socket.connect()
                 self.connected_sockets.add(kind)
+                self._capture_market(kind,dict(event='capture_connection',data=dict(state='connected')))
                 for sub in self.subscriptions.values() if replay else []:
                     if sub['kind']==kind:
                         args = dict(channel=sub['channel'],symbol=sub['contract'].get('target_code') or sub['contract']['code'])
@@ -688,7 +695,7 @@ class Broker:
                 for code in changed:
                     self.quotes.pop(code, None)
                 self.tick_history_cache.clear()
-                self.connected_sockets.discard('futopt')
+                self._market_disconnected('futopt','session_switch')
                 socket = self.sockets.get('futopt')
                 if socket:
                     socket.disconnect()
@@ -705,7 +712,22 @@ class Broker:
         with self.lock:
             return self.session_for(self.market_contract(key)) == 'regular'
 
+    def _capture_market(self,kind,raw):
+        received_us=time.time_ns()//1000
+        monotonic_ns=time.monotonic_ns()
+        if self.raw_market_sink is not None:
+            try:
+                self.raw_market_sink(kind,raw,received_us,monotonic_ns)
+            except Exception:
+                # Capture must not interrupt native quote/order processing.
+                self.capture_hook_errors+=1
+
+    def _market_disconnected(self,kind,reason):
+        self.connected_sockets.discard(kind)
+        self._capture_market(kind,dict(event='capture_connection',data=dict(state=reason)))
+
     def _on_market(self, kind, raw):
+        self._capture_market(kind,raw)
         try:
             message = json.loads(raw) if isinstance(raw, str) else raw
             if message.get("event") not in {"data", "snapshot"}:

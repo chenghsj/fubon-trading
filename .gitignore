@@ -38,6 +38,8 @@ server/.venv/
 __pycache__/
 .pytest_cache/
 server/.research.sqlite3*
+server/.market-capture.sqlite3*
+server/.market-capture/
 server/.mode-settings.json
 server/.watchlists.json
 .fubon-dev/
