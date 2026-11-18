@@ -13,7 +13,7 @@ from fubon_bridge.learning_data import quality
 from fubon_bridge.loss_diagnostics import decompose,matched_latency
 from fubon_bridge.research import digest
 from fubon_bridge.structured_models import (calibration_check,final_check,fit,policies,predict,
-    select,target_for,thin)
+    select,targets_for,thin)
 from fubon_bridge.structured_research import (FEATURES,build,compare,outcome,prepare,replay)
 from test_regime_strategy import training_data
 
@@ -108,11 +108,11 @@ def test_training_thinning_uses_earliest_causal_event_and_robust_target_keeps_no
     assert thin([later,a])==[a]
     import fubon_bridge.structured_models as module
     monkeypatch.setattr(module,'outcome',lambda action,extra=0,delay=0:None if delay else dict(net=100 if not extra else 50))
-    assert target_for(a,False)==100/a.planned_risk
-    assert target_for(a,True)==0
+    assert targets_for(a,False)==dict(normal=100)
+    assert targets_for(a,True)==dict(normal=100,stress=50,delayed=0)
     monkeypatch.setattr(module,'outcome',lambda action,extra=0,delay=0:None if not extra else dict(net=-200))
-    assert target_for(a,False) is None
-    assert target_for(a,True)==-200/a.planned_risk
+    assert targets_for(a,False)==dict(normal=0)
+    assert targets_for(a,True)==dict(normal=0,stress=-200,delayed=0)
 
 
 @pytest.mark.parametrize('name',['ridge-normal','tree-robust'])

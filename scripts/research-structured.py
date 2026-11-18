@@ -16,13 +16,15 @@ from fubon_bridge.structured_research import POLICY,build,compare
 
 base=import_module('refine-regime')
 ROOT=Path(__file__).resolve().parents[1]
-ARTIFACTS=ROOT/'.fubon-dev/reports/structured-confirmation-v1-verified'
+ARTIFACTS=ROOT/'.fubon-dev/reports/structured-expectation-v2'
+REFERENCE=ROOT/'.fubon-dev/reports/structured-confirmation-v1-verified'
 
 
 def hashes():
     paths=[Path(__file__),*(ROOT/'server/fubon_bridge'/name for name in
         ('structured_research.py','structured_models.py','opportunity_research.py','indicator_research.py')),
-        ROOT/'docs/research/tmf-structured-protocol-v1.md']
+        ROOT/'docs/research/tmf-structured-protocol-v1.md',
+        ROOT/'docs/research/tmf-execution-expectation-protocol-v2.md']
     return base.hashes()|{p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
 
 
@@ -97,10 +99,18 @@ def main():
     args=parser.parse_args();ARTIFACTS=args.output
     sources=base.datasets(args.database);implementation=hashes()
     packages=dict(lightgbm=lgb.__version__,numpy=np.__version__)
+    reference=json.loads((REFERENCE/'frozen.json').read_text())
+    if digest({k:v for k,v in reference.items() if k!='id'})!=reference['id']:
+        raise ValueError('修正前基準凍結雜湊不符')
+    permitted_changes={'structured_models.py','research-structured.py'}
+    if any(implementation.get(k)!=v for k,v in reference['implementation'].items() if k not in permitted_changes):
+        raise ValueError('訊號／成交／成本或原規格已改變，拒絕稱為配對修正研究')
     if args.stage=='development':
         frozen=dict(createdAt=now().isoformat(),policy=POLICY,modelPolicy=MODEL_POLICY,
-            implementation=implementation,packages=packages,sessions={})
+            implementation=implementation,packages=packages,parentFrozen=reference['id'],sessions={})
         for session,(ident,data,dates) in sources.items():
+            if reference['sessions'][session]['datasetId']!=ident:
+                raise ValueError('配對修正需使用完全相同資料快照')
             print(json.dumps(dict(session=session,stage='development')),flush=True)
             report,models,guards=develop(data,dates,session);n=len(dates);a=int(n*.6);b=int(n*.8)
             save(f'{session}-development.json',dict(datasetId=ident,**report))
@@ -112,7 +122,8 @@ def main():
     else:
         frozen=json.loads((ARTIFACTS/'frozen.json').read_text())
         if (digest({k:v for k,v in frozen.items() if k!='id'})!=frozen['id'] or frozen['implementation']!=implementation
-            or frozen['packages']!=packages or frozen['policy']!=POLICY or frozen['modelPolicy']!=MODEL_POLICY):
+            or frozen['packages']!=packages or frozen['policy']!=POLICY or frozen['modelPolicy']!=MODEL_POLICY
+            or frozen['parentFrozen']!=reference['id']):
             raise ValueError('凍結程式／規格／套件已變更')
         for session,(ident,data,dates) in sources.items():
             spec=frozen['sessions'][session];n=len(dates);a=int(n*.6);b=int(n*.8)
@@ -120,17 +131,27 @@ def main():
             if spec['datasetId']!=ident or spec['dateSplit']!=split:
                 raise ValueError('資料或完整日期分割不符')
             events,_=build(data,dates[a:]);results={p:dict(raw={},guarded={}) for p in policies()}
+            previous=json.loads((REFERENCE/f'{session}-evaluation.json').read_text())
+            reference_checks={}
             for name in ('rule',*VARIANTS):
                 model='rule' if name=='rule' else json.loads((ARTIFACTS/f'{session}-{name}-model.json').read_text())
                 if name!='rule' and digest(model)!=spec['models'][name]['hash']:
                     raise ValueError('模型雜湊不符')
+                old_model='rule' if name=='rule' else json.loads((REFERENCE/f'{session}-{name}-model.json').read_text())
+                if name!='rule' and digest(old_model)!=reference['sessions'][session]['models'][name]['hash']:
+                    raise ValueError('修正前基準模型雜湊不符')
                 for phase,selected in (('validation',dates[a:b]),('historical_reused_test',dates[b:])):
                     allowed=set(selected);testing=[e for e in events if e.day in allowed]
                     scores={e.key:1. for e in testing} if name=='rule' else predict(model,testing)
+                    old_scores={e.key:1. for e in testing} if name=='rule' else predict(old_model,testing)
                     for policy,settings in policies().items():
                         if settings['model']!=name:
                             continue
                         raw=compare(testing,scores,selected,settings['scope'],settings['threshold'])
+                        old=compare(testing,old_scores,selected,settings['scope'],settings['threshold'])
+                        if old!=previous['results'][policy]['raw'][phase]:
+                            raise ValueError(f'基準不能完整重現：{session}/{policy}/{phase}')
+                        reference_checks.setdefault(policy,{})[phase]=True
                         passed=spec['guards'][policy]['check']['passed']
                         guarded=raw if passed else compare(testing,scores,selected,settings['scope'],settings['threshold'],False)
                         results[policy]['raw'][phase]=raw;results[policy]['guarded'][phase]=guarded
@@ -139,6 +160,7 @@ def main():
             raw_checks={p:final_check(r['raw'],policies()[p]['scope']) for p,r in results.items()}
             selected=spec['selection']['selected']
             save(f'{session}-evaluation.json',dict(frozenId=frozen['id'],datasetId=ident,
+                parentFrozen=reference['id'],referenceReplayMatched=reference_checks,
                 selected=selected,results=results,checks=checks,rawDiagnosticChecks=raw_checks,
                 qualified=selected is not None and checks[selected]['passed'],
                 executionEnabled=False,adoptionAllowed=False,historyReused=True))
