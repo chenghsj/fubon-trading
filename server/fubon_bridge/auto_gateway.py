@@ -17,6 +17,8 @@ class SandboxGateway:
         return self.broker.config.mode
 
     def prepare(self, config):
+        if config.get('strategy_version') == 'regime_mtf_v3' and self.mode != 'paper':
+            raise ValueError('區間／順勢候選僅供 Paper 本機模擬')
         profile = config.get('strategy_session','cash')
         expected_session = market_session(profile)
         if self.mode not in self.allowed_modes or expected_session == 'afterhours' and self.mode != 'paper':
@@ -79,6 +81,8 @@ class SandboxGateway:
         return self.broker.automation_fill_price(self.broker.account(config["account"]), trade, config["trade_date"])
 
     def submit(self, config, action, limit, role, tag):
+        if config.get('strategy_version') == 'regime_mtf_v3' and self.mode != 'paper':
+            raise ValueError('區間／順勢候選僅供 Paper 本機模擬')
         return self.broker.place(dict(code=config["contract_code"], security_type="FUT"),
             dict(action=action, price=limit, quantity=1, price_type="LMT", order_type="IOC", octype="New" if role=="entry" else "Cover"),
             self.broker.account(config["account"]), client_tag=tag)

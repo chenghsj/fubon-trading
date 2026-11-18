@@ -5,7 +5,7 @@
 import { getApiBase, getStreamBase } from './runtime';
 import { serverUrlBlocked } from './server-read-gate';
 import { apiPost } from './api';
-import { openFubonEventSource } from './fubon-session';
+import { fubonStreamScope, openFubonEventSource } from './fubon-session';
 import type { SseBidAsk, SseIndexQuote, SseTick } from './types/market';
 import { rememberIndexClose } from './index-close-quote';
 import {
@@ -853,7 +853,10 @@ export function ensureStream() {
     if (!started) {
         started = true;
         shared = createSharedStream({
-            name: `sj-market-stream:${typeof location === 'undefined' ? 'test' : location.origin}:${getApiBase()}:${getStreamBase()}`,
+            // An old tab can retain its Web Lock after a bridge restart while
+            // its token is invalid. Newly unlocked tabs use the new public
+            // instance identity rather than following that stale stream owner.
+            name: `sj-market-stream:${typeof location === 'undefined' ? 'test' : location.origin}:${getApiBase()}:${getStreamBase()}:${fubonStreamScope() || 'legacy'}`,
             main: !isChildWindow(),
             onOwn: () => {
                 if (isChildWindow()) invalidateTradingMirror();

@@ -13,7 +13,7 @@ PARAMETERS = dict(objective='binary',num_leaves=7,max_depth=3,min_data_in_leaf=1
 
 def implementation_hashes():
     return {name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in
-        ['learning_data.py','learning_features.py','learning_multiframe.py','learning_train.py','learning_inference.py','intraday_strategy.py','auto_trading.py','research.py','strategy_session.py','learning_walkforward.py']}
+        ['learning_data.py','learning_features.py','learning_multiframe.py','learning_train.py','learning_inference.py','intraday_strategy.py','auto_trading.py','research.py','strategy_session.py','learning_walkforward.py','regime_strategy.py','regime_research.py']}
 
 
 class TrainingRequest(BaseModel):

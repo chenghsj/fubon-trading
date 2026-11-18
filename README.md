@@ -133,7 +133,7 @@ macOS 公開驗證資料保存在 `~/Library/Application Support/Fubon Trading/p
 | 圖表／條件單引擎的括號、觸價／定時／兩腳執行 | 停用，待成交回報與明細相容性驗證 |
 | 日內回測研究與 SQLite 資料庫 | 新增公開面板；歷史 1 分 K 快取、固定假設權重、ORB 濾網對照、成本／滑價與紀錄保存，見 [規格](docs/design/intraday-research.md) |
 | LightGBM 微台訊號研究 | 跨月資料、固定事件標籤、時間切分、成本壓力、模型保存／匯出；可手動選入 Paper／Sandbox 濾網實驗，未核准正式交易 |
-| Paper／Sandbox 策略自動交易 | 「新增面板 → 自動交易」；微台單口、指定日盤、限價 IOC、啟停／對帳與本機退出監控，見 [執行流程](docs/design/sandbox-auto-trading.md) |
+| Paper／Sandbox 策略自動交易 | 「新增面板 → 自動交易」；微台單口、限價IOC、啟停／對帳與退出監控。V3區間＋順勢僅供Paper，結合1／3／15分K，每分鐘判斷；研究與新模型訓練見 [候選規格](docs/research/tmf-regime-strategy-2026-11-18.md)，尚無獲利採用資格。[固定候選修正研究](docs/research/tmf-regime-refinement-2026-11-18.md)與[RSI／KD等指標比較](docs/research/tmf-indicator-study-2026-11-18.md)另提供唯讀歷史、分階段凍結與淨收益濾網比較；未接入執行器 |
 | 自動產生策略、最佳化與樣本外驗證 | 後續工作；研究面板不包含上游私有完整回測模組 |
 
 上游 Tauri 外殼、AI Agent、完整策略回測是未公開的專屬模組，fork 不會取得；公開 fork 另外提供範圍受限的日內研究面板與 Web 交易終端。

@@ -37,6 +37,7 @@ beforeEach(() => {
     fixture.overview = { datasets: [dataset('cash'), dataset('afterhours'), dataset('regular')], runs: [], jobs: [], databaseBytes: 1024 };
     fixture.get.mockImplementation(async (path: string) => {
         if (path === '/api/v1/research/learning') return fixture.overview;
+        if (path === '/api/v1/research/regime/runs') return [];
         throw new Error(`Unexpected read ${path}`);
     });
     fixture.post.mockResolvedValue({ id: 'job-1', action: 'train', status: 'running', message: '訓練中', progress: 0, resultId: null });
@@ -116,6 +117,25 @@ describe('learning panel dataset identity follows the research session', () => {
         fireEvent.click(trainButton());
         await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/research/learning/train', {
             dataset_id: IDS.regular, config: CONFIG, method: 'walkforward', feature_set: 'base',
+        }));
+    });
+
+    it('trains the new regime event family and resets it when switching to legacy cash', async () => {
+        await open();
+        fireEvent.change(screen.getByLabelText('特徵與判斷頻率'), { target: { value: 'regime_1_3_15' } });
+        fireEvent.click(trainButton());
+        await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/research/learning/train', {
+            dataset_id: IDS.regular, config: CONFIG, method: 'walkforward', feature_set: 'regime_1_3_15',
+        }));
+        // A new independent render verifies the transition without a running job.
+        cleanup(); fixture.post.mockClear(); await open();
+        fireEvent.change(screen.getByLabelText('特徵與判斷頻率'), { target: { value: 'regime_1_3_15' } });
+        fireEvent.change(sessionInput(), { target: { value: 'cash' } });
+        expect((screen.getByLabelText('特徵與判斷頻率') as HTMLSelectElement).value).toBe('mtf_1_3_15');
+        await waitFor(() => expect(datasetInput().value).toBe(IDS.cash));
+        fireEvent.click(trainButton());
+        await waitFor(() => expect(fixture.post).toHaveBeenCalledWith('/api/v1/research/learning/train', {
+            dataset_id: IDS.cash, config: CONFIG, method: 'walkforward', feature_set: 'mtf_1_3_15',
         }));
     });
 });

@@ -9,6 +9,8 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { SelectControl, SelectOption } from './ui/select-control';
 import { IntradayLearningResults } from './intraday-learning-results';
+import { RegimeResearchPanel } from './regime-research-panel';
+import { MarketCapturePanel } from './market-capture-panel';
 import * as s from './intraday-research.css';
 
 const day = (offset: number) => new Date(Date.now() + 8 * 3600000 - offset * 86400000).toISOString().slice(0, 10);
@@ -36,7 +38,7 @@ export function IntradayLearningPanel({ config }: { config: ResearchConfig }) {
                 if (job?.status === 'completed' && job.resultId && seenJob.current !== job.id) {
                     seenJob.current = job.id;
                     if (job.action === 'collect') setDatasetId(job.resultId);
-                    else setRunId(job.resultId);
+                    else if (job.action === 'train') setRunId(job.resultId);
                 }
                 timer = setTimeout(() => void poll(), 2000);
             } catch (e) { if (!disposed) { setError(`研究狀態更新失敗：${describe(e)}`); timer = setTimeout(() => void poll(), 10000); } }
@@ -76,11 +78,11 @@ export function IntradayLearningPanel({ config }: { config: ResearchConfig }) {
     };
     return <section aria-label="LightGBM 模型研究">
         <h3 className={s.subhead}>LightGBM · 微台訊號研究</h3>
-        <label className={s.field}>研究盤別<SelectControl aria-label="研究盤別" value={session} onValueChange={value => setSession(value as StrategySession)} disabled={running} wrapperClassName="w-full">{Object.entries(SESSION_LABEL).map(([key,label]) => <SelectOption key={key} value={key}>{label}</SelectOption>)}</SelectControl></label>
+        <label className={s.field}>研究盤別<SelectControl aria-label="研究盤別" value={session} onValueChange={value => { setSession(value as StrategySession); if (value === 'cash' && featureSet === 'regime_1_3_15') setFeatureSet('mtf_1_3_15'); }} disabled={running} wrapperClassName="w-full">{Object.entries(SESSION_LABEL).map(([key,label]) => <SelectOption key={key} value={key}>{label}</SelectOption>)}</SelectControl></label>
         <p className={s.muted}>{SESSION_RULE[session]}{session === 'cash' ? '使用四檔股票同步特徵。' : '使用期貨價量與波動特徵，不依賴同步現貨。'}</p>
         <label className={s.field}>訓練方法<SelectControl aria-label="訓練方法" value={method} onValueChange={value => setMethod(value as typeof method)} disabled={running} wrapperClassName="w-full"><SelectOption value="walkforward">滾動研究：分類／淨收益與6個固定門檻</SelectOption><SelectOption value="fixed">固定分類：0.5門檻</SelectOption></SelectControl></label>
-        <label className={s.field}>特徵與判斷頻率<SelectControl aria-label="特徵與判斷頻率" value={featureSet} onValueChange={value => setFeatureSet(value as LearningFeatureSet)} disabled={running} wrapperClassName="w-full">{Object.entries(FEATURE_SET_LABEL).map(([key,label]) => <SelectOption key={key} value={key}>{label}</SelectOption>)}</SelectControl></label>
-        <p className={s.muted}>{featureSet === 'mtf_1_3_15' ? '由既有1分K聚合1／3／15分特徵，從各盤開盤時間對齊，只取已收盤K棒；每1分鐘判斷突破。回測與Paper使用相同資料與頻率。' : '保留原版5分突破與5／15分鐘報酬特徵，供獨立對照。'} 此設定會保存於模型版本。</p>
+        <label className={s.field}>特徵與判斷頻率<SelectControl aria-label="特徵與判斷頻率" value={featureSet} onValueChange={value => { setFeatureSet(value as LearningFeatureSet); if (value === 'regime_1_3_15' && session === 'cash') setSession('regular'); }} disabled={running} wrapperClassName="w-full">{Object.entries(FEATURE_SET_LABEL).map(([key,label]) => <SelectOption key={key} value={key} disabled={key === 'regime_1_3_15' && session === 'cash'}>{label}</SelectOption>)}</SelectControl></label>
+        <p className={s.muted}>{featureSet === 'regime_1_3_15' ? 'V3以區間反轉與順勢滾動突破建立新事件標籤，結合盤勢與1／3／15分已收盤特徵，學習扣成本後結果；不沿用舊開盤突破模型。' : featureSet === 'mtf_1_3_15' ? '由既有1分K聚合1／3／15分特徵，從各盤開盤時間對齊，只取已收盤K棒；每1分鐘判斷突破。回測與Paper使用相同資料與頻率。' : '保留原版5分突破與5／15分鐘報酬特徵，供獨立對照。'} 此設定會保存於模型版本。</p>
         <p className={s.notice}>以完整開盤日按60/20/20訓練／驗證／測試；滾動研究只在前80%內做三段因果驗證、比較6個預定候選，再固定候選並用前60%訓練最終模型。測試期不參與選擇；全部嘗試保存。重訓不啟動或替換自動交易策略。</p>
         <div className={s.grid}>
             <label className={s.field}>訓練歷史開始日期<Input type="date" min="2024-07-29" max={end} disabled={running} value={start} onChange={e => setStart(e.target.value)} /></label>
@@ -99,5 +101,7 @@ export function IntradayLearningPanel({ config }: { config: ResearchConfig }) {
         {report && <IntradayLearningResults report={report} />}
         {report?.model && <Button size="compact" variant="outline" onClick={() => void exportModel()}>匯出本機模型</Button>}
         {overview && <p className={s.muted}>整個研究資料庫 {(overview.databaseBytes / 1048576).toFixed(1)} MiB；下載與訓練均保存在本機。</p>}
+        <RegimeResearchPanel config={config} datasets={overview?.datasets ?? []} jobs={overview?.jobs ?? []} />
+        <MarketCapturePanel />
     </section>;
 }

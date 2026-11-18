@@ -68,9 +68,13 @@ class LearningService:
             def work():
                 try:
                     update('開始研究工作',0)
-                    result=collect(self.broker,self.store,request,update) if action=='collect' else train(self.store,request,update)
+                    if action == 'regime':
+                        from .regime_research import run
+                        result = run(self.store, request, update)
+                    else:
+                        result=collect(self.broker,self.store,request,update) if action=='collect' else train(self.store,request,update)
                     with self.lock:
-                        job.update(status='completed',message='資料已保存' if action=='collect' else '模型研究已保存；未啟用自動交易',progress=1,resultId=result['id'])
+                        job.update(status='completed',message='區間／順勢比較已保存；未啟用自動交易' if action=='regime' else '資料已保存' if action=='collect' else '模型研究已保存；未啟用自動交易',progress=1,resultId=result['id'])
                 except Exception as error:
                     with self.lock:
                         job.update(status='failed',message=str(error) if isinstance(error,ValueError) else '研究工作失敗，已保存資料仍保留；請檢查套件與資料品質')

@@ -17,6 +17,18 @@ function browser(hash: string, saved?: string) {
 }
 
 describe('Fubon session boundary', () => {
+    it('separates restarted stream owners using public server identity without sharing tokens', async () => {
+        browser('', token);
+        const first = 'a'.repeat(32), second = 'b'.repeat(32);
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(Response.json({ instance_id: first }))
+            .mockResolvedValueOnce(Response.json({ instance_id: second })));
+        const { prepareFubonSession, activateSession, fubonStreamScope } = await import('./fubon-session');
+        expect(await prepareFubonSession()).toBe(true);
+        expect(fubonStreamScope()).toBe(first);
+        expect(await activateSession('U'.repeat(43))).toBe(true);
+        expect(fubonStreamScope()).toBe(second);
+        expect(fubonStreamScope()).not.toContain(token);
+    });
     it('strips the launch fragment and grants enrollment only, never trading authority', async () => {
         const storage = browser(`#fubon-launch=${launch}`);
         const native = vi.fn().mockResolvedValueOnce(Response.json({ enrollment_token: token }));

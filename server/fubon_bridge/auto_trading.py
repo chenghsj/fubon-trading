@@ -40,7 +40,7 @@ class AutoConfig(BaseModel):
     fee_source: Literal['assumed','statement'] = 'assumed'
     tax_rate: float = Field(default=.00002, ge=0, le=.01)
     use_basket: bool = False
-    strategy_version: Literal['orb_v1','orb_atr_v2'] = 'orb_v1'
+    strategy_version: Literal['orb_v1','orb_atr_v2','regime_mtf_v3'] = 'orb_v1'
     model_run_id: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
     strategy_session: StrategySession = 'cash'
     decision_minutes: Literal[1,5] = 5
@@ -48,12 +48,17 @@ class AutoConfig(BaseModel):
 
     @model_validator(mode="after")
     def valid_basket(self):
-        if self.decision_minutes != 5 and not self.model_run_id:
+        if self.strategy_version == 'regime_mtf_v3':
+            if self.decision_minutes != 1 or self.strategy_session == 'cash' or self.use_basket:
+                raise ValueError('區間／順勢策略須使用完整日／夜盤、每1分鐘判斷；不可套用現貨濾網')
+            if self.loss_limit > 1000:
+                raise ValueError('區間／順勢候選每盤損失預算最多1000元')
+        if self.decision_minutes != 5 and not self.model_run_id and self.strategy_version != 'regime_mtf_v3':
             raise ValueError('1分鐘判斷須使用相符的多週期模型')
         if self.strategy_session != 'cash' and self.use_basket:
             raise ValueError('完整期貨日盤與夜盤不使用同步現貨籃子')
-        if self.model_run_id and (self.strategy_version != 'orb_atr_v2' or self.use_basket):
-            raise ValueError('LightGBM 濾網須使用 V2 並關閉權值股方向濾網')
+        if self.model_run_id and (self.strategy_version not in {'orb_atr_v2', 'regime_mtf_v3'} or self.use_basket):
+            raise ValueError('LightGBM 濾網須使用相符的 V2／V3 策略並關閉權值股方向濾網')
         if len({m.code for m in self.basket}) != len(self.basket) or sum(m.weight for m in self.basket)>1.000001:
             raise ValueError("股票不可重複，權重合計不可超過 100%")
         return self
@@ -122,6 +127,8 @@ class SandboxAutoTrader:
             if not self.authorize(header):
                 raise ValueError("工作階段已鎖定，請重新解鎖")
             cfg = config.model_dump(mode="json")
+            if cfg['strategy_version'] == 'regime_mtf_v3' and self.gateway.mode != 'paper':
+                raise ValueError('區間／順勢候選僅供 Paper 本機模擬')
             at = self.clock()
             day = config.trade_date
             session_start, session_end = window(cfg)
@@ -386,6 +393,13 @@ class SandboxAutoTrader:
                 entryPrice=entry["fillPrice"],referencePrice=anchor,
                 stop=anchor-side*entry.get('stopPoints',cfg['stop_points']),target=anchor+side*entry.get('targetPoints',cfg['target_points']),
                 referenceType='fill' if entry.get('anchorMode')=='fill' and entry['fillPrice'] is not None else 'limit')
+            if entry.get('strategyVersion') == 'regime_mtf_v3':
+                from .regime_strategy import estimated_risk, protection
+                stop, target = protection(cfg, entry, entry['action'], anchor)
+                self.state['position'].update(stop=stop, target=target)
+                if entry['fillPrice'] is not None and estimated_risk(cfg,entry['action'],anchor,stop) > entry['riskBudget']:
+                    self.state.update(status='stopping', exitRequested=True, exitReason='成交後風險超過凍結預算',
+                        reason='已確認成交的風險超出凍結預算，停止新倉並嘗試退出')
             if entry.get('exitDeadline') is not None:
                 self.state['position']['exitDeadline'] = entry['exitDeadline']
             if entry["fillPrice"] is not None and self._valid_quote():
@@ -398,6 +412,8 @@ class SandboxAutoTrader:
 
     def _send(self, action, role, reason, *, recovery=False):
         self._assert_mode()
+        if self.state['config']['strategy_version'] == 'regime_mtf_v3' and self.gateway.mode != 'paper':
+            raise ValueError('區間／順勢候選僅供 Paper 本機模擬')
         if recovery and (self.gateway.mode!='paper' or role!='exit'):
             raise ValueError('手動恢復僅供 paper 退出')
         if not self.monitoring or self.state.get("manualResolved"):
@@ -430,6 +446,10 @@ class SandboxAutoTrader:
             raise ValueError("委託限價無效")
         plan={}
         if role=='entry':
+            if cfg['strategy_version'] == 'regime_mtf_v3' and (self.state['lastSignal'] or {}).get('time') != int(at.timestamp())//60*60:
+                self.state['reason'] = '1分訊號已跨分鐘，不追補過期進場'
+                self._save(self.state['reason'], 'signal_rejected')
+                return
             if cfg.get('model_run_id'):
                 model = (self.state['lastSignal'] or {}).get('model') or {}
                 if (self.entry_filter is None or model.get('runId') != cfg['model_run_id']
@@ -448,6 +468,9 @@ class SandboxAutoTrader:
                 plan.update(modelRunId=model['runId'], modelHash=model['hash'], modelScore=model['score'],
                     modelThreshold=model['threshold'], exitDeadline=min(self.state['lastSignal']['time']+20*60,
                         int((window(cfg)[0]+timedelta(minutes=schedule(cfg['strategy_session']).exit_minute)).timestamp())))
+            elif cfg['strategy_version'] == 'regime_mtf_v3':
+                plan['exitDeadline'] = min(self.state['lastSignal']['time']+20*60,
+                    int((window(cfg)[0]+timedelta(minutes=schedule(cfg['strategy_session']).exit_minute)).timestamp()))
         tag = "FA"+uuid.uuid4().hex[:8]
         order = dict(tag=tag,role=role,action=action,limit=limit,status="Sending",filled=0,fillPrice=None,
             orderId=None,submittedAt=at.timestamp(),cancelRequested=False,
@@ -540,7 +563,7 @@ class SandboxAutoTrader:
             elif target_hit:
                 self.state.update(exitRequested=True,exitReason="策略停利")
             if position.get('exitDeadline') is not None and at.timestamp() >= position['exitDeadline']:
-                self.state.update(exitRequested=True,exitReason='模型20分鐘退出期限')
+                self.state.update(exitRequested=True,exitReason='訊號20分鐘退出期限' if cfg['strategy_version'] == 'regime_mtf_v3' else '模型20分鐘退出期限')
             if self.state["exitRequested"] and not self.state["pending"]:
                 attempts = sum(o["role"]=="exit" and o["entryTag"]==position["entryTag"] for o in self.state["orders"])
                 if attempts>=3:
@@ -581,7 +604,11 @@ class SandboxAutoTrader:
                 values = self.gateway.bars(code,cfg["trade_date"],"STK")
                 stocks[code] = [b for b in values if b["time"]<=decision]
                 self.store.research.ingest_closed_bars(("fubon-"+self.gateway.mode,"STK",code,"","regular"),stocks[code])
-        signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks, cfg['strategy_session'],cfg.get('decision_minutes',5))
+        if cfg['strategy_version'] == 'regime_mtf_v3':
+            from .regime_strategy import regime_signal
+            signal = regime_signal(closed, decision, cfg['strategy_session'])
+        else:
+            signal = opening_signal(closed,decision,cfg["basket"] if cfg["use_basket"] else None,stocks, cfg['strategy_session'],cfg.get('decision_minutes',5))
         if signal['side'] and cfg.get('model_run_id'):
             if self.entry_filter is None or self.entry_filter.ident != cfg['model_run_id']:
                 raise ValueError('所選模型尚未載入，禁止進場')

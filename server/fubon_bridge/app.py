@@ -4,6 +4,7 @@ from copy import deepcopy
 import json
 import hashlib
 import threading
+from time import monotonic
 from pathlib import Path
 from urllib.parse import urlparse
 import uuid
@@ -18,6 +19,8 @@ from .config import Config, ROOT
 from .mapping import now
 from .models import ContractKey, Mutation, PlaceOrder, ProfitLossRequest, ScannerRequest, TicksRequest, VolumesRequest, WatchlistContracts
 from .market_data import MarketData
+from .market_capture import CaptureStore, MarketCapture
+from .capture_worker import CaptureResearchWorker
 from .portfolio_data import PortfolioData
 from .feature_errors import FeatureUnavailable
 from .native_panels import NativePanels
@@ -35,6 +38,7 @@ from .learning_store import LearningStore
 from .learning_service import LearningService
 from .learning_data import CollectionRequest
 from .learning_train import TrainingRequest
+from .regime_research import RegimeReports, RegimeRequest
 from .mode_settings import ModeChange, ModeSettings, ensure_idle
 from .watchlist_store import WatchlistStore
 from .credential_settings import CredentialChange, CredentialSettings
@@ -91,14 +95,20 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     gateway = PaperGateway(broker) if cfg.mode=='paper' else SandboxGateway(broker)
     automation = automation_factory(broker, research, session.authorize) if automation_factory else SandboxAutoTrader(gateway,AutoStore(research,cfg.mode),session.authorize)
     learning = LearningService(broker,LearningStore(research),automation)
+    regime_reports = RegimeReports(research)
+    capture = MarketCapture(broker,CaptureStore(research.path.with_name('.market-capture.sqlite3')))
+    broker.raw_market_sink = capture.offer
+    capture_research = CaptureResearchWorker(capture,research.path.parent/'.market-capture')
 
     @asynccontextmanager
     async def lifespan(app):
         nonlocal loop
         loop = asyncio.get_running_loop()
+        capture_research.start()
 
         async def demo_clock():
             while True:
+                await asyncio.to_thread(capture.maintain)
                 await asyncio.to_thread(broker.refresh_market_sessions)
                 broker.demo_events()
                 await asyncio.to_thread(native_panels.expire_indices)
@@ -115,6 +125,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             yield
         finally:
             await asyncio.to_thread(learning.shutdown)
+            await asyncio.to_thread(capture_research.shutdown)
             automation.closing.set()
             await asyncio.to_thread(automation.shutdown)
             for pending in (task, auto_task):
@@ -123,6 +134,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                     await pending
                 except asyncio.CancelledError:
                     pass
+            await asyncio.to_thread(capture.shutdown)
             await asyncio.to_thread(broker.close)
 
     app = FastAPI(title="Fubon Trading local bridge", lifespan=lifespan)
@@ -131,6 +143,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     app.state.session = session
     app.state.automation = automation
     app.state.learning = learning
+    app.state.capture = capture
+    app.state.capture_research = capture_research
 
     @app.middleware("http")
     async def local_only(request: Request, call_next):
@@ -249,7 +263,7 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
             market_connected=broker.market_connected(),
             session=cfg.session, error=broker.error or broker.session_error,
             trading_environment="sandbox" if cfg.mode == "sandbox" else "production" if cfg.mode == "live" else "local",
-            supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin", "scanner", "volumes", "option_catalog", "current_session_ticks"] + (["paper_realized_pnl"] if cfg.mode in {'paper', 'demo'} else []),
+            supported=["quotes", "depth", "kbars", "orders", "positions", "balance", "futures_margin", "scanner", "volumes", "option_catalog", "current_session_ticks", "market_capture"] + (["paper_realized_pnl"] if cfg.mode in {'paper', 'demo'} else []),
             limitations=(["富邦共用測試帳戶，帳務數字不保證正確且庫存每日重設"] if cfg.mode == "sandbox" else []) + ["複式單、信用下單與 Shioaji 專屬市場分析尚未轉接", "選擇權清單支援唯讀查詢；完整即時 T 字與選擇權交易尚未啟用", "標示 API 尚未接通的新功能面板僅提供本機版面，遠端操作停用"] + (["Paper 保存委託、持倉與費稅；未模擬排隊、部分成交、市場衝擊與保證金占用"] if cfg.mode=='paper' else ["展示模式使用合成資料與記憶體帳簿"] if cfg.mode=='demo' else []))
 
     def restart_response():
@@ -368,6 +382,23 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     @app.get("/api/v1/auth/accounts")
     def accounts():
         return broker.account_rows()
+
+    @app.get('/api/v1/research/capture')
+    def capture_status():
+        return dict(capture.status(),research=capture_research.status())
+
+    @app.post('/api/v1/research/capture/start')
+    def capture_start():
+        result=capture.start();capture_research.request()
+        return dict(result,research=capture_research.status())
+
+    @app.post('/api/v1/research/capture/stop')
+    def capture_stop():
+        return capture.stop()
+
+    @app.post('/api/v1/research/capture/research')
+    def capture_research_request():
+        return capture_research.request()
 
     @app.post("/api/v1/auth/subscribe_trade")
     def subscribe_trade(body: dict = Body(...)):
@@ -530,6 +561,18 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
     def learning_train(body: TrainingRequest):
         return learning.start('train',body)
 
+    @app.post('/api/v1/research/regime/run')
+    def regime_run(body: RegimeRequest):
+        return learning.start('regime', body)
+
+    @app.get('/api/v1/research/regime/runs')
+    def regime_runs():
+        return regime_reports.overview()
+
+    @app.get('/api/v1/research/regime/runs/{ident}')
+    def regime_report(ident: str):
+        return regime_reports.get(ident)
+
     @app.get('/api/v1/research/learning/runs/{ident}')
     def learning_run(ident: str):
         return learning.store.run(ident)
@@ -559,6 +602,8 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
 
         async def events():
             try:
+                # Active quotes must not postpone explicit stream heartbeats.
+                next_heartbeat = monotonic()+30
                 yield 'retry: 2000\n\n'
                 while not switching and session.authorize(request.headers.get("authorization", "")) and not await request.is_disconnected():
                     needed = {sub["kind"] for sub in list(broker.subscriptions.values())} | getattr(broker,'extra_socket_requirements',set())
@@ -568,15 +613,21 @@ def create_app(config=None, sdk_factory=None, *, launch_token=None, on_ready=Non
                         # Reconnection replays all subscriptions, including the lost feed.
                         break
                     try:
-                        item = await asyncio.wait_for(queue.get(), timeout=10)
+                        remaining = next_heartbeat-monotonic()
+                        if remaining <= 0:
+                            raise asyncio.TimeoutError
+                        item = await asyncio.wait_for(queue.get(), timeout=min(10, remaining))
                         if item is None:
                             break
                         event, data = item
                     except asyncio.TimeoutError:
-                        needed = {sub["kind"] for sub in broker.subscriptions.values()}
+                        if monotonic() < next_heartbeat:
+                            continue
+                        needed = {sub["kind"] for sub in list(broker.subscriptions.values())} | getattr(broker,'extra_socket_requirements',set())
                         feed_down = cfg.mode != "demo" and (broker.error or not needed.issubset(broker.connected_sockets))
                         event = "fubon_connection_status" if feed_down else "heartbeat"
                         data = {"time": now().isoformat(), "market_connected": not feed_down}
+                        next_heartbeat = monotonic()+30
                     if not session.authorize(request.headers.get("authorization", "")):
                         break
                     yield f'event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n'
