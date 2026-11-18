@@ -87,6 +87,30 @@ describe.each(kinds)('$kind 商品搜尋', ({ kind }) => {
         expect(submit).not.toHaveBeenCalled();
     });
 
+    it.each([
+        { key: 'Process', keyCode: 229 },
+        { key: 'ㄙ', keyCode: 0 },
+    ])('中文輸入法啟用但未組字時以實體 Ctrl+N/P 選取（$key）', async (ime) => {
+        mocks.search.mockResolvedValue([otcIndex, warrantSuggestion]);
+        const { view, submit } = render(kind);
+        await query(view, '台積電');
+        const press = (code: string, nativeComposing = false) => {
+            const event = { ...ime, code, ctrlKey: true, nativeEvent: { isComposing: nativeComposing }, preventDefault: vi.fn() };
+            act(() => input(view).props.onKeyDown(event));
+            return event;
+        };
+        expect(press('KeyN').preventDefault).toHaveBeenCalledOnce();
+        expect(activeText(view)).toContain(warrant.code);
+        expect(press('KeyP').preventDefault).toHaveBeenCalledOnce();
+        expect(activeText(view)).toContain(otcIndex.code);
+        expect(press('KeyN', true).preventDefault).not.toHaveBeenCalled();
+        expect(activeText(view)).toContain(otcIndex.code);
+        expect(submit).not.toHaveBeenCalled();
+        act(() => input(view).props.onCompositionStart());
+        expect(press('KeyN').preventDefault).not.toHaveBeenCalled();
+        expect(press('KeyP').preventDefault).not.toHaveBeenCalled();
+    });
+
     it('IND 結果的代碼及型別原樣交出，並明確開啟權證搜尋', async () => {
         mocks.search.mockResolvedValue([otcIndex]);
         const { view, submit, close } = render(kind);

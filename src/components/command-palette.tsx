@@ -177,12 +177,14 @@ export function CommandPalette({
                         setError(false);
                     }}
                     onKeyDown={(e) => {
-                        if (search.isComposing() || e.nativeEvent?.isComposing || e.keyCode === 229) return;
-                        const direction = searchNavigationDirection(e);
+                        const composing = search.isComposing() || e.nativeEvent?.isComposing;
+                        const direction = searchNavigationDirection(e, composing);
                         if (direction && rowCount > 0) {
                             e.preventDefault();
                             setActiveIdentity(rowIdentities[(activeIndex + direction + rowCount) % rowCount]!);
+                            return;
                         }
+                        if (composing || e.keyCode === 229) return;
                         if (e.key === 'Enter') void submit();
                     }}
                 />

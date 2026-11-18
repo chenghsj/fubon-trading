@@ -77,6 +77,30 @@ async function keyboardCycle(input, label) {
     await input.press('Control+n'); await input.press('Control+p');
     await expect(input).toHaveAttribute('aria-activedescendant', ids[start]);
     results.push({ check: 'ctrl-n-p-cycles-and-wraps', label, optionCount: ids.length, immediateNextPreviousReturns: true });
+    // Exercise the real DOM handlers with IME-translated keys, including legacy
+    // 229 outside composition; this is not a claim about a specific installed IME.
+    for (const ime of [{ key: 'Process', keyCode: 229 }, { key: 'ㄙ', keyCode: 0 }]) {
+        for (const [code, step] of [['KeyN', 1], ['KeyP', -1]]) {
+            index = (index + step + ids.length) % ids.length;
+            const prevented = await input.evaluate((element, init) => {
+                const event = new KeyboardEvent('keydown', { ...init, ctrlKey: true, bubbles: true, cancelable: true });
+                element.dispatchEvent(event);
+                return event.defaultPrevented;
+            }, { ...ime, code });
+            expect(prevented, label + ' IME Ctrl+' + code).toBe(true);
+            await expect(input).toHaveAttribute('aria-activedescendant', ids[index]);
+            await expect(page.locator(`[id=${JSON.stringify(ids[index])}]`)).toHaveAttribute('aria-selected', 'true');
+        }
+    }
+    const composingPrevented = await input.evaluate(element => {
+        const event = new KeyboardEvent('keydown', { key: 'Process', code: 'KeyN', keyCode: 229,
+            ctrlKey: true, isComposing: true, bubbles: true, cancelable: true });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+    });
+    expect(composingPrevented, label + ' active IME composition stays native').toBe(false);
+    await expect(input).toHaveAttribute('aria-activedescendant', ids[start]);
+    results.push({ check: 'ime-ctrl-n-p-navigation-and-composition-guard', label, translatedKeyVariants: 2 });
 }
 async function resultColumns(options, label) {
     const rows = await options.evaluateAll(rows => rows.flatMap(row => {
