@@ -68,6 +68,29 @@ it('名稱搜尋可用 Ctrl+N/P 循環選取，套用正確期貨型別', async 
     expect(select).toHaveBeenCalledExactlyOnceWith('CDFK6');
 });
 
+it.each([
+    { key: 'Process', keyCode: 229 },
+    { key: 'ㄙ', keyCode: 0 },
+])('圖表搜尋支援中文輸入法的實體 Ctrl+N/P（$key）', async (ime) => {
+    const { view, select } = render();
+    await query(view, '台積電');
+    const press = (code: string, nativeComposing = false) => {
+        const event = { ...ime, code, ctrlKey: true, nativeEvent: { isComposing: nativeComposing }, preventDefault: vi.fn() };
+        act(() => input(view).props.onKeyDown(event));
+        return event;
+    };
+    expect(press('KeyN').preventDefault).toHaveBeenCalledOnce();
+    expect(active(view)?.props.id).toContain('CDFK6');
+    expect(press('KeyP').preventDefault).toHaveBeenCalledOnce();
+    expect(active(view)?.props.id).toContain('2330');
+    expect(press('KeyN', true).preventDefault).not.toHaveBeenCalled();
+    expect(active(view)?.props.id).toContain('2330');
+    expect(select).not.toHaveBeenCalled();
+    act(() => input(view).props.onCompositionStart());
+    expect(press('KeyN').preventDefault).not.toHaveBeenCalled();
+    expect(press('KeyP').preventDefault).not.toHaveBeenCalled();
+});
+
 it('Esc 後仍留在輸入框的中文組字，不會被重新開啟搜尋清掉', async () => {
     const { view, select } = render();
     await query(view, '台積電'); key(view, 'Escape');

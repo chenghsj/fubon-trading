@@ -90,13 +90,16 @@ export function PanelProductSearch({ value, onChange, onSelect, label, className
                         setOpen(true);
                     }}
                     onKeyDown={event => {
-                        if (search.isComposing() || event.nativeEvent?.isComposing || event.keyCode === 229) return;
-                        const direction = searchNavigationDirection(event);
-                        if (event.key === 'Escape' && open) {
-                            event.preventDefault(); event.stopPropagation(); close();
-                        } else if (direction && suggestions.length) {
+                        const composing = search.isComposing() || event.nativeEvent?.isComposing;
+                        const direction = searchNavigationDirection(event, composing);
+                        if (direction && suggestions.length) {
                             event.preventDefault();
                             setActiveIdentity(productIdentity(suggestions[(activeIndex + direction + suggestions.length) % suggestions.length]!));
+                            return;
+                        }
+                        if (composing || event.keyCode === 229) return;
+                        if (event.key === 'Escape' && open) {
+                            event.preventDefault(); event.stopPropagation(); close();
                         } else if (event.key === 'Enter') {
                             event.preventDefault(); void submit();
                         }

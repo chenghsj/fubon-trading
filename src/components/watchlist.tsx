@@ -880,16 +880,19 @@ export function Watchlist({
                         setAddError(false);
                     }}
                     onKeyDown={(e) => {
-                        if (search.isComposing() || e.nativeEvent?.isComposing || e.keyCode === 229) return;
-                        const direction = searchNavigationDirection(e);
+                        const composing = search.isComposing() || e.nativeEvent?.isComposing;
+                        const direction = searchNavigationDirection(e, composing);
                         if (direction === 1 && suggestions.length > 0) {
                             e.preventDefault();
                             setActiveIdentity(suggestionIdentities[(activeIndex + 1) % suggestions.length]!);
+                            return;
                         }
                         if (direction === -1 && suggestions.length > 0) {
                             e.preventDefault();
                             setActiveIdentity(suggestionIdentities[activeIndex < 0 ? suggestions.length - 1 : (activeIndex - 1 + suggestions.length) % suggestions.length]!);
+                            return;
                         }
+                        if (composing || e.keyCode === 229) return;
                         if (e.key === 'Enter') {
                             void submit();
                         }
