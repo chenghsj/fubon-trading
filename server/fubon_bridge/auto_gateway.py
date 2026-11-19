@@ -29,13 +29,15 @@ class SandboxGateway:
         contract = self.broker.contract(key,refresh=True)
         if self.broker.config.session == 'auto':
             contract = self.broker.market_contract(key)
-        if self.broker.session_for(contract) != expected_session:
-            raise ValueError('策略盤別與商品目前行情盤別不符，請確認開盤時間與交易模式設定')
         if (contract.get("target_code") or contract.get("security_type") != "FUT"
             or not contract["code"].startswith("TMF") or contract.get("multiplier") != 10
-            or not contract.get("delivery_date") or contract["delivery_date"] < config["trade_date"]
-            or profile != 'cash' and contract['delivery_date'] == config['trade_date']):
+            or not contract.get("delivery_date")):
             raise ValueError("請選擇交易日尚未到期的微台具體月份")
+        expiry = contract['delivery_date']
+        if expiry < config['trade_date'] or profile != 'cash' and expiry == config['trade_date']:
+            raise ValueError(f"{contract['code']}（{expiry} 到期）不適用所選開盤日 {config['trade_date']}；請選擇交易日尚未到期的微台具體月份")
+        if self.broker.session_for(contract) != expected_session:
+            raise ValueError('策略盤別與商品目前行情盤別不符，請確認開盤時間與交易模式設定')
         self.broker.subscribe(key, "Tick")
         self.broker.subscribe(key, "BidAsk")
         self.contract_key = key

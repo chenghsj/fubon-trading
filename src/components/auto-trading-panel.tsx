@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { PaperLedger } from './paper-ledger';
 import { AutoModelField } from './auto-model-field';
+import { AutoContractField } from './auto-contract-field';
 import { ContractFeeNote } from './contract-fee-note';
 import { getContractFee, useContractFee } from '../lib/contract-fee';
 import { apiGet } from '../lib/api';
@@ -26,6 +27,8 @@ export function AutoTradingPanel() {
     const [state, setState] = useState<AutoState | null>(null);
     const [error, setError] = useState(''), [syncError, setSyncError] = useState(''), [busy, setBusy] = useState('');
     const [acknowledgement, setAcknowledgement] = useState('');
+    const [contractReady, setContractReady] = useState(false);
+    useEffect(() => setError(''), [draft.contract_code, draft.trade_date, draft.strategy_session]);
     const alive = useRef(true), loadedId = useRef<string | null | undefined>(undefined);
     const risk = useRiskSettings();
     const fee = useContractFee('TMF');
@@ -97,7 +100,7 @@ export function AutoTradingPanel() {
     const lockedPlan = runningOrExposed || !!state && state.entryCount > 0 && draft.trade_date === state.config?.trade_date && (draft.strategy_session ?? 'cash') === (state.config?.strategy_session ?? 'cash');
     const editable = !busy && !lockedPlan;
     const globalBlock = checkOrderAllowed(1);
-    const mayStart = !!state?.available && !!draft.account.account_id && !busy && !globalBlock && !state.pending && !state.position && !['running', 'stopping'].includes(state.status);
+    const mayStart = !!state?.available && contractReady && !!draft.account.account_id && !busy && !globalBlock && !state.pending && !state.position && !['running', 'stopping'].includes(state.status);
     useEffect(() => {
         if (fee && editable && !draft.model_run_id && (!state?.entryCount || draft.trade_date !== state.config?.trade_date) && !activeStatuses.has(state?.status ?? 'idle')) setDraft(old => ({ ...old, fee_per_side: fee.feePerSide, fee_source: 'statement' }));
     }, [fee, editable, state?.entryCount, state?.status, state?.config?.trade_date, draft.trade_date, draft.model_run_id]);
@@ -129,12 +132,12 @@ export function AutoTradingPanel() {
         <form onSubmit={e => { e.preventDefault(); void start(); }}>
             <label className={`${s.field} ${s.dateField}`}>實際開盤日期（夜盤為15:00所在日）<Input className={s.control} type="date" required disabled={!!busy || runningOrExposed} value={draft.trade_date} onChange={e => setDraft(old => ({ ...old, trade_date: e.target.value }))} /></label>
             <label className={s.field}>策略盤別<SelectControl aria-label="策略盤別" value={draft.strategy_session ?? 'cash'} disabled={!!busy || runningOrExposed} onValueChange={value => setDraft(old => ({ ...old, strategy_session: value as StrategySession, trade_date: nextAutoTradeDate(Date.now(), value as StrategySession), model_run_id: null, decision_minutes: 5, use_basket: false }))} wrapperClassName="w-full">{Object.entries(SESSION_LABEL).map(([key,label]) => <SelectOption key={key} value={key} disabled={key === 'afterhours' && !paper}>{label}</SelectOption>)}</SelectControl></label>
-            <p className={s.muted}>{SESSION_RULE[draft.strategy_session ?? 'cash']}請在上方交易模式設定選擇相同的行情盤別；同一時間只執行一份計畫。</p>
+            <p className={s.muted}>{SESSION_RULE[draft.strategy_session ?? 'cash']}上方行情盤別可用「自動」或手動選擇相同盤別；同一時間只執行一份計畫。</p>
+            <AutoContractField draft={draft} setDraft={setDraft} editable={editable} onValidityChange={setContractReady} />
             <fieldset className={s.fieldset} disabled={!editable}>
                 <legend className={s.heading}>策略與執行設定</legend>
                 <div className={s.grid}>
                     <label className={s.field}>{paper ? '策略模擬帳戶' : '期貨測試帳戶'}<SelectControl aria-label={paper ? '策略模擬帳戶' : '期貨測試帳戶'} wrapperClassName="w-full" disabled={!editable} className={s.control} value={autoAccountKey(draft.account)} onValueChange={selectedValue => { const a = accounts.find(a => autoAccountKey(a) === selectedValue); if (a) setDraft(old => ({ ...old, account: a })); }}><SelectOption value=":">選擇帳戶</SelectOption>{choices.map(a => <SelectOption key={autoAccountKey(a)} value={autoAccountKey(a)}>{a.broker_id}-{a.account_id}</SelectOption>)}</SelectControl></label>
-                    <label className={s.field}>微台具體合約<Input className={s.control} value={draft.contract_code} required pattern="TMF[A-L][0-9]" placeholder="TMFK6" onChange={e => setDraft(old => ({ ...old, contract_code: e.target.value.toUpperCase() }))} /></label>
                     <label className={s.field}>權值股濾網<SelectControl aria-label="權值股濾網" wrapperClassName="w-full" disabled={!editable || !!draft.model_run_id || (draft.strategy_session ?? 'cash') !== 'cash'} className={s.control} value={draft.use_basket ? 'basket' : 'baseline'} onValueChange={selectedValue => setDraft(old => ({ ...old, use_basket: selectedValue === 'basket' }))}><SelectOption value="baseline">開盤區間突破</SelectOption><SelectOption value="basket">突破＋權值股方向濾網</SelectOption></SelectControl></label>
                     <label className={s.field}>策略版本<SelectControl aria-label="策略版本" wrapperClassName="w-full" disabled={!editable || !!draft.model_run_id} className={s.control} value={draft.strategy_version ?? 'orb_v1'} onValueChange={value => setDraft(old => ({ ...old, strategy_version: value as AutoConfig['strategy_version'] }))}><SelectOption value="orb_v1">V1 固定停損</SelectOption><SelectOption value="orb_atr_v2">V2 波動風控（研究候選）</SelectOption></SelectControl></label>
                 </div>

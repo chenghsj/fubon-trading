@@ -87,8 +87,12 @@ async function prepare() {
         await panel().getByRole('combobox', { name: '策略盤別', exact: true }).click();
         await page.getByRole('option', { name: '現貨重疊日盤 09:00–13:20', exact: true }).click();
     }
-    await panel().getByLabel('微台具體合約', { exact: true }).fill('TMFK6');
     await panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true }).fill('2026-11-13');
+    const contract = panel().getByRole('combobox', { name: '微台具體合約', exact: true });
+    if (await contract.isEnabled()) {
+        await contract.click();
+        await page.getByRole('option', { name: 'TMFK6 · 2026-11-18 到期', exact: true }).click();
+    }
     await expect(button('啟動／恢復 sandbox 策略')).toBeEnabled({ timeout: 12000 });
 }
 async function start() {
@@ -164,6 +168,7 @@ from datetime import datetime
 from types import SimpleNamespace
 import uvicorn
 from fastapi import Request
+import fubon_bridge.broker as broker_module
 from fubon_bridge.app import create_app
 from fubon_bridge.auto_store import AutoStore
 from fubon_bridge.auto_trading import SandboxAutoTrader,empty_state
@@ -181,6 +186,7 @@ class QAGateway(FakeGateway):
         if self.quote_failed: raise TimeoutError('QA quote unavailable')
         return super().quote(contract)
 clock=SimpleNamespace(at=datetime(2026,11,13,9,19,tzinfo=TAIPEI),mono=0)
+broker_module.now=lambda:clock.at
 gateway=QAGateway(clock)
 sdk_calls=0
 def no_sdk():
@@ -193,7 +199,13 @@ class ManualTrader(SandboxAutoTrader):
     def manual_tick(self):
         super().tick()
 def factory(broker,research,authorize):
-    broker.config=Config(mode='demo') # Fixture market reads remain synthetic; UI advertises sandbox for its FakeGateway.
+    broker.config=Config(mode='demo',session='regular') # Fixture market reads remain synthetic; UI advertises sandbox for its FakeGateway.
+    broker._demo_catalog()
+    broker.sdk=SimpleNamespace(shutdown=lambda:None) # Synthetic connection identity only; never a native SDK.
+    broker.connected_sockets.update({'stock','futopt'})
+    for contract in broker.catalog.values():
+        if contract['security_type']=='FUT': contract['delivery_date']='2026-11-18'
+    broker.catalog['TMFL6']=dict(broker.catalog['TMFK6'],code='TMFL6',target_code=None,delivery_date='2026-12-16',delivery_month='202612')
     broker.account_rows=lambda:[dict(ACCOUNT,signed=True,person_id='',username='QA fake account')]
     return ManualTrader(gateway,AutoStore(research),authorize,clock=lambda:clock.at,monotonic=lambda:clock.mono)
 app=create_app(Config(mode='sandbox',port=int(os.environ['AUTO_UI_PORT'])),sdk_factory=no_sdk,
@@ -292,6 +304,20 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['AUTO_API_PORT']),access_lo
     });
     await page.reload();
     await see('尚未啟動');
+    await prepare();
+    // An expired saved selection stays visible until the user chooses a month;
+    // changing the opening date must not silently roll the strategy contract.
+    await panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true }).fill('2026-11-19');
+    const monthlyChoice = panel().getByRole('combobox', { name: '微台具體合約', exact: true });
+    await expect(monthlyChoice).toHaveText('TMFK6 · 需重新選擇');
+    await expect(panel().getByRole('alert')).toContainText('TMFK6（2026-11-18 到期）');
+    await expect(button('啟動／恢復 sandbox 策略')).toBeDisabled();
+    await monthlyChoice.click();
+    await page.getByRole('option', { name: 'TMFL6 · 2026-12-16 到期', exact: true }).click();
+    await expect(panel().getByRole('alert')).toBeHidden();
+    await expect(button('啟動／恢復 sandbox 策略')).toBeEnabled();
+    expect((await state()).id).toBeNull();
+    scenarios.push({ name: 'expired-month-requires-explicit-selection', expired: 'TMFK6', selected: 'TMFL6', strategyStarted: false });
     await prepare();
     await expect(panel().locator('select:not([aria-hidden="true"])')).toHaveCount(0);
     const accountChoice = panel().getByRole('combobox', { name: '期貨測試帳戶', exact: true });

@@ -173,7 +173,7 @@ class ManualTrader(SandboxAutoTrader):
     def manual_tick(self): super().tick()
 def factory(broker,research,authorize):
     return ManualTrader(PaperGateway(broker),AutoStore(research,'paper'),authorize,clock=lambda:clock.at,monotonic=lambda:clock.mono)
-app=create_app(Config(mode='paper',port=int(os.environ['PAPER_API_PORT'])),sdk_factory=no_sdk,
+app=create_app(Config(mode='paper',session='regular',port=int(os.environ['PAPER_API_PORT'])),sdk_factory=no_sdk,
     launch_token=os.environ['PAPER_LAUNCH'],public_origin=os.environ['PAPER_ORIGIN'],
     passkey_store=PasskeyStore(os.environ['PAPER_PASSKEY_DATABASE']),research_store=ResearchStore(os.environ['PAPER_DATABASE']),automation_factory=factory)
 broker=app.state.broker; trader=app.state.automation
@@ -182,6 +182,9 @@ broker._demo_catalog()
 for contract in broker.catalog.values():
     if contract['security_type']=='FUT': contract['delivery_date']='2026-11-18'
     contract['name']='QA 合成行情 '+contract['code']
+broker.catalog['TMFL6']=dict(broker.catalog['TMFK6'],code='TMFL6',target_code=None,delivery_date='2026-12-16',delivery_month='202612')
+broker.future_product_catalog={c['root']:dict(symbol=c['root'],name=c['name'],contractSize=c['multiplier'])
+    for c in broker.catalog.values() if c['security_type']=='FUT' and not c.get('target_code')}
 def contract(key,**kw):
     count('marketReads')
     value=broker.catalog.get(key['code'])
@@ -301,8 +304,11 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['PAPER_API_PORT']),access_l
     await shot('paper-manual-ledger', ledger());
     await page.locator('[data-slot="card"]').filter({ hasText: '持倉/委託/帳務' }).first().screenshot({ path: path.join(artifacts, 'paper-cross-panel.png') }); screenshots.push(path.join(artifacts, 'paper-cross-panel.png'));
     await workspace(['autotrade']);
-    await panel().getByLabel('微台具體合約', { exact: true }).fill('TMFK6');
-    await panel().getByLabel('單次交易日期', { exact: true }).fill('2026-11-13');
+    await panel().getByRole('combobox', { name: '策略盤別', exact: true }).click();
+    await page.getByRole('option', { name: '現貨重疊日盤 09:00–13:20', exact: true }).click();
+    await panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true }).fill('2026-11-13');
+    await panel().getByRole('combobox', { name: '微台具體合約', exact: true }).click();
+    await page.getByRole('option', { name: 'TMFK6 · 2026-11-18 到期', exact: true }).click();
     await advance({ price: 25020, spread: 1 });
     await button('啟動／恢復 paper 策略').click(); await expect(panel().getByText('策略執行中', { exact: true })).toBeVisible();
     const intent = await advance({ at: '2026-11-13T09:20:01+08:00', ticks: 1 });
@@ -356,7 +362,7 @@ uvicorn.run(app,host='127.0.0.1',port=int(os.environ['PAPER_API_PORT']),access_l
     // A new paper plan may leave a held position across dates; only the explicit
     // recovery button can flatten it using the original contract and a fresh quote.
     await page.reload(); await expect(panel()).toBeVisible();
-    await panel().getByLabel('單次交易日期', { exact: true }).fill('2026-11-16');
+    await panel().getByLabel('實際開盤日期（夜盤為15:00所在日）', { exact: true }).fill('2026-11-16');
     await advance({ price: 25020, spread: 1 }); await button('啟動／恢復 paper 策略').click();
     await expect(panel().getByText('策略執行中', { exact: true })).toBeVisible();
     const nextEntry = await advance({ at: '2026-11-16T09:20:01+08:00', ticks: 2 }); expect(nextEntry.state.position.entryPrice).toBe(25021);

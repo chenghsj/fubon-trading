@@ -44,7 +44,7 @@ export function nextAutoTradeDate(epoch = Date.now(), session: StrategySession =
 export function initialAutoConfig(): AutoConfig {
     const day = nextAutoTradeDate(Date.now(), 'regular'), fee = getContractFee('TMF');
     return { account: { account_type: 'F', broker_id: '', account_id: '' },
-        contract_code: `TMF${'ABCDEFGHIJKL'[Number(day.slice(5, 7)) - 1]}${day[3]}`, trade_date: day,
+        contract_code: '', trade_date: day,
         stop_points: 30, target_points: 60, slippage_points: 2, max_entries: 2, loss_limit: 1000,
         strategy_version: 'orb_v1', strategy_session: 'regular', fee_source: fee ? 'statement' : 'assumed',
         fee_per_side: fee?.feePerSide ?? 20, tax_rate: .00002, use_basket: false,
